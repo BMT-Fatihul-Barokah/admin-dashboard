@@ -6,6 +6,35 @@ import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+interface PendingApproval {
+  id: string;
+  name: string;
+  nik: string;
+  email: string;
+  phone: string;
+  date: string;
+}
+
+interface ApprovedCustomer {
+  id: string;
+  name: string;
+  nik: string;
+  email: string;
+  phone: string;
+  approvedDate: string;
+  approvedBy: string;
+}
+
+interface RejectedCustomer {
+  id: string;
+  name: string;
+  nik: string;
+  email: string;
+  phone: string;
+  rejectedDate: string;
+  reason: string;
+}
+
 export default function ApprovalsPage() {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -184,131 +213,8 @@ export default function ApprovalsPage() {
   )
 }
 
-const pendingApprovals = [
-  {
-    id: "APP-001",
-    name: "Budi Santoso",
-    nik: "3271046504980001",
-    email: "budi.santoso@example.com",
-    phone: "081234567890",
-    date: "27 Apr 2023",
-  },
-  {
-    id: "APP-002",
-    name: "Siti Rahayu",
-    nik: "3271046504980002",
-    email: "siti.rahayu@example.com",
-    phone: "081234567891",
-    date: "27 Apr 2023",
-  },
-  {
-    id: "APP-003",
-    name: "Ahmad Hidayat",
-    nik: "3271046504980003",
-    email: "ahmad.hidayat@example.com",
-    phone: "081234567892",
-    date: "26 Apr 2023",
-  },
-  {
-    id: "APP-004",
-    name: "Dewi Lestari",
-    nik: "3271046504980004",
-    email: "dewi.lestari@example.com",
-    phone: "081234567893",
-    date: "26 Apr 2023",
-  },
-  {
-    id: "APP-005",
-    name: "Eko Prasetyo",
-    nik: "3271046504980005",
-    email: "eko.prasetyo@example.com",
-    phone: "081234567894",
-    date: "25 Apr 2023",
-  },
-  {
-    id: "APP-006",
-    name: "Rina Wati",
-    nik: "3271046504980006",
-    email: "rina.wati@example.com",
-    phone: "081234567895",
-    date: "25 Apr 2023",
-  },
-]
+const pendingApprovals: PendingApproval[] = []
 
-const approvedCustomers = [
-  {
-    id: "APP-007",
-    name: "Joko Widodo",
-    nik: "3271046504980007",
-    email: "joko.widodo@example.com",
-    phone: "081234567896",
-    approvedDate: "24 Apr 2023",
-    approvedBy: "Admin",
-  },
-  {
-    id: "APP-008",
-    name: "Ani Yudhoyono",
-    nik: "3271046504980008",
-    email: "ani.yudhoyono@example.com",
-    phone: "081234567897",
-    approvedDate: "24 Apr 2023",
-    approvedBy: "Admin",
-  },
-  {
-    id: "APP-009",
-    name: "Bambang Pamungkas",
-    nik: "3271046504980009",
-    email: "bambang.pamungkas@example.com",
-    phone: "081234567898",
-    approvedDate: "23 Apr 2023",
-    approvedBy: "Admin",
-  },
-  {
-    id: "APP-010",
-    name: "Ratna Sari",
-    nik: "3271046504980010",
-    email: "ratna.sari@example.com",
-    phone: "081234567899",
-    approvedDate: "23 Apr 2023",
-    approvedBy: "Admin",
-  },
-]
+const approvedCustomers: ApprovedCustomer[] = []
 
-const rejectedCustomers = [
-  {
-    id: "APP-011",
-    name: "Agus Salim",
-    nik: "3271046504980011",
-    email: "agus.salim@example.com",
-    phone: "081234567800",
-    rejectedDate: "22 Apr 2023",
-    reason: "Dokumen tidak lengkap",
-  },
-  {
-    id: "APP-012",
-    name: "Dian Sastro",
-    nik: "3271046504980012",
-    email: "dian.sastro@example.com",
-    phone: "081234567801",
-    rejectedDate: "22 Apr 2023",
-    reason: "Data tidak valid",
-  },
-  {
-    id: "APP-013",
-    name: "Rudi Hartono",
-    nik: "3271046504980013",
-    email: "rudi.hartono@example.com",
-    phone: "081234567802",
-    rejectedDate: "21 Apr 2023",
-    reason: "Riwayat kredit buruk",
-  },
-  {
-    id: "APP-014",
-    name: "Tuti Wibowo",
-    nik: "3271046504980014",
-    email: "tuti.wibowo@example.com",
-    phone: "081234567803",
-    rejectedDate: "21 Apr 2023",
-    reason: "Alamat tidak ditemukan",
-  },
-]
+const rejectedCustomers: RejectedCustomer[] = []
