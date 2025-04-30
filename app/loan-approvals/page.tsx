@@ -9,220 +9,173 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/utils/supabase/client";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from 'uuid';
 
-interface PendingApproval {
+interface Loan {
   id: string;
-  nama: string;
-  noIdentitas: string;
-  noTelepon: string;
-  created_at: string;
-  akun_id: string;
-  submission_id: string;
-  alamat: string;
-  kotaKabupaten: string;
-  tempatLahir: string;
-  tanggalLahir: string;
-  pekerjaan: string;
-  jenisIdentitas: string;
-  jenisKelamin: string;
+  anggota_id: string;
+  anggota_nama: string;
+  jumlah: number;
+  tenor: number;
+  tujuan: string;
   status: string;
+  created_at: string;
+  updated_at: string;
+  alasan_penolakan?: string;
 }
 
-interface ApprovedCustomer {
-  id: string;
-  nama: string;
-  noIdentitas: string;
-  noTelepon: string;
-  approved_at: string;
-  approved_by: string;
-}
-
-interface RejectedCustomer {
-  id: string;
-  nama: string;
-  noIdentitas: string;
-  noTelepon: string;
-  rejected_at: string;
-  reason: string;
-}
-
-export default function ApprovalsPage() {
-  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
-  const [approvedCustomers, setApprovedCustomers] = useState<ApprovedCustomer[]>([]);
-  const [rejectedCustomers, setRejectedCustomers] = useState<RejectedCustomer[]>([]);
+export default function LoanApprovalsPage() {
+  const [pendingLoans, setPendingLoans] = useState<Loan[]>([]);
+  const [approvedLoans, setApprovedLoans] = useState<Loan[]>([]);
+  const [rejectedLoans, setRejectedLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<PendingApproval | null>(null);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
   const supabase = createClient();
 
-  const fetchApprovals = async () => {
+  const fetchLoans = async () => {
     setIsLoading(true);
     try {
-      // Fetch pending registrations
+      // Fetch pending loans
       const { data: pendingData, error: pendingError } = await supabase
-        .from("pendaftaran")
-        .select("*")
+        .from("pinjaman")
+        .select(`
+          *,
+          anggota:anggota_id (
+            nama
+          )
+        `)
         .eq("status", "menunggu");
 
       if (pendingError) throw pendingError;
 
-      // Fetch approved registrations
+      // Fetch approved loans
       const { data: approvedData, error: approvedError } = await supabase
-        .from("pendaftaran")
-        .select("*")
+        .from("pinjaman")
+        .select(`
+          *,
+          anggota:anggota_id (
+            nama
+          )
+        `)
         .eq("status", "disetujui");
 
       if (approvedError) throw approvedError;
 
-      // Fetch rejected registrations
+      // Fetch rejected loans
       const { data: rejectedData, error: rejectedError } = await supabase
-        .from("pendaftaran")
-        .select("*")
+        .from("pinjaman")
+        .select(`
+          *,
+          anggota:anggota_id (
+            nama
+          )
+        `)
         .eq("status", "ditolak");
 
       if (rejectedError) throw rejectedError;
 
       // Format the data
-      setPendingApprovals(pendingData || []);
-      
-      const formattedApproved = (approvedData || []).map((customer: any) => ({
-        id: customer.id,
-        nama: customer.nama,
-        noIdentitas: customer.noIdentitas,
-        noTelepon: customer.noTelepon,
-        approved_at: customer.updated_at,
-        approved_by: "Admin"
-      }));
-      
-      const formattedRejected = (rejectedData || []).map((customer: any) => ({
-        id: customer.id,
-        nama: customer.nama,
-        noIdentitas: customer.noIdentitas,
-        noTelepon: customer.noTelepon,
-        rejected_at: customer.updated_at,
-        reason: customer.alasan_penolakan || "Tidak ada alasan"
+      const formattedPending = pendingData.map((loan) => ({
+        ...loan,
+        anggota_nama: loan.anggota?.nama || "Unknown",
       }));
 
-      setApprovedCustomers(formattedApproved);
-      setRejectedCustomers(formattedRejected);
+      const formattedApproved = approvedData.map((loan) => ({
+        ...loan,
+        anggota_nama: loan.anggota?.nama || "Unknown",
+      }));
+
+      const formattedRejected = rejectedData.map((loan) => ({
+        ...loan,
+        anggota_nama: loan.anggota?.nama || "Unknown",
+      }));
+
+      setPendingLoans(formattedPending);
+      setApprovedLoans(formattedApproved);
+      setRejectedLoans(formattedRejected);
     } catch (error) {
-      console.error("Error fetching approvals:", error);
-      toast.error("Gagal memuat data persetujuan nasabah");
+      console.error("Error fetching loans:", error);
+      toast.error("Gagal memuat data pinjaman");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchApprovals();
+    fetchLoans();
   }, []);
 
-  const handleApprove = async (customer: PendingApproval) => {
+  const handleApprove = async (loan: Loan) => {
     try {
-      // 1. Generate a random account number
-      const accountNumber = Math.floor(Math.random() * 9000000) + 1000000;
-      const formattedAccountNumber = accountNumber.toString();
-      
-      // 2. Create a new anggota record
-      const anggotaId = uuidv4();
-      const { error: anggotaError } = await supabase
-        .from("anggota")
-        .insert({
-          id: anggotaId,
-          nama: customer.nama,
-          nomor_rekening: formattedAccountNumber,
-          alamat: customer.alamat,
-          kota: customer.kotaKabupaten,
-          tempat_lahir: customer.tempatLahir,
-          tanggal_lahir: customer.tanggalLahir,
-          pekerjaan: customer.pekerjaan,
-          jenis_identitas: customer.jenisIdentitas,
-          nomor_identitas: customer.noIdentitas,
-          saldo: 0,
-          is_active: true
-        });
+      const { error } = await supabase
+        .from("pinjaman")
+        .update({ status: "disetujui", updated_at: new Date().toISOString() })
+        .eq("id", loan.id);
 
-      if (anggotaError) throw anggotaError;
+      if (error) throw error;
 
-      // 3. Update the akun record to link it to the new anggota
-      const { error: akunError } = await supabase
-        .from("akun")
-        .update({ 
-          anggota_id: anggotaId,
-          is_active: true 
-        })
-        .eq("id", customer.akun_id);
-
-      if (akunError) throw akunError;
-
-      // 4. Update the pendaftaran record status
-      const { error: pendaftaranError } = await supabase
-        .from("pendaftaran")
-        .update({ 
-          status: "disetujui",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", customer.id);
-
-      if (pendaftaranError) throw pendaftaranError;
-
-      toast.success("Nasabah berhasil disetujui");
-      fetchApprovals();
+      toast.success("Pinjaman berhasil disetujui");
+      fetchLoans();
     } catch (error) {
-      console.error("Error approving customer:", error);
-      toast.error("Gagal menyetujui nasabah");
+      console.error("Error approving loan:", error);
+      toast.error("Gagal menyetujui pinjaman");
     }
   };
 
-  const openRejectDialog = (customer: PendingApproval) => {
-    setSelectedCustomer(customer);
+  const openRejectDialog = (loan: Loan) => {
+    setSelectedLoan(loan);
     setRejectionReason("");
     setIsRejectDialogOpen(true);
   };
 
   const handleReject = async () => {
-    if (!selectedCustomer) return;
+    if (!selectedLoan) return;
 
     try {
-      // 1. Update the pendaftaran record status
-      const { error: pendaftaranError } = await supabase
-        .from("pendaftaran")
-        .update({ 
+      const { error } = await supabase
+        .from("pinjaman")
+        .update({
           status: "ditolak",
           alasan_penolakan: rejectionReason,
           updated_at: new Date().toISOString()
         })
-        .eq("id", selectedCustomer.id);
+        .eq("id", selectedLoan.id);
 
-      if (pendaftaranError) throw pendaftaranError;
+      if (error) throw error;
 
-      toast.success("Nasabah berhasil ditolak");
+      toast.success("Pinjaman berhasil ditolak");
       setIsRejectDialogOpen(false);
-      fetchApprovals();
+      fetchLoans();
     } catch (error) {
-      console.error("Error rejecting customer:", error);
-      toast.error("Gagal menolak nasabah");
+      console.error("Error rejecting loan:", error);
+      toast.error("Gagal menolak pinjaman");
     }
   };
 
-  const filteredPendingApprovals = pendingApprovals.filter(approval => 
-    approval.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    approval.noIdentitas.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    approval.noTelepon.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredPendingLoans = pendingLoans.filter(loan => 
+    loan.anggota_nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    loan.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Persetujuan Nasabah</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Persetujuan Pinjaman</h2>
       </div>
 
       <Tabs defaultValue="pending" className="space-y-4">
@@ -238,13 +191,13 @@ export default function ApprovalsPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 
                 type="search" 
-                placeholder="Cari nasabah..." 
+                placeholder="Cari pinjaman..." 
                 className="w-full pl-8" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon" className="ml-auto" onClick={() => fetchApprovals()}>
+            <Button variant="outline" size="icon" className="ml-auto" onClick={() => fetchLoans()}>
               <SlidersHorizontal className="h-4 w-4" />
               <span className="sr-only">Refresh</span>
             </Button>
@@ -254,34 +207,34 @@ export default function ApprovalsPage() {
             <div className="flex justify-center items-center h-40">
               <p>Memuat data...</p>
             </div>
-          ) : filteredPendingApprovals.length === 0 ? (
+          ) : filteredPendingLoans.length === 0 ? (
             <div className="flex justify-center items-center h-40">
-              <p>Tidak ada nasabah yang menunggu persetujuan</p>
+              <p>Tidak ada pinjaman yang menunggu persetujuan</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredPendingApprovals.map((approval) => (
-                <Card key={approval.id}>
+              {filteredPendingLoans.map((loan) => (
+                <Card key={loan.id}>
                   <CardHeader>
-                    <CardTitle>{approval.nama}</CardTitle>
-                    <CardDescription>ID: {approval.submission_id}</CardDescription>
+                    <CardTitle>{loan.anggota_nama}</CardTitle>
+                    <CardDescription>ID: {loan.id}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">{approval.jenisIdentitas}:</span>
-                      <span className="text-sm font-medium">{approval.noIdentitas}</span>
+                      <span className="text-sm text-muted-foreground">Jumlah:</span>
+                      <span className="text-sm font-medium">{formatCurrency(loan.jumlah)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Telepon:</span>
-                      <span className="text-sm font-medium">{approval.noTelepon}</span>
+                      <span className="text-sm text-muted-foreground">Tenor:</span>
+                      <span className="text-sm font-medium">{loan.tenor} bulan</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Alamat:</span>
-                      <span className="text-sm font-medium">{approval.alamat}, {approval.kotaKabupaten}</span>
+                      <span className="text-sm text-muted-foreground">Tujuan:</span>
+                      <span className="text-sm font-medium">{loan.tujuan}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Tanggal Pengajuan:</span>
-                      <span className="text-sm font-medium">{new Date(approval.created_at).toLocaleDateString('id-ID')}</span>
+                      <span className="text-sm font-medium">{new Date(loan.created_at).toLocaleDateString('id-ID')}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Status:</span>
@@ -294,7 +247,7 @@ export default function ApprovalsPage() {
                       <Button 
                         variant="destructive" 
                         size="icon"
-                        onClick={() => openRejectDialog(approval)}
+                        onClick={() => openRejectDialog(loan)}
                       >
                         <XCircle className="h-4 w-4" />
                       </Button>
@@ -302,7 +255,7 @@ export default function ApprovalsPage() {
                         variant="default" 
                         size="icon" 
                         className="bg-green-500 hover:bg-green-600"
-                        onClick={() => handleApprove(approval)}
+                        onClick={() => handleApprove(loan)}
                       >
                         <CheckCircle className="h-4 w-4" />
                       </Button>
@@ -318,7 +271,7 @@ export default function ApprovalsPage() {
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="relative w-full md:w-80">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input type="search" placeholder="Cari nasabah..." className="w-full pl-8" />
+              <Input type="search" placeholder="Cari pinjaman..." className="w-full pl-8" />
             </div>
           </div>
 
@@ -326,9 +279,9 @@ export default function ApprovalsPage() {
             <div className="flex justify-center items-center h-40">
               <p>Memuat data...</p>
             </div>
-          ) : approvedCustomers.length === 0 ? (
+          ) : approvedLoans.length === 0 ? (
             <div className="flex justify-center items-center h-40">
-              <p>Tidak ada nasabah yang disetujui</p>
+              <p>Tidak ada pinjaman yang disetujui</p>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -337,21 +290,21 @@ export default function ApprovalsPage() {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Nama</TableHead>
-                    <TableHead>NIK</TableHead>
-                    <TableHead>Telepon</TableHead>
+                    <TableHead>Jumlah</TableHead>
+                    <TableHead>Tenor</TableHead>
+                    <TableHead>Tujuan</TableHead>
                     <TableHead>Tanggal Disetujui</TableHead>
-                    <TableHead>Disetujui Oleh</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {approvedCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.id}</TableCell>
-                      <TableCell>{customer.nama}</TableCell>
-                      <TableCell>{customer.noIdentitas}</TableCell>
-                      <TableCell>{customer.noTelepon}</TableCell>
-                      <TableCell>{new Date(customer.approved_at).toLocaleDateString('id-ID')}</TableCell>
-                      <TableCell>{customer.approved_by}</TableCell>
+                  {approvedLoans.map((loan) => (
+                    <TableRow key={loan.id}>
+                      <TableCell className="font-medium">{loan.id}</TableCell>
+                      <TableCell>{loan.anggota_nama}</TableCell>
+                      <TableCell>{formatCurrency(loan.jumlah)}</TableCell>
+                      <TableCell>{loan.tenor} bulan</TableCell>
+                      <TableCell>{loan.tujuan}</TableCell>
+                      <TableCell>{new Date(loan.updated_at).toLocaleDateString('id-ID')}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -364,7 +317,7 @@ export default function ApprovalsPage() {
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="relative w-full md:w-80">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input type="search" placeholder="Cari nasabah..." className="w-full pl-8" />
+              <Input type="search" placeholder="Cari pinjaman..." className="w-full pl-8" />
             </div>
           </div>
 
@@ -372,9 +325,9 @@ export default function ApprovalsPage() {
             <div className="flex justify-center items-center h-40">
               <p>Memuat data...</p>
             </div>
-          ) : rejectedCustomers.length === 0 ? (
+          ) : rejectedLoans.length === 0 ? (
             <div className="flex justify-center items-center h-40">
-              <p>Tidak ada nasabah yang ditolak</p>
+              <p>Tidak ada pinjaman yang ditolak</p>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -383,21 +336,21 @@ export default function ApprovalsPage() {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Nama</TableHead>
-                    <TableHead>NIK</TableHead>
-                    <TableHead>Telepon</TableHead>
+                    <TableHead>Jumlah</TableHead>
+                    <TableHead>Tenor</TableHead>
                     <TableHead>Tanggal Ditolak</TableHead>
                     <TableHead>Alasan Penolakan</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rejectedCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.id}</TableCell>
-                      <TableCell>{customer.nama}</TableCell>
-                      <TableCell>{customer.noIdentitas}</TableCell>
-                      <TableCell>{customer.noTelepon}</TableCell>
-                      <TableCell>{new Date(customer.rejected_at).toLocaleDateString('id-ID')}</TableCell>
-                      <TableCell>{customer.reason}</TableCell>
+                  {rejectedLoans.map((loan) => (
+                    <TableRow key={loan.id}>
+                      <TableCell className="font-medium">{loan.id}</TableCell>
+                      <TableCell>{loan.anggota_nama}</TableCell>
+                      <TableCell>{formatCurrency(loan.jumlah)}</TableCell>
+                      <TableCell>{loan.tenor} bulan</TableCell>
+                      <TableCell>{new Date(loan.updated_at).toLocaleDateString('id-ID')}</TableCell>
+                      <TableCell>{loan.alasan_penolakan || "Tidak ada alasan"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -410,9 +363,9 @@ export default function ApprovalsPage() {
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tolak Nasabah</DialogTitle>
+            <DialogTitle>Tolak Pinjaman</DialogTitle>
             <DialogDescription>
-              Masukkan alasan penolakan pendaftaran nasabah ini. Alasan ini akan dicatat dalam sistem.
+              Masukkan alasan penolakan pinjaman ini. Alasan ini akan dicatat dalam sistem.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
