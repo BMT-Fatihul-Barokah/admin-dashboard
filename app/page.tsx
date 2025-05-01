@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { RecentTransactionsTable } from "@/components/recent-transactions-table"
 import { OverviewChart } from "@/components/overview-chart"
 import { getTotalAnggota, getTotalSimpanan, getTotalPinjaman } from "@/lib/supabase"
+import Link from "next/link"
 
 export default async function Dashboard() {
   // Fetch data from Supabase
@@ -22,7 +23,9 @@ export default async function Dashboard() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
         <div className="flex items-center space-x-2">
-          <Button>Import Data</Button>
+          <Button asChild>
+            <Link href="/import">Import Data</Link>
+          </Button>
         </div>
       </div>
       <Tabs defaultValue="overview" className="space-y-4">
