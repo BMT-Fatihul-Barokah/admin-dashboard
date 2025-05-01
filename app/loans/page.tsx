@@ -19,6 +19,10 @@ import { getAllPinjaman, Pinjaman } from "@/lib/pinjaman"
 import { format, parseISO, differenceInMonths } from "date-fns"
 import { downloadCSV, formatDataForExport } from "@/utils/export-data"
 import { toast } from "sonner"
+import { LoanDetailModal } from "./components/loan-detail-modal"
+import { PaymentScheduleModal } from "./components/payment-schedule-modal"
+import { RecordPaymentModal } from "./components/record-payment-modal"
+import { MarkProblematicModal } from "./components/mark-problematic-modal"
 
 export default function LoansPage() {
   const [pinjaman, setPinjaman] = useState<Pinjaman[]>([])
@@ -33,6 +37,13 @@ export default function LoansPage() {
   const [amountMax, setAmountMax] = useState('')
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
+  
+  // Modal states
+  const [selectedLoan, setSelectedLoan] = useState<Pinjaman | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showProblematicModal, setShowProblematicModal] = useState(false)
 
   // Format date function
   const formatDate = (dateString: string) => {
@@ -313,11 +324,38 @@ export default function LoansPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>Lihat Detail</DropdownMenuItem>
-                        <DropdownMenuItem>Jadwal Pembayaran</DropdownMenuItem>
-                        <DropdownMenuItem>Catat Pembayaran</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedLoan(loan);
+                          setShowDetailModal(true);
+                        }}>
+                          Lihat Detail
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedLoan(loan);
+                          setShowScheduleModal(true);
+                        }}>
+                          Jadwal Pembayaran
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedLoan(loan);
+                            setShowPaymentModal(true);
+                          }}
+                          disabled={loan.status === 'lunas' || loan.status === 'ditolak'}
+                        >
+                          Catat Pembayaran
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">Tandai Bermasalah</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => {
+                            setSelectedLoan(loan);
+                            setShowProblematicModal(true);
+                          }}
+                          disabled={loan.status === 'lunas' || loan.status === 'ditolak'}
+                        >
+                          Tandai Bermasalah
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -343,6 +381,50 @@ export default function LoansPage() {
           </Button>
         </div>
       </div>
+
+      {/* Loan Detail Modal */}
+      <LoanDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        loan={selectedLoan}
+        onViewSchedule={() => {
+          setShowDetailModal(false);
+          setShowScheduleModal(true);
+        }}
+        onRecordPayment={() => {
+          setShowDetailModal(false);
+          setShowPaymentModal(true);
+        }}
+      />
+
+      {/* Payment Schedule Modal */}
+      <PaymentScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        loan={selectedLoan}
+      />
+
+      {/* Record Payment Modal */}
+      <RecordPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        loan={selectedLoan}
+        onPaymentRecorded={() => {
+          toast.success("Pembayaran berhasil dicatat");
+          fetchPinjaman();
+        }}
+      />
+
+      {/* Mark Problematic Modal */}
+      <MarkProblematicModal
+        isOpen={showProblematicModal}
+        onClose={() => setShowProblematicModal(false)}
+        loan={selectedLoan}
+        onMarked={() => {
+          toast.success("Pinjaman berhasil ditandai bermasalah");
+          fetchPinjaman();
+        }}
+      />
     </div>
   )
 }
