@@ -1,230 +1,297 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createClient } from "@/utils/supabase/client";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { v4 as uuidv4 } from 'uuid';
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { createClient } from '@supabase/supabase-js'
 
-interface PendingApproval {
-  id: string;
-  nama: string;
-  noIdentitas: string;
-  noTelepon: string;
-  created_at: string;
-  akun_id: string;
-  submission_id: string;
-  alamat: string;
-  kotaKabupaten: string;
-  tempatLahir: string;
-  tanggalLahir: string;
-  pekerjaan: string;
-  jenisIdentitas: string;
-  jenisKelamin: string;
-  status: string;
-}
+// Create a direct Supabase client instance to ensure we're using the latest credentials
+const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM'
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { format } from "date-fns"
+import { id } from "date-fns/locale"
+import { useToast } from "@/components/ui/use-toast"
 
-interface ApprovedCustomer {
-  id: string;
-  nama: string;
-  noIdentitas: string;
-  noTelepon: string;
-  approved_at: string;
-  approved_by: string;
-}
-
-interface RejectedCustomer {
-  id: string;
-  nama: string;
-  noIdentitas: string;
-  noTelepon: string;
-  rejected_at: string;
-  reason: string;
+// Define types based on database schema
+type Pendaftaran = {
+  id: string
+  submission_id: string
+  nama: string
+  noIdentitas: string
+  noTelepon: string
+  status: string
+  created_at: string
+  updated_at: string
+  akun_id: string
+  alasan_penolakan: string | null
 }
 
 export default function ApprovalsPage() {
-  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
-  const [approvedCustomers, setApprovedCustomers] = useState<ApprovedCustomer[]>([]);
-  const [rejectedCustomers, setRejectedCustomers] = useState<RejectedCustomer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<PendingApproval | null>(null);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const { toast } = useToast()
+  const [pendingApprovals, setPendingApprovals] = useState<Pendaftaran[]>([])
+  const [approvedCustomers, setApprovedCustomers] = useState<Pendaftaran[]>([])
+  const [rejectedCustomers, setRejectedCustomers] = useState<Pendaftaran[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [rejectReason, setRejectReason] = useState("")
+  const [selectedCustomer, setSelectedCustomer] = useState<Pendaftaran | null>(null)
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  const supabase = createClient();
-
-  const fetchApprovals = async () => {
-    setIsLoading(true);
+  // Function to fetch data from Supabase
+  const fetchData = async () => {
+    setIsLoading(true)
     try {
-      // Fetch pending registrations
-      const { data: pendingData, error: pendingError } = await supabase
-        .from("pendaftaran")
-        .select("*")
-        .eq("status", "menunggu");
-
-      if (pendingError) throw pendingError;
-
-      // Fetch approved registrations
-      const { data: approvedData, error: approvedError } = await supabase
-        .from("pendaftaran")
-        .select("*")
-        .eq("status", "disetujui");
-
-      if (approvedError) throw approvedError;
-
-      // Fetch rejected registrations
-      const { data: rejectedData, error: rejectedError } = await supabase
-        .from("pendaftaran")
-        .select("*")
-        .eq("status", "ditolak");
-
-      if (rejectedError) throw rejectedError;
-
-      // Format the data
-      setPendingApprovals(pendingData || []);
+      console.log('Fetching data from Supabase...')
       
-      const formattedApproved = (approvedData || []).map((customer: any) => ({
-        id: customer.id,
-        nama: customer.nama,
-        noIdentitas: customer.noIdentitas,
-        noTelepon: customer.noTelepon,
-        approved_at: customer.updated_at,
-        approved_by: "Admin"
-      }));
+      // First, let's check all statuses to debug
+      const { data: allStatuses, error: statusError } = await supabase
+        .from('pendaftaran')
+        .select('status')
+        .order('status')
       
-      const formattedRejected = (rejectedData || []).map((customer: any) => ({
-        id: customer.id,
-        nama: customer.nama,
-        noIdentitas: customer.noIdentitas,
-        noTelepon: customer.noTelepon,
-        rejected_at: customer.updated_at,
-        reason: customer.alasan_penolakan || "Tidak ada alasan"
-      }));
-
-      setApprovedCustomers(formattedApproved);
-      setRejectedCustomers(formattedRejected);
+      if (statusError) throw statusError
+      console.log('All statuses in database:', allStatuses.map(s => s.status))
+      
+      // Fetch all records to debug
+      const { data: allRecords, error: allError } = await supabase
+        .from('pendaftaran')
+        .select('*')
+      
+      if (allError) throw allError
+      console.log('Total records in pendaftaran:', allRecords.length)
+      
+      // Fetch pending approvals - use ilike for case insensitive matching
+      const { data: pending, error: pendingError } = await supabase
+        .from('pendaftaran')
+        .select('*')
+        .ilike('status', '%menunggu%') // Case insensitive, trim whitespace with %
+        .order('created_at', { ascending: false })
+      
+      if (pendingError) throw pendingError
+      console.log('Pending approvals found:', pending?.length || 0)
+      console.log('Pending approvals data:', pending)
+      
+      // Fetch approved customers
+      const { data: approved, error: approvedError } = await supabase
+        .from('pendaftaran')
+        .select('*')
+        .ilike('status', '%diterima%') // Case insensitive
+        .order('created_at', { ascending: false })
+      
+      if (approvedError) throw approvedError
+      
+      // Fetch rejected customers
+      const { data: rejected, error: rejectedError } = await supabase
+        .from('pendaftaran')
+        .select('*')
+        .ilike('status', '%ditolak%') // Case insensitive
+        .order('created_at', { ascending: false })
+      
+      if (rejectedError) throw rejectedError
+      
+      // Set state with the fetched data
+      setPendingApprovals(pending || [])
+      setApprovedCustomers(approved || [])
+      setRejectedCustomers(rejected || [])
+      
+      // Log the state update
+      console.log('State updated with:', {
+        pending: pending?.length || 0,
+        approved: approved?.length || 0,
+        rejected: rejected?.length || 0
+      })
     } catch (error) {
-      console.error("Error fetching approvals:", error);
-      toast.error("Gagal memuat data persetujuan nasabah");
+      console.error('Error fetching data:', error)
+      toast({
+        title: 'Error',
+        description: 'Gagal memuat data. Silakan coba lagi.',
+        variant: 'destructive'
+      })
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
-  useEffect(() => {
-    fetchApprovals();
-  }, []);
-
-  const handleApprove = async (customer: PendingApproval) => {
+  // Function to approve a customer
+  const approveCustomer = async (customer: Pendaftaran) => {
+    setIsProcessing(true)
     try {
-      // 1. Generate a random account number
-      const accountNumber = Math.floor(Math.random() * 9000000) + 1000000;
-      const formattedAccountNumber = accountNumber.toString();
+      console.log('Approving customer:', customer) // Debug log
+      // Start a transaction by using the same timestamp for both updates
+      const now = new Date().toISOString()
       
-      // 2. Create a new anggota record
-      const anggotaId = uuidv4();
-      const { error: anggotaError } = await supabase
-        .from("anggota")
-        .insert({
-          id: anggotaId,
-          nama: customer.nama,
-          nomor_rekening: formattedAccountNumber,
-          alamat: customer.alamat,
-          kota: customer.kotaKabupaten,
-          tempat_lahir: customer.tempatLahir,
-          tanggal_lahir: customer.tanggalLahir,
-          pekerjaan: customer.pekerjaan,
-          jenis_identitas: customer.jenisIdentitas,
-          nomor_identitas: customer.noIdentitas,
-          saldo: 0,
-          is_active: true
-        });
-
-      if (anggotaError) throw anggotaError;
-
-      // 3. Update the akun record to link it to the new anggota
-      const { error: akunError } = await supabase
-        .from("akun")
+      // Update pendaftaran status to 'diterima'
+      const { error: updatePendaftaranError } = await supabase
+        .from('pendaftaran')
         .update({ 
-          anggota_id: anggotaId,
-          is_active: true 
+          status: 'diterima',
+          updated_at: now
         })
-        .eq("id", customer.akun_id);
-
-      if (akunError) throw akunError;
-
-      // 4. Update the pendaftaran record status
-      const { error: pendaftaranError } = await supabase
-        .from("pendaftaran")
+        .eq('id', customer.id)
+      
+      if (updatePendaftaranError) {
+        console.error('Error updating pendaftaran:', updatePendaftaranError)
+        throw updatePendaftaranError
+      }
+      
+      // Update akun is_active to true
+      if (!customer.akun_id) {
+        throw new Error('ID akun tidak ditemukan')
+      }
+      
+      const { error: updateAkunError } = await supabase
+        .from('akun')
         .update({ 
-          status: "disetujui",
-          updated_at: new Date().toISOString()
+          is_active: true,
+          updated_at: now
         })
-        .eq("id", customer.id);
-
-      if (pendaftaranError) throw pendaftaranError;
-
-      toast.success("Nasabah berhasil disetujui");
-      fetchApprovals();
+        .eq('id', customer.akun_id)
+      
+      if (updateAkunError) {
+        console.error('Error updating akun:', updateAkunError)
+        throw updateAkunError
+      }
+      
+      toast({
+        title: 'Berhasil',
+        description: `Nasabah ${customer.nama} telah disetujui.`,
+        variant: 'default'
+      })
+      
+      // Refresh data
+      await fetchData()
     } catch (error) {
-      console.error("Error approving customer:", error);
-      toast.error("Gagal menyetujui nasabah");
+      console.error('Error approving customer:', error)
+      toast({
+        title: 'Error',
+        description: 'Gagal menyetujui nasabah. Silakan coba lagi.',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsProcessing(false)
     }
-  };
+  }
 
-  const openRejectDialog = (customer: PendingApproval) => {
-    setSelectedCustomer(customer);
-    setRejectionReason("");
-    setIsRejectDialogOpen(true);
-  };
-
-  const handleReject = async () => {
-    if (!selectedCustomer) return;
-
+  // Function to reject a customer
+  const rejectCustomer = async () => {
+    if (!selectedCustomer) return
+    if (!rejectReason.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Alasan penolakan harus diisi.',
+        variant: 'destructive'
+      })
+      return
+    }
+    
+    setIsProcessing(true)
     try {
-      // 1. Update the pendaftaran record status
-      const { error: pendaftaranError } = await supabase
-        .from("pendaftaran")
+      // Start a transaction by using the same timestamp for both updates
+      const now = new Date().toISOString()
+      
+      // Update pendaftaran status to 'ditolak' and add rejection reason
+      const { error: updatePendaftaranError } = await supabase
+        .from('pendaftaran')
         .update({ 
-          status: "ditolak",
-          alasan_penolakan: rejectionReason,
-          updated_at: new Date().toISOString()
+          status: 'ditolak',
+          alasan_penolakan: rejectReason,
+          updated_at: now
         })
-        .eq("id", selectedCustomer.id);
-
-      if (pendaftaranError) throw pendaftaranError;
-
-      toast.success("Nasabah berhasil ditolak");
-      setIsRejectDialogOpen(false);
-      fetchApprovals();
+        .eq('id', selectedCustomer.id)
+      
+      if (updatePendaftaranError) throw updatePendaftaranError
+      
+      // Ensure akun remains inactive (is_active = false)
+      if (selectedCustomer.akun_id) {
+        const { error: updateAkunError } = await supabase
+          .from('akun')
+          .update({ 
+            is_active: false,
+            updated_at: now
+          })
+          .eq('id', selectedCustomer.akun_id)
+        
+        if (updateAkunError) throw updateAkunError
+      }
+      
+      toast({
+        title: 'Berhasil',
+        description: `Nasabah ${selectedCustomer.nama} telah ditolak.`,
+        variant: 'default'
+      })
+      
+      // Reset form and close dialog
+      setRejectReason('')
+      setIsRejectDialogOpen(false)
+      setSelectedCustomer(null)
+      
+      // Refresh data
+      await fetchData()
     } catch (error) {
-      console.error("Error rejecting customer:", error);
-      toast.error("Gagal menolak nasabah");
+      console.error('Error rejecting customer:', error)
+      toast({
+        title: 'Error',
+        description: 'Gagal menolak nasabah. Silakan coba lagi.',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsProcessing(false)
     }
-  };
+  }
 
-  const filteredPendingApprovals = pendingApprovals.filter(approval => 
-    approval.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    approval.noIdentitas.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    approval.noTelepon.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Function to handle search
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+  }
+
+  // Filter data based on search query
+  const filteredPendingApprovals = pendingApprovals.filter(customer => 
+    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredApprovedCustomers = approvedCustomers.filter(customer => 
+    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredRejectedCustomers = rejectedCustomers.filter(customer => 
+    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'dd MMM yyyy', { locale: id })
+    } catch (error) {
+      return dateString
+    }
+  }
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Persetujuan Nasabah</h2>
       </div>
-
       <Tabs defaultValue="pending" className="space-y-4">
         <TabsList>
           <TabsTrigger value="pending">Menunggu Persetujuan</TabsTrigger>
@@ -240,48 +307,48 @@ export default function ApprovalsPage() {
                 type="search" 
                 placeholder="Cari nasabah..." 
                 className="w-full pl-8" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon" className="ml-auto" onClick={() => fetchApprovals()}>
+            <Button variant="outline" size="icon" className="ml-auto">
               <SlidersHorizontal className="h-4 w-4" />
+              <span className="sr-only">Filter</span>
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => fetchData()}>
+              <Download className="h-4 w-4" />
               <span className="sr-only">Refresh</span>
             </Button>
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <p>Memuat data...</p>
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
           ) : filteredPendingApprovals.length === 0 ? (
-            <div className="flex justify-center items-center h-40">
-              <p>Tidak ada nasabah yang menunggu persetujuan</p>
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Tidak ada nasabah yang menunggu persetujuan</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredPendingApprovals.map((approval) => (
-                <Card key={approval.id}>
+              {filteredPendingApprovals.map((customer) => (
+                <Card key={customer.id}>
                   <CardHeader>
-                    <CardTitle>{approval.nama}</CardTitle>
-                    <CardDescription>ID: {approval.submission_id}</CardDescription>
+                    <CardTitle>{customer.nama}</CardTitle>
+                    <CardDescription>ID: {customer.submission_id}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">{approval.jenisIdentitas}:</span>
-                      <span className="text-sm font-medium">{approval.noIdentitas}</span>
+                      <span className="text-sm text-muted-foreground">No. Identitas:</span>
+                      <span className="text-sm font-medium">{customer.noIdentitas}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Telepon:</span>
-                      <span className="text-sm font-medium">{approval.noTelepon}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Alamat:</span>
-                      <span className="text-sm font-medium">{approval.alamat}, {approval.kotaKabupaten}</span>
+                      <span className="text-sm font-medium">{customer.noTelepon}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Tanggal Pengajuan:</span>
-                      <span className="text-sm font-medium">{new Date(approval.created_at).toLocaleDateString('id-ID')}</span>
+                      <span className="text-sm font-medium">{formatDate(customer.created_at)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Status:</span>
@@ -294,7 +361,11 @@ export default function ApprovalsPage() {
                       <Button 
                         variant="destructive" 
                         size="icon"
-                        onClick={() => openRejectDialog(approval)}
+                        disabled={isProcessing}
+                        onClick={() => {
+                          setSelectedCustomer(customer)
+                          setIsRejectDialogOpen(true)
+                        }}
                       >
                         <XCircle className="h-4 w-4" />
                       </Button>
@@ -302,7 +373,8 @@ export default function ApprovalsPage() {
                         variant="default" 
                         size="icon" 
                         className="bg-green-500 hover:bg-green-600"
-                        onClick={() => handleApprove(approval)}
+                        disabled={isProcessing}
+                        onClick={() => approveCustomer(customer)}
                       >
                         <CheckCircle className="h-4 w-4" />
                       </Button>
@@ -312,23 +384,41 @@ export default function ApprovalsPage() {
               ))}
             </div>
           )}
+
+          {filteredPendingApprovals.length > 0 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Menampilkan {filteredPendingApprovals.length} nasabah
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="approved" className="space-y-4">
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="relative w-full md:w-80">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input type="search" placeholder="Cari nasabah..." className="w-full pl-8" />
+              <Input 
+                type="search" 
+                placeholder="Cari nasabah..." 
+                className="w-full pl-8" 
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
             </div>
+            <Button variant="outline" size="icon" className="ml-auto" onClick={() => fetchData()}>
+              <Download className="h-4 w-4" />
+              <span className="sr-only">Refresh</span>
+            </Button>
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <p>Memuat data...</p>
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
-          ) : approvedCustomers.length === 0 ? (
-            <div className="flex justify-center items-center h-40">
-              <p>Tidak ada nasabah yang disetujui</p>
+          ) : filteredApprovedCustomers.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Tidak ada nasabah yang disetujui</p>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -337,21 +427,23 @@ export default function ApprovalsPage() {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Nama</TableHead>
-                    <TableHead>NIK</TableHead>
+                    <TableHead>No. Identitas</TableHead>
                     <TableHead>Telepon</TableHead>
                     <TableHead>Tanggal Disetujui</TableHead>
-                    <TableHead>Disetujui Oleh</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {approvedCustomers.map((customer) => (
+                  {filteredApprovedCustomers.map((customer) => (
                     <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.id}</TableCell>
+                      <TableCell className="font-medium">{customer.submission_id}</TableCell>
                       <TableCell>{customer.nama}</TableCell>
                       <TableCell>{customer.noIdentitas}</TableCell>
                       <TableCell>{customer.noTelepon}</TableCell>
-                      <TableCell>{new Date(customer.approved_at).toLocaleDateString('id-ID')}</TableCell>
-                      <TableCell>{customer.approved_by}</TableCell>
+                      <TableCell>{formatDate(customer.updated_at)}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-green-500">Disetujui</Badge>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -364,17 +456,27 @@ export default function ApprovalsPage() {
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="relative w-full md:w-80">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input type="search" placeholder="Cari nasabah..." className="w-full pl-8" />
+              <Input 
+                type="search" 
+                placeholder="Cari nasabah..." 
+                className="w-full pl-8" 
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
             </div>
+            <Button variant="outline" size="icon" className="ml-auto" onClick={() => fetchData()}>
+              <Download className="h-4 w-4" />
+              <span className="sr-only">Refresh</span>
+            </Button>
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <p>Memuat data...</p>
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
-          ) : rejectedCustomers.length === 0 ? (
-            <div className="flex justify-center items-center h-40">
-              <p>Tidak ada nasabah yang ditolak</p>
+          ) : filteredRejectedCustomers.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Tidak ada nasabah yang ditolak</p>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -383,21 +485,21 @@ export default function ApprovalsPage() {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Nama</TableHead>
-                    <TableHead>NIK</TableHead>
+                    <TableHead>No. Identitas</TableHead>
                     <TableHead>Telepon</TableHead>
                     <TableHead>Tanggal Ditolak</TableHead>
                     <TableHead>Alasan Penolakan</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rejectedCustomers.map((customer) => (
+                  {filteredRejectedCustomers.map((customer) => (
                     <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.id}</TableCell>
+                      <TableCell className="font-medium">{customer.submission_id}</TableCell>
                       <TableCell>{customer.nama}</TableCell>
                       <TableCell>{customer.noIdentitas}</TableCell>
                       <TableCell>{customer.noTelepon}</TableCell>
-                      <TableCell>{new Date(customer.rejected_at).toLocaleDateString('id-ID')}</TableCell>
-                      <TableCell>{customer.reason}</TableCell>
+                      <TableCell>{formatDate(customer.updated_at)}</TableCell>
+                      <TableCell>{customer.alasan_penolakan}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -407,34 +509,43 @@ export default function ApprovalsPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Rejection Dialog */}
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tolak Nasabah</DialogTitle>
+            <DialogTitle>Tolak Pendaftaran Nasabah</DialogTitle>
             <DialogDescription>
-              Masukkan alasan penolakan pendaftaran nasabah ini. Alasan ini akan dicatat dalam sistem.
+              Masukkan alasan penolakan untuk nasabah {selectedCustomer?.nama}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="reason" className="text-right">
-                Alasan
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="reason">Alasan Penolakan</Label>
               <Textarea
                 id="reason"
-                className="col-span-3"
-                placeholder="Masukkan alasan penolakan..."
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Masukkan alasan penolakan"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>Batal</Button>
-            <Button onClick={handleReject}>Konfirmasi Penolakan</Button>
+            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)} disabled={isProcessing}>
+              Batal
+            </Button>
+            <Button onClick={rejectCustomer} disabled={isProcessing || !rejectReason.trim()}>
+              {isProcessing ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent"></div>
+                  Memproses
+                </>
+              ) : (
+                'Tolak Nasabah'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  );
+  )
 }
