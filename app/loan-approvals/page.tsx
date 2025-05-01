@@ -32,7 +32,8 @@ export default function LoanApprovalsPage() {
   const [pendingLoans, setPendingLoans] = useState<Loan[]>([]);
   const [approvedLoans, setApprovedLoans] = useState<Loan[]>([]);
   const [rejectedLoans, setRejectedLoans] = useState<Loan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true)
+  const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);

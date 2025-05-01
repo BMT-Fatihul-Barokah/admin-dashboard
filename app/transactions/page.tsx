@@ -43,6 +43,7 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [showFilters, setShowFilters] = useState(false)
   
   const supabase = createClient()
   
@@ -218,7 +219,7 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="icon" className="ml-auto">
+        <Button variant="outline" size="icon" className="ml-auto" onClick={() => setShowFilters(!showFilters)}>
           <SlidersHorizontal className="h-4 w-4" />
           <span className="sr-only">Filter</span>
         </Button>
@@ -231,6 +232,43 @@ export default function TransactionsPage() {
           <span className="sr-only">Export</span>
         </Button>
       </div>
+
+      {showFilters && (
+        <div className="rounded-md border p-4 shadow-sm">
+          <h3 className="font-medium mb-2">Filter Lanjutan</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Rentang Tanggal</label>
+              <div className="flex gap-2 items-center">
+                <Input type="date" className="w-full" placeholder="Dari" />
+                <span>-</span>
+                <Input type="date" className="w-full" placeholder="Sampai" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Jumlah Minimum</label>
+              <Input type="number" placeholder="Rp 0" className="w-full" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Jumlah Maksimum</label>
+              <Input type="number" placeholder="Rp 1.000.000" className="w-full" />
+            </div>
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button variant="outline" className="mr-2" onClick={() => {
+              setTypeFilter('all')
+              setCategoryFilter('all')
+              setSearchQuery('')
+              setShowFilters(false)
+            }}>
+              Reset
+            </Button>
+            <Button onClick={() => setShowFilters(false)}>
+              Terapkan Filter
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center items-center py-8">
