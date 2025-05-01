@@ -17,7 +17,6 @@ import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, Slid
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
-import { createClient } from "@/utils/supabase/client"
 import { downloadCSV, formatDataForExport } from "@/utils/export-data"
 import { toast } from "sonner"
 
@@ -28,10 +27,14 @@ interface Transaksi {
   anggota_id: string;
   anggota?: {
     nama: string;
-  };
+  } | null;
   tipe_transaksi: string;
   kategori: string;
+  deskripsi?: string;
   jumlah: number;
+  saldo_sebelum?: number;
+  saldo_sesudah?: number;
+  pinjaman_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -44,8 +47,9 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
-  const supabase = createClient()
+  // Component initialization
   
   // Format date function
   const formatDate = (dateString: string) => {
@@ -63,39 +67,77 @@ export default function TransactionsPage() {
   };
   
   // Map transaction type to status for display
-  const getStatusFromType = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'setoran':
-      case 'simpanan':
-        return 'Berhasil';
-      case 'pinjaman':
+  const getStatusFromType = (type: string, kategori: string) => {
+    if (type.toLowerCase() === 'masuk') {
+      return 'Berhasil';
+    } else if (type.toLowerCase() === 'keluar') {
+      if (kategori.toLowerCase() === 'pencairan_pinjaman') {
         return 'Diproses';
+      } else {
+        return 'Berhasil';
+      }
+    }
+    return 'Berhasil';
+  };
+  
+  // Map kategori to display name
+  const getKategoriDisplay = (kategori: string) => {
+    switch (kategori.toLowerCase()) {
+      case 'setoran':
+        return 'Setoran';
       case 'penarikan':
-        return 'Berhasil';
+        return 'Penarikan';
+      case 'pembayaran_pinjaman':
+        return 'Angsuran';
+      case 'pencairan_pinjaman':
+        return 'Pinjaman';
+      case 'biaya_admin':
+        return 'Biaya Admin';
+      case 'bunga':
+        return 'Bunga';
+      case 'lainnya':
+        return 'Lainnya';
       default:
-        return 'Berhasil';
+        return kategori;
     }
   };
   
-  // Fetch transactions from Supabase
+  // Fetch transactions from API route
   const fetchTransactions = async () => {
     setIsLoading(true)
+    setError(null)
     try {
-      const { data, error } = await supabase
-        .from('transaksi')
-        .select(`
-          *,
-          anggota:anggota_id (nama)
-        `)
-        .order('created_at', { ascending: false })
+      console.log('Attempting to fetch transactions from API...')
       
-      if (error) throw error
+      // Use the API route to fetch transactions
+      const response = await fetch('/api/transactions')
       
-      setTransactions(data || [])
-      setFilteredTransactions(data || [])
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Error response from API:', errorData)
+        setError(`API error: ${errorData.error || response.statusText}`)
+        throw new Error(errorData.error || response.statusText)
+      }
+      
+      const data = await response.json()
+      console.log(`Fetched ${data?.length || 0} transaction records from API`)
+      
+      // Data is already transformed by the API
+      setTransactions(data)
+      setFilteredTransactions(data)
     } catch (error) {
       console.error('Error fetching transactions:', error)
-      toast.error('Gagal memuat data transaksi')
+      let errorMessage = 'An unknown error occurred';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Try to extract message from error object
+        errorMessage = (error as any).message || JSON.stringify(error);
+      }
+      
+      setError(`Error: ${errorMessage}`)
+      toast.error(`Gagal memuat data transaksi: ${errorMessage}`)
     } finally {
       setIsLoading(false)
     }
@@ -120,7 +162,8 @@ export default function TransactionsPage() {
         (transaction.reference_number && transaction.reference_number.toLowerCase().includes(query)) ||
         (transaction.anggota?.nama && transaction.anggota.nama.toLowerCase().includes(query)) ||
         transaction.tipe_transaksi.toLowerCase().includes(query) ||
-        transaction.kategori.toLowerCase().includes(query)
+        transaction.kategori.toLowerCase().includes(query) ||
+        (transaction.deskripsi && transaction.deskripsi.toLowerCase().includes(query))
       )
     }
     
@@ -232,6 +275,7 @@ export default function TransactionsPage() {
   // Load data on component mount
   useEffect(() => {
     fetchTransactions()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -262,9 +306,8 @@ export default function TransactionsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Jenis</SelectItem>
-              <SelectItem value="simpanan">Simpanan</SelectItem>
-              <SelectItem value="pinjaman">Pinjaman</SelectItem>
-              <SelectItem value="penarikan">Penarikan</SelectItem>
+              <SelectItem value="masuk">Masuk</SelectItem>
+              <SelectItem value="keluar">Keluar</SelectItem>
             </SelectContent>
           </Select>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -273,9 +316,13 @@ export default function TransactionsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Kategori</SelectItem>
-              <SelectItem value="simpanan">Simpanan</SelectItem>
-              <SelectItem value="pinjaman">Pinjaman</SelectItem>
-              <SelectItem value="angsuran">Angsuran</SelectItem>
+              <SelectItem value="setoran">Setoran</SelectItem>
+              <SelectItem value="penarikan">Penarikan</SelectItem>
+              <SelectItem value="pembayaran_pinjaman">Angsuran</SelectItem>
+              <SelectItem value="pencairan_pinjaman">Pinjaman</SelectItem>
+              <SelectItem value="biaya_admin">Biaya Admin</SelectItem>
+              <SelectItem value="bunga">Bunga</SelectItem>
+              <SelectItem value="lainnya">Lainnya</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -293,6 +340,15 @@ export default function TransactionsPage() {
       {isLoading ? (
         <div className="flex justify-center items-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-8">
+          <p className="text-destructive font-medium mb-2">Error connecting to database</p>
+          <p className="text-muted-foreground text-sm">{error}</p>
+          <Button variant="outline" size="sm" onClick={fetchTransactions} className="mt-4">
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
         </div>
       ) : filteredTransactions.length === 0 ? (
         <div className="text-center py-8">
@@ -319,9 +375,16 @@ export default function TransactionsPage() {
                     {transaction.reference_number || transaction.id.substring(0, 8)}
                   </TableCell>
                   <TableCell>{transaction.anggota?.nama || 'Anggota'}</TableCell>
-                  <TableCell>{transaction.tipe_transaksi}</TableCell>
-                  <TableCell>{transaction.kategori}</TableCell>
-                  <TableCell>{formatCurrency(Number(transaction.jumlah))}</TableCell>
+                  <TableCell>
+                    <Badge variant={transaction.tipe_transaksi === 'masuk' ? 'secondary' : 'destructive'}>
+                      {transaction.tipe_transaksi === 'masuk' ? 'Masuk' : 'Keluar'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{getKategoriDisplay(transaction.kategori)}</TableCell>
+                  <TableCell>
+                    {transaction.tipe_transaksi === 'masuk' ? '+ ' : '- '}
+                    {formatCurrency(Number(transaction.jumlah))}
+                  </TableCell>
                   <TableCell>{formatDate(transaction.created_at.toString())}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
