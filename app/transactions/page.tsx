@@ -279,10 +279,7 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="icon" className="ml-auto" onClick={() => setShowFilters(!showFilters)}>
-          <SlidersHorizontal className="h-4 w-4" />
-          <span className="sr-only">Filter</span>
-        </Button>
+        <div className="ml-auto"></div>
         <Button variant="outline" size="icon" onClick={fetchTransactions}>
           <RefreshCcw className="h-4 w-4" />
           <span className="sr-only">Refresh</span>
@@ -292,65 +289,6 @@ export default function TransactionsPage() {
           <span className="sr-only">Export</span>
         </Button>
       </div>
-
-      {showFilters && (
-        <div className="rounded-md border p-4 shadow-sm mb-4">
-          <h3 className="font-medium mb-2">Filter Lanjutan</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-1 block">Rentang Tanggal</label>
-              <div className="flex gap-2 items-center">
-                <Input 
-                  type="date" 
-                  className="w-full" 
-                  placeholder="Dari" 
-                  value={dateStart}
-                  onChange={(e) => setDateStart(e.target.value)}
-                />
-                <span>-</span>
-                <Input 
-                  type="date" 
-                  className="w-full" 
-                  placeholder="Sampai" 
-                  value={dateEnd}
-                  onChange={(e) => setDateEnd(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium mb-1 block">Rentang Jumlah</label>
-              <div className="flex gap-2 items-center">
-                <Input 
-                  type="number" 
-                  className="w-full" 
-                  placeholder="Min" 
-                  value={amountMin}
-                  onChange={(e) => setAmountMin(e.target.value)}
-                />
-                <span>-</span>
-                <Input 
-                  type="number" 
-                  className="w-full" 
-                  placeholder="Max" 
-                  value={amountMax}
-                  onChange={(e) => setAmountMax(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col justify-end">
-              <div className="flex justify-end mt-auto">
-                <Button variant="outline" className="mr-2" onClick={resetFilters}>
-                  Reset
-                </Button>
-                <Button onClick={() => setShowFilters(false)}>
-                  Terapkan Filter
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isLoading ? (
         <div className="flex justify-center items-center py-8">

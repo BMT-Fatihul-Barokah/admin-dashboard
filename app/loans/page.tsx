@@ -200,35 +200,17 @@ export default function LoansPage() {
       return
     }
     
-    const exportData = formatDataForExport(
-      filteredPinjaman,
-      [
-        "ID Pinjaman",
-        "Nama Anggota",
-        "Jumlah Pinjaman",
-        "Sisa Pembayaran",
-        "Bunga (%)",
-        "Status",
-        "Tanggal Pengajuan",
-        "Jatuh Tempo"
-      ],
-      {
-        "ID Pinjaman": (loan: Pinjaman) => loan.id,
-        "Nama Anggota": (loan: Pinjaman) => loan.anggota?.nama || 'Anggota',
-        "Jumlah Pinjaman": (loan: Pinjaman) => loan.jumlah,
-        "Sisa Pembayaran": (loan: Pinjaman) => loan.sisa_pembayaran,
-        "Bunga (%)": (loan: Pinjaman) => loan.bunga_persen,
-        "Status": (loan: Pinjaman) => loan.status,
-        "Tanggal Pengajuan": (loan: Pinjaman) => loan.created_at,
-        "Jatuh Tempo": (loan: Pinjaman) => loan.jatuh_tempo
-      },
-      {
-        "Jumlah Pinjaman": (value: number) => formatCurrency(value),
-        "Sisa Pembayaran": (value: number) => formatCurrency(value),
-        "Tanggal Pengajuan": (value: string) => formatDate(value),
-        "Jatuh Tempo": (value: string) => formatDate(value)
-      }
-    )
+    // Create a simple array for export with the data we need
+    const exportData = filteredPinjaman.map(loan => ({
+      "ID Pinjaman": loan.id,
+      "Nama Anggota": loan.anggota?.nama || 'Anggota',
+      "Jumlah Pinjaman": formatCurrency(Number(loan.jumlah)),
+      "Sisa Pembayaran": formatCurrency(Number(loan.sisa_pembayaran)),
+      "Bunga (%)": loan.bunga_persen,
+      "Status": loan.status,
+      "Tanggal Pengajuan": formatDate(String(loan.created_at)),
+      "Jatuh Tempo": formatDate(String(loan.jatuh_tempo))
+    }))
 
     // Download as CSV
     downloadCSV(exportData, `pinjaman-${new Date().toISOString().split('T')[0]}`)
@@ -280,10 +262,7 @@ export default function LoansPage() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="icon" className="ml-auto" onClick={() => setShowFilters(!showFilters)}>
-          <SlidersHorizontal className="h-4 w-4" />
-          <span className="sr-only">Filter</span>
-        </Button>
+        <div className="ml-auto"></div>
         <Button variant="outline" size="icon" onClick={fetchPinjaman}>
           <RefreshCcw className="h-4 w-4" />
           <span className="sr-only">Refresh</span>
@@ -294,80 +273,7 @@ export default function LoansPage() {
         </Button>
       </div>
 
-      {showFilters && (
-        <div className="rounded-md border p-4">
-          <h3 className="font-medium mb-4">Filter Lanjutan</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Rentang Jumlah Pinjaman</label>
-              <div className="flex gap-2 items-center">
-                <Input 
-                  type="number" 
-                  placeholder="Min" 
-                  className="w-full" 
-                  value={amountMin}
-                  onChange={(e) => setAmountMin(e.target.value)}
-                />
-                <span>-</span>
-                <Input 
-                  type="number" 
-                  placeholder="Max" 
-                  className="w-full" 
-                  value={amountMax}
-                  onChange={(e) => setAmountMax(e.target.value)}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Rentang Bunga (%)</label>
-              <div className="flex gap-2 items-center">
-                <Input 
-                  type="number" 
-                  placeholder="Min" 
-                  className="w-full" 
-                  value={interestMin}
-                  onChange={(e) => setInterestMin(e.target.value)}
-                />
-                <span>-</span>
-                <Input 
-                  type="number" 
-                  placeholder="Max" 
-                  className="w-full" 
-                  value={interestMax}
-                  onChange={(e) => setInterestMax(e.target.value)}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Rentang Tanggal Pengajuan</label>
-              <div className="flex gap-2 items-center">
-                <Input 
-                  type="date" 
-                  className="w-full" 
-                  value={dateStart}
-                  onChange={(e) => setDateStart(e.target.value)}
-                />
-                <span>-</span>
-                <Input 
-                  type="date" 
-                  className="w-full" 
-                  value={dateEnd}
-                  onChange={(e) => setDateEnd(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex justify-end mt-4">
-            <Button variant="outline" className="mr-2" onClick={resetFilters}>
-              Reset
-            </Button>
-            <Button onClick={() => setShowFilters(false)}>
-              Terapkan Filter
-            </Button>
-          </div>
-        </div>
-      )}
+
 
       {isLoading ? (
         <div className="flex justify-center items-center py-8">

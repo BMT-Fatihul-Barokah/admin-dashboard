@@ -612,10 +612,7 @@ export default function ApprovalsPage() {
                 onChange={(e) => handleSearch(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon" className="ml-auto" onClick={() => setShowFilters(!showFilters)}>
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="sr-only">Filter</span>
-            </Button>
+            <div className="ml-auto"></div>
             <Button variant="outline" size="icon" onClick={() => fetchData()}>
               <RefreshCcw className="h-4 w-4" />
               <span className="sr-only">Refresh</span>
@@ -626,64 +623,7 @@ export default function ApprovalsPage() {
             </Button>
           </div>
 
-          {showFilters && (
-            <div className="rounded-md border p-4 shadow-sm mb-4">
-              <h3 className="font-medium mb-2">Filter Lanjutan</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Tanggal Pengajuan</label>
-                  <div className="flex gap-2 items-center">
-                    <Input 
-                      type="date" 
-                      className="w-full" 
-                      placeholder="Dari" 
-                      value={dateStart}
-                      onChange={(e) => setDateStart(e.target.value)}
-                    />
-                    <span>-</span>
-                    <Input 
-                      type="date" 
-                      className="w-full" 
-                      placeholder="Sampai" 
-                      value={dateEnd}
-                      onChange={(e) => setDateEnd(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Jenis Identitas</label>
-                  <Input 
-                    type="text" 
-                    className="w-full" 
-                    placeholder="KTP/SIM/Passport" 
-                    value={identityType}
-                    onChange={(e) => setIdentityType(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Asal Kota</label>
-                  <Input 
-                    type="text" 
-                    className="w-full" 
-                    placeholder="Kota" 
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end mt-4">
-                <Button variant="outline" className="mr-2" onClick={() => {
-                  resetFilters()
-                  setShowFilters(false)
-                }}>
-                  Reset
-                </Button>
-                <Button onClick={() => setShowFilters(false)}>
-                  Terapkan Filter
-                </Button>
-              </div>
-            </div>
-          )}
+
 
           {isLoading ? (
             <div className="flex justify-center items-center py-8">

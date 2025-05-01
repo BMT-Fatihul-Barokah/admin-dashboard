@@ -259,10 +259,7 @@ export default function UsersPage() {
             onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="icon" className="ml-auto" onClick={() => setShowFilters(!showFilters)}>
-          <SlidersHorizontal className="h-4 w-4" />
-          <span className="sr-only">Filter</span>
-        </Button>
+        <div className="ml-auto"></div>
         <Button variant="outline" size="icon" onClick={fetchAnggota}>
           <RefreshCcw className="h-4 w-4" />
           <span className="sr-only">Refresh</span>
@@ -273,61 +270,7 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      {showFilters && (
-        <div className="rounded-md border p-4 shadow-sm mb-4">
-          <h3 className="font-medium mb-2">Filter Lanjutan</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-1 block">Status Anggota</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Semua Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="active">Aktif</SelectItem>
-                  <SelectItem value="inactive">Nonaktif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Kota</label>
-              <Input 
-                type="text" 
-                placeholder="Filter berdasarkan kota" 
-                value={cityFilter}
-                onChange={(e) => setCityFilter(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Tanggal Bergabung</label>
-              <div className="flex gap-2 items-center">
-                <Input 
-                  type="date" 
-                  className="w-full" 
-                  value={joinDateStart}
-                  onChange={(e) => setJoinDateStart(e.target.value)}
-                />
-                <span>-</span>
-                <Input 
-                  type="date" 
-                  className="w-full" 
-                  value={joinDateEnd}
-                  onChange={(e) => setJoinDateEnd(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end mt-4">
-            <Button variant="outline" className="mr-2" onClick={resetFilters}>
-              Reset
-            </Button>
-            <Button onClick={() => setShowFilters(false)}>
-              Terapkan Filter
-            </Button>
-          </div>
-        </div>
-      )}
+
 
       {isLoading ? (
         <div className="flex justify-center items-center py-8">
