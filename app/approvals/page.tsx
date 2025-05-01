@@ -127,8 +127,40 @@ export default function ApprovalsPage() {
     setIsProcessing(true)
     try {
       console.log('Approving customer:', customer) // Debug log
+      
+      // Verify customer data is valid
+      if (!customer || !customer.id) {
+        throw new Error('Data nasabah tidak valid')
+      }
+      
+      if (!customer.akun_id) {
+        throw new Error('ID akun tidak ditemukan')
+      }
+      
       // Start a transaction by using the same timestamp for both updates
       const now = new Date().toISOString()
+      
+      // First, verify the current status to ensure we're not processing an already approved customer
+      const { data: currentData, error: checkError } = await supabase
+        .from('pendaftaran')
+        .select('status')
+        .eq('id', customer.id)
+        .single()
+      
+      if (checkError) {
+        console.error('Error checking current status:', checkError)
+        throw checkError
+      }
+      
+      if (currentData.status !== 'menunggu') {
+        console.warn(`Customer ${customer.nama} is not in 'menunggu' status (current: ${currentData.status})`)
+        toast({
+          title: 'Perhatian',
+          description: `Nasabah ${customer.nama} tidak dalam status menunggu persetujuan.`,
+          variant: 'default'
+        })
+        return
+      }
       
       // Update pendaftaran status to 'diterima'
       const { error: updatePendaftaranError } = await supabase
@@ -144,11 +176,9 @@ export default function ApprovalsPage() {
         throw updatePendaftaranError
       }
       
-      // Update akun is_active to true
-      if (!customer.akun_id) {
-        throw new Error('ID akun tidak ditemukan')
-      }
+      console.log(`Successfully updated pendaftaran status to 'diterima' for customer ${customer.nama}`)
       
+      // Update akun is_active to true
       const { error: updateAkunError } = await supabase
         .from('akun')
         .update({ 
@@ -159,8 +189,23 @@ export default function ApprovalsPage() {
       
       if (updateAkunError) {
         console.error('Error updating akun:', updateAkunError)
+        // If akun update fails, revert pendaftaran status
+        const { error: revertError } = await supabase
+          .from('pendaftaran')
+          .update({ 
+            status: 'menunggu',
+            updated_at: now
+          })
+          .eq('id', customer.id)
+        
+        if (revertError) {
+          console.error('Error reverting pendaftaran status:', revertError)
+        }
+        
         throw updateAkunError
       }
+      
+      console.log(`Successfully updated akun.is_active to true for customer ${customer.nama}`)
       
       toast({
         title: 'Berhasil',
@@ -174,7 +219,7 @@ export default function ApprovalsPage() {
       console.error('Error approving customer:', error)
       toast({
         title: 'Error',
-        description: 'Gagal menyetujui nasabah. Silakan coba lagi.',
+        description: `Gagal menyetujui nasabah: ${error instanceof Error ? error.message : 'Silakan coba lagi.'}`,
         variant: 'destructive'
       })
     } finally {
@@ -184,7 +229,12 @@ export default function ApprovalsPage() {
 
   // Function to reject a customer
   const rejectCustomer = async () => {
-    if (!selectedCustomer) return
+    // Validate inputs
+    if (!selectedCustomer) {
+      console.error('No customer selected for rejection')
+      return
+    }
+    
     if (!rejectReason.trim()) {
       toast({
         title: 'Error',
@@ -196,8 +246,42 @@ export default function ApprovalsPage() {
     
     setIsProcessing(true)
     try {
+      console.log('Rejecting customer:', selectedCustomer)
+      
+      // Verify customer data is valid
+      if (!selectedCustomer.id) {
+        throw new Error('Data nasabah tidak valid')
+      }
+      
       // Start a transaction by using the same timestamp for both updates
       const now = new Date().toISOString()
+      
+      // First, verify the current status to ensure we're not processing an already rejected customer
+      const { data: currentData, error: checkError } = await supabase
+        .from('pendaftaran')
+        .select('status')
+        .eq('id', selectedCustomer.id)
+        .single()
+      
+      if (checkError) {
+        console.error('Error checking current status:', checkError)
+        throw checkError
+      }
+      
+      if (currentData.status !== 'menunggu') {
+        console.warn(`Customer ${selectedCustomer.nama} is not in 'menunggu' status (current: ${currentData.status})`)
+        toast({
+          title: 'Perhatian',
+          description: `Nasabah ${selectedCustomer.nama} tidak dalam status menunggu persetujuan.`,
+          variant: 'default'
+        })
+        
+        // Reset form and close dialog
+        setRejectReason('')
+        setIsRejectDialogOpen(false)
+        setSelectedCustomer(null)
+        return
+      }
       
       // Update pendaftaran status to 'ditolak' and add rejection reason
       const { error: updatePendaftaranError } = await supabase
@@ -209,7 +293,12 @@ export default function ApprovalsPage() {
         })
         .eq('id', selectedCustomer.id)
       
-      if (updatePendaftaranError) throw updatePendaftaranError
+      if (updatePendaftaranError) {
+        console.error('Error updating pendaftaran:', updatePendaftaranError)
+        throw updatePendaftaranError
+      }
+      
+      console.log(`Successfully updated pendaftaran status to 'ditolak' for customer ${selectedCustomer.nama}`)
       
       // Ensure akun remains inactive (is_active = false)
       if (selectedCustomer.akun_id) {
@@ -221,7 +310,28 @@ export default function ApprovalsPage() {
           })
           .eq('id', selectedCustomer.akun_id)
         
-        if (updateAkunError) throw updateAkunError
+        if (updateAkunError) {
+          console.error('Error updating akun:', updateAkunError)
+          // If akun update fails, revert pendaftaran status
+          const { error: revertError } = await supabase
+            .from('pendaftaran')
+            .update({ 
+              status: 'menunggu',
+              alasan_penolakan: null,
+              updated_at: now
+            })
+            .eq('id', selectedCustomer.id)
+          
+          if (revertError) {
+            console.error('Error reverting pendaftaran status:', revertError)
+          }
+          
+          throw updateAkunError
+        }
+        
+        console.log(`Successfully confirmed akun.is_active is false for customer ${selectedCustomer.nama}`)
+      } else {
+        console.warn(`No akun_id found for customer ${selectedCustomer.nama}, skipping akun update`)
       }
       
       toast({
@@ -241,7 +351,7 @@ export default function ApprovalsPage() {
       console.error('Error rejecting customer:', error)
       toast({
         title: 'Error',
-        description: 'Gagal menolak nasabah. Silakan coba lagi.',
+        description: `Gagal menolak nasabah: ${error instanceof Error ? error.message : 'Silakan coba lagi.'}`,
         variant: 'destructive'
       })
     } finally {
