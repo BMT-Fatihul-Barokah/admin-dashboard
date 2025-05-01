@@ -13,11 +13,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, Loader2, RefreshCcw } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
 import { createClient } from '@supabase/supabase-js'
 import { useToast } from "@/components/ui/use-toast"
+import { downloadCSV, formatDataForExport } from "@/utils/export-data"
 
 // Import our custom components
 import { UserDetailDialog } from "./components/user-detail-dialog"
@@ -117,6 +118,61 @@ export default function UsersPage() {
     setFilteredAnggota(filtered)
   }
 
+  // Export anggota data to CSV
+  const exportAnggotaData = (): void => {
+    if (filteredAnggota.length === 0) {
+      toast({
+        title: "Info",
+        description: "Tidak ada data untuk diekspor",
+        variant: "default"
+      })
+      return
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      nomor_rekening: "Nomor Rekening",
+      nama: "Nama Anggota",
+      alamat: "Alamat",
+      kota: "Kota",
+      saldo: "Saldo",
+      jenis_identitas: "Jenis Identitas",
+      nomor_identitas: "Nomor Identitas",
+      tempat_lahir: "Tempat Lahir",
+      tanggal_lahir: "Tanggal Lahir",
+      pekerjaan: "Pekerjaan",
+      created_at: "Tanggal Bergabung",
+      is_active: "Status"
+    }
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      filteredAnggota,
+      fieldMap,
+      {
+        "Saldo": (value: number) => `Rp ${Number(value).toLocaleString('id-ID')}`,
+        "Tanggal Bergabung": (value: string) => formatDate(value),
+        "Tanggal Lahir": (value: string | undefined) => value ? formatDate(value) : "-",
+        "Status": (value: boolean) => value ? "Aktif" : "Nonaktif",
+        "Alamat": (value: string | undefined) => value || "-",
+        "Kota": (value: string | undefined) => value || "-",
+        "Tempat Lahir": (value: string | undefined) => value || "-",
+        "Pekerjaan": (value: string | undefined) => value || "-",
+        "Jenis Identitas": (value: string | undefined) => value || "-",
+        "Nomor Identitas": (value: string | undefined) => value || "-"
+      }
+    )
+
+    // Download as CSV
+    downloadCSV(exportData, `data-anggota-${new Date().toISOString().split('T')[0]}`)
+    
+    toast({
+      title: "Berhasil",
+      description: "Data anggota berhasil diekspor",
+      variant: "default"
+    })
+  }
+
   // Load data on component mount
   useEffect(() => {
     fetchAnggota()
@@ -148,8 +204,12 @@ export default function UsersPage() {
           <span className="sr-only">Filter</span>
         </Button>
         <Button variant="outline" size="icon" onClick={fetchAnggota}>
-          <Download className="h-4 w-4" />
+          <RefreshCcw className="h-4 w-4" />
           <span className="sr-only">Refresh</span>
+        </Button>
+        <Button variant="outline" size="icon" onClick={exportAnggotaData}>
+          <Download className="h-4 w-4" />
+          <span className="sr-only">Export</span>
         </Button>
       </div>
 

@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle, RefreshCcw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { downloadCSV, formatDataForExport } from "@/utils/export-data";
 import { createClient } from "@/utils/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -171,6 +172,112 @@ export default function LoanApprovalsPage() {
       minimumFractionDigits: 0
     }).format(amount);
   };
+  
+  // Export functions for each tab
+  const exportPendingLoans = (): void => {
+    if (filteredPendingLoans.length === 0) {
+      toast.error("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      id: "ID Pinjaman",
+      anggota_nama: "Nama Anggota",
+      jumlah: "Jumlah Pinjaman",
+      tenor: "Tenor (bulan)",
+      tujuan: "Tujuan",
+      created_at: "Tanggal Pengajuan",
+      status: "Status"
+    };
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      filteredPendingLoans,
+      fieldMap,
+      {
+        "Jumlah Pinjaman": (value: number) => formatCurrency(value),
+        "Tanggal Pengajuan": (value: string) => new Date(value).toLocaleDateString('id-ID'),
+        "Status": () => "Menunggu"
+      }
+    );
+
+    // Download as CSV
+    downloadCSV(exportData, `pinjaman-menunggu-${new Date().toISOString().split('T')[0]}`);
+    toast.success("Data pinjaman berhasil diekspor");
+  };
+  
+  const exportApprovedLoans = (): void => {
+    if (approvedLoans.length === 0) {
+      toast.error("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      id: "ID Pinjaman",
+      anggota_nama: "Nama Anggota",
+      jumlah: "Jumlah Pinjaman",
+      tenor: "Tenor (bulan)",
+      tujuan: "Tujuan",
+      created_at: "Tanggal Pengajuan",
+      updated_at: "Tanggal Disetujui",
+      status: "Status"
+    };
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      approvedLoans,
+      fieldMap,
+      {
+        "Jumlah Pinjaman": (value: number) => formatCurrency(value),
+        "Tanggal Pengajuan": (value: string) => new Date(value).toLocaleDateString('id-ID'),
+        "Tanggal Disetujui": (value: string) => new Date(value).toLocaleDateString('id-ID'),
+        "Status": () => "Disetujui"
+      }
+    );
+
+    // Download as CSV
+    downloadCSV(exportData, `pinjaman-disetujui-${new Date().toISOString().split('T')[0]}`);
+    toast.success("Data pinjaman berhasil diekspor");
+  };
+  
+  const exportRejectedLoans = (): void => {
+    if (rejectedLoans.length === 0) {
+      toast.error("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      id: "ID Pinjaman",
+      anggota_nama: "Nama Anggota",
+      jumlah: "Jumlah Pinjaman",
+      tenor: "Tenor (bulan)",
+      tujuan: "Tujuan",
+      created_at: "Tanggal Pengajuan",
+      updated_at: "Tanggal Ditolak",
+      status: "Status",
+      alasan_penolakan: "Alasan Penolakan"
+    };
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      rejectedLoans,
+      fieldMap,
+      {
+        "Jumlah Pinjaman": (value: number) => formatCurrency(value),
+        "Tanggal Pengajuan": (value: string) => new Date(value).toLocaleDateString('id-ID'),
+        "Tanggal Ditolak": (value: string) => new Date(value).toLocaleDateString('id-ID'),
+        "Status": () => "Ditolak",
+        "Alasan Penolakan": (value: string | undefined) => value || "-"
+      }
+    );
+
+    // Download as CSV
+    downloadCSV(exportData, `pinjaman-ditolak-${new Date().toISOString().split('T')[0]}`);
+    toast.success("Data pinjaman berhasil diekspor");
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -198,8 +305,12 @@ export default function LoanApprovalsPage() {
               />
             </div>
             <Button variant="outline" size="icon" className="ml-auto" onClick={() => fetchLoans()}>
-              <SlidersHorizontal className="h-4 w-4" />
+              <RefreshCcw className="h-4 w-4" />
               <span className="sr-only">Refresh</span>
+            </Button>
+            <Button variant="outline" size="icon" onClick={exportPendingLoans}>
+              <Download className="h-4 w-4" />
+              <span className="sr-only">Export</span>
             </Button>
           </div>
 

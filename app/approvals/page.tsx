@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle, RefreshCcw } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from '@supabase/supabase-js'
+import { downloadCSV, formatDataForExport } from '@/utils/export-data'
 
 // Create a direct Supabase client instance to ensure we're using the latest credentials
 const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
@@ -396,6 +397,133 @@ export default function ApprovalsPage() {
     }
   }
 
+  // Export functions for each tab
+  const exportPendingData = (): void => {
+    if (filteredPendingApprovals.length === 0) {
+      toast({
+        title: "Info",
+        description: "Tidak ada data untuk diekspor",
+        variant: "default"
+      })
+      return
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      submission_id: "ID Pengajuan",
+      nama: "Nama Nasabah",
+      noIdentitas: "Nomor Identitas",
+      noTelepon: "Nomor Telepon",
+      created_at: "Tanggal Pengajuan",
+      status: "Status"
+    }
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      filteredPendingApprovals,
+      fieldMap,
+      {
+        "Tanggal Pengajuan": (value) => formatDate(value),
+        "Status": () => "Menunggu"
+      }
+    )
+
+    // Download as CSV
+    downloadCSV(exportData, `nasabah-menunggu-${new Date().toISOString().split('T')[0]}`)
+    
+    toast({
+      title: "Berhasil",
+      description: "Data nasabah berhasil diekspor",
+      variant: "default"
+    })
+  }
+
+  const exportApprovedData = (): void => {
+    if (filteredApprovedCustomers.length === 0) {
+      toast({
+        title: "Info",
+        description: "Tidak ada data untuk diekspor",
+        variant: "default"
+      })
+      return
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      submission_id: "ID Pengajuan",
+      nama: "Nama Nasabah",
+      noIdentitas: "Nomor Identitas",
+      noTelepon: "Nomor Telepon",
+      created_at: "Tanggal Pengajuan",
+      updated_at: "Tanggal Disetujui",
+      status: "Status"
+    }
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      filteredApprovedCustomers,
+      fieldMap,
+      {
+        "Tanggal Pengajuan": (value: string) => formatDate(value),
+        "Tanggal Disetujui": (value: string) => formatDate(value),
+        "Status": () => "Disetujui"
+      }
+    )
+
+    // Download as CSV
+    downloadCSV(exportData, `nasabah-disetujui-${new Date().toISOString().split('T')[0]}`)
+    
+    toast({
+      title: "Berhasil",
+      description: "Data nasabah berhasil diekspor",
+      variant: "default"
+    })
+  }
+
+  const exportRejectedData = (): void => {
+    if (filteredRejectedCustomers.length === 0) {
+      toast({
+        title: "Info",
+        description: "Tidak ada data untuk diekspor",
+        variant: "default"
+      })
+      return
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      submission_id: "ID Pengajuan",
+      nama: "Nama Nasabah",
+      noIdentitas: "Nomor Identitas",
+      noTelepon: "Nomor Telepon",
+      created_at: "Tanggal Pengajuan",
+      updated_at: "Tanggal Ditolak",
+      status: "Status",
+      alasan_penolakan: "Alasan Penolakan"
+    }
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      filteredRejectedCustomers,
+      fieldMap,
+      {
+        "Tanggal Pengajuan": (value: string) => formatDate(value),
+        "Tanggal Ditolak": (value: string) => formatDate(value),
+        "Status": () => "Ditolak",
+        "Alasan Penolakan": (value: string | null) => value || "-"
+      }
+    )
+
+    // Download as CSV
+    downloadCSV(exportData, `nasabah-ditolak-${new Date().toISOString().split('T')[0]}`)
+    
+    toast({
+      title: "Berhasil",
+      description: "Data nasabah berhasil diekspor",
+      variant: "default"
+    })
+  }
+
   // Load data on component mount
   useEffect(() => {
     fetchData()
@@ -430,8 +558,12 @@ export default function ApprovalsPage() {
               <span className="sr-only">Filter</span>
             </Button>
             <Button variant="outline" size="icon" onClick={() => fetchData()}>
-              <Download className="h-4 w-4" />
+              <RefreshCcw className="h-4 w-4" />
               <span className="sr-only">Refresh</span>
+            </Button>
+            <Button variant="outline" size="icon" onClick={exportPendingData}>
+              <Download className="h-4 w-4" />
+              <span className="sr-only">Export</span>
             </Button>
           </div>
 
