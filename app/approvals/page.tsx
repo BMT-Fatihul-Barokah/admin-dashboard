@@ -362,6 +362,10 @@ export default function ApprovalsPage() {
   // Function to handle search
   const handleSearch = (query: string) => {
     setSearchQuery(query)
+    console.log('Search query:', query)
+    
+    // The filtering is already implemented in the filteredPendingApprovals, 
+    // filteredApprovedCustomers, and filteredRejectedCustomers variables below
   }
 
   // Filter data based on search query
