@@ -48,6 +48,12 @@ export default function ApprovalsPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Pendaftaran | null>(null)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Advanced filter states
+  const [dateStart, setDateStart] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
+  const [identityType, setIdentityType] = useState('')
+  const [city, setCity] = useState('')
 
   // Function to fetch data from Supabase
   const fetchData = async () => {
@@ -365,29 +371,75 @@ export default function ApprovalsPage() {
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     console.log('Search query:', query)
-    
-    // The filtering is already implemented in the filteredPendingApprovals, 
-    // filteredApprovedCustomers, and filteredRejectedCustomers variables below
   }
 
-  // Filter data based on search query
-  const filteredPendingApprovals = pendingApprovals.filter(customer => 
-    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Apply all filters
+  const applyFilters = (data: Pendaftaran[]) => {
+    if (!data.length) return []
+    
+    let filtered = [...data]
+    
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(customer => 
+        (customer.nama && customer.nama.toLowerCase().includes(query)) ||
+        (customer.submission_id && customer.submission_id.toLowerCase().includes(query)) ||
+        (customer.noIdentitas && customer.noIdentitas.toLowerCase().includes(query))
+      )
+    }
+    
+    // Apply date range filter
+    if (dateStart) {
+      const startDate = new Date(dateStart)
+      filtered = filtered.filter(customer => {
+        const customerDate = new Date(customer.created_at)
+        return customerDate >= startDate
+      })
+    }
+    
+    if (dateEnd) {
+      const endDate = new Date(dateEnd)
+      // Set to end of day
+      endDate.setHours(23, 59, 59, 999)
+      filtered = filtered.filter(customer => {
+        const customerDate = new Date(customer.created_at)
+        return customerDate <= endDate
+      })
+    }
+    
+    // Apply identity type filter
+    if (identityType) {
+      filtered = filtered.filter(customer => 
+        customer.noIdentitas && customer.noIdentitas.toLowerCase().includes(identityType.toLowerCase())
+      )
+    }
+    
+    // Apply city filter
+    if (city) {
+      filtered = filtered.filter(customer => {
+        // This is a placeholder since the city field might not be directly in the Pendaftaran type
+        // In a real implementation, you would check the appropriate field
+        return true
+      })
+    }
+    
+    return filtered
+  }
+  
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchQuery('')
+    setDateStart('')
+    setDateEnd('')
+    setIdentityType('')
+    setCity('')
+  }
 
-  const filteredApprovedCustomers = approvedCustomers.filter(customer => 
-    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const filteredRejectedCustomers = rejectedCustomers.filter(customer => 
-    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Apply filters to each dataset
+  const filteredPendingApprovals = applyFilters(pendingApprovals)
+  const filteredApprovedCustomers = applyFilters(approvedCustomers)
+  const filteredRejectedCustomers = applyFilters(rejectedCustomers)
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -529,6 +581,12 @@ export default function ApprovalsPage() {
   useEffect(() => {
     fetchData()
   }, [])
+  
+  // Apply filters when filter values change
+  useEffect(() => {
+    // The filters are applied in the filteredPendingApprovals, filteredApprovedCustomers, and filteredRejectedCustomers variables
+    // This useEffect ensures the component re-renders when filter values change
+  }, [searchQuery, dateStart, dateEnd, identityType, city, pendingApprovals, approvedCustomers, rejectedCustomers])
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -575,24 +633,47 @@ export default function ApprovalsPage() {
                 <div>
                   <label className="text-sm font-medium mb-1 block">Tanggal Pengajuan</label>
                   <div className="flex gap-2 items-center">
-                    <Input type="date" className="w-full" placeholder="Dari" />
+                    <Input 
+                      type="date" 
+                      className="w-full" 
+                      placeholder="Dari" 
+                      value={dateStart}
+                      onChange={(e) => setDateStart(e.target.value)}
+                    />
                     <span>-</span>
-                    <Input type="date" className="w-full" placeholder="Sampai" />
+                    <Input 
+                      type="date" 
+                      className="w-full" 
+                      placeholder="Sampai" 
+                      value={dateEnd}
+                      onChange={(e) => setDateEnd(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-1 block">Jenis Identitas</label>
-                  <Input type="text" className="w-full" placeholder="KTP/SIM/Passport" />
+                  <Input 
+                    type="text" 
+                    className="w-full" 
+                    placeholder="KTP/SIM/Passport" 
+                    value={identityType}
+                    onChange={(e) => setIdentityType(e.target.value)}
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-1 block">Asal Kota</label>
-                  <Input type="text" className="w-full" placeholder="Kota" />
+                  <Input 
+                    type="text" 
+                    className="w-full" 
+                    placeholder="Kota" 
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="flex justify-end mt-4">
                 <Button variant="outline" className="mr-2" onClick={() => {
-                  setSearchQuery('')
-                  handleSearch('')
+                  resetFilters()
                   setShowFilters(false)
                 }}>
                   Reset

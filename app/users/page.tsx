@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, RefreshCcw, Loader2 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
 import { createClient } from '@supabase/supabase-js'
@@ -56,6 +57,12 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [cityFilter, setCityFilter] = useState<string>('')
+  const [joinDateStart, setJoinDateStart] = useState<string>('')
+  const [joinDateEnd, setJoinDateEnd] = useState<string>('')
   
   // State for dialogs
   const [selectedUser, setSelectedUser] = useState<Anggota | null>(null)
@@ -154,30 +161,82 @@ export default function UsersPage() {
     })
   }
 
+  // Apply all filters
+  const applyFilters = () => {
+    if (!anggota.length) return
+    
+    let filtered = [...anggota]
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const lowercaseQuery = searchQuery.toLowerCase()
+      filtered = filtered.filter(member => 
+        member.nama.toLowerCase().includes(lowercaseQuery) ||
+        member.nomor_rekening.toLowerCase().includes(lowercaseQuery) ||
+        (member.alamat && member.alamat.toLowerCase().includes(lowercaseQuery)) ||
+        (member.nomor_identitas && member.nomor_identitas.toLowerCase().includes(lowercaseQuery))
+      )
+    }
+    
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      const isActive = statusFilter === 'active'
+      filtered = filtered.filter(member => member.is_active === isActive)
+    }
+    
+    // Apply city filter
+    if (cityFilter) {
+      filtered = filtered.filter(member => 
+        member.kota && member.kota.toLowerCase().includes(cityFilter.toLowerCase())
+      )
+    }
+    
+    // Apply date range filter
+    if (joinDateStart) {
+      const startDate = new Date(joinDateStart)
+      filtered = filtered.filter(member => {
+        const memberDate = new Date(member.created_at as string)
+        return memberDate >= startDate
+      })
+    }
+    
+    if (joinDateEnd) {
+      const endDate = new Date(joinDateEnd)
+      endDate.setHours(23, 59, 59, 999) // End of the day
+      filtered = filtered.filter(member => {
+        const memberDate = new Date(member.created_at as string)
+        return memberDate <= endDate
+      })
+    }
+    
+    setFilteredAnggota(filtered)
+  }
+  
   // Handle search
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    
-    if (!query.trim()) {
-      setFilteredAnggota(anggota)
-      return
-    }
-    
-    const lowercaseQuery = query.toLowerCase()
-    const filtered = anggota.filter(member => 
-      member.nama.toLowerCase().includes(lowercaseQuery) ||
-      member.nomor_rekening.toLowerCase().includes(lowercaseQuery) ||
-      (member.alamat && member.alamat.toLowerCase().includes(lowercaseQuery)) ||
-      (member.nomor_identitas && member.nomor_identitas.toLowerCase().includes(lowercaseQuery))
-    )
-    
-    setFilteredAnggota(filtered)
+    applyFilters()
+  }
+  
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchQuery('')
+    setStatusFilter('all')
+    setCityFilter('')
+    setJoinDateStart('')
+    setJoinDateEnd('')
+    setFilteredAnggota(anggota)
   }
 
   // Load data on component mount
   useEffect(() => {
     fetchAnggota()
   }, [])
+  
+  // Apply filters when filter values change
+  useEffect(() => {
+    applyFilters()
+  }, [statusFilter, cityFilter, joinDateStart, joinDateEnd, searchQuery, anggota])
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -213,6 +272,62 @@ export default function UsersPage() {
           <span className="sr-only">Export</span>
         </Button>
       </div>
+
+      {showFilters && (
+        <div className="rounded-md border p-4 shadow-sm mb-4">
+          <h3 className="font-medium mb-2">Filter Lanjutan</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Status Anggota</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Semua Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="active">Aktif</SelectItem>
+                  <SelectItem value="inactive">Nonaktif</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Kota</label>
+              <Input 
+                type="text" 
+                placeholder="Filter berdasarkan kota" 
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Tanggal Bergabung</label>
+              <div className="flex gap-2 items-center">
+                <Input 
+                  type="date" 
+                  className="w-full" 
+                  value={joinDateStart}
+                  onChange={(e) => setJoinDateStart(e.target.value)}
+                />
+                <span>-</span>
+                <Input 
+                  type="date" 
+                  className="w-full" 
+                  value={joinDateEnd}
+                  onChange={(e) => setJoinDateEnd(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button variant="outline" className="mr-2" onClick={resetFilters}>
+              Reset
+            </Button>
+            <Button onClick={() => setShowFilters(false)}>
+              Terapkan Filter
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center items-center py-8">

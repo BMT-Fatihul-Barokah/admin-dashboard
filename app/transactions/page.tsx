@@ -101,8 +101,14 @@ export default function TransactionsPage() {
     }
   }
   
-  // Handle search and filters
-  useEffect(() => {
+  // Additional filter states
+  const [dateStart, setDateStart] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
+  const [amountMin, setAmountMin] = useState('')
+  const [amountMax, setAmountMax] = useState('')
+
+  // Apply all filters
+  const applyFilters = () => {
     if (!transactions.length) return
     
     let filtered = [...transactions]
@@ -132,8 +138,62 @@ export default function TransactionsPage() {
       )
     }
     
+    // Apply date range filter
+    if (dateStart) {
+      const startDate = new Date(dateStart)
+      filtered = filtered.filter(transaction => {
+        const transactionDate = new Date(transaction.created_at)
+        return transactionDate >= startDate
+      })
+    }
+    
+    if (dateEnd) {
+      const endDate = new Date(dateEnd)
+      endDate.setHours(23, 59, 59, 999) // End of the day
+      filtered = filtered.filter(transaction => {
+        const transactionDate = new Date(transaction.created_at)
+        return transactionDate <= endDate
+      })
+    }
+    
+    // Apply amount range filter
+    if (amountMin) {
+      const min = parseFloat(amountMin)
+      if (!isNaN(min)) {
+        filtered = filtered.filter(transaction => 
+          Number(transaction.jumlah) >= min
+        )
+      }
+    }
+    
+    if (amountMax) {
+      const max = parseFloat(amountMax)
+      if (!isNaN(max)) {
+        filtered = filtered.filter(transaction => 
+          Number(transaction.jumlah) <= max
+        )
+      }
+    }
+    
     setFilteredTransactions(filtered)
-  }, [transactions, searchQuery, typeFilter, categoryFilter])
+  }
+  
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchQuery('')
+    setTypeFilter('all')
+    setCategoryFilter('all')
+    setDateStart('')
+    setDateEnd('')
+    setAmountMin('')
+    setAmountMax('')
+    setFilteredTransactions(transactions)
+  }
+  
+  // Handle search and filters
+  useEffect(() => {
+    applyFilters()
+  }, [transactions, searchQuery, typeFilter, categoryFilter, dateStart, dateEnd, amountMin, amountMax])
   
   // Export transactions to CSV
   const exportTransactions = (): void => {
@@ -234,38 +294,60 @@ export default function TransactionsPage() {
       </div>
 
       {showFilters && (
-        <div className="rounded-md border p-4 shadow-sm">
+        <div className="rounded-md border p-4 shadow-sm mb-4">
           <h3 className="font-medium mb-2">Filter Lanjutan</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium mb-1 block">Rentang Tanggal</label>
               <div className="flex gap-2 items-center">
-                <Input type="date" className="w-full" placeholder="Dari" />
+                <Input 
+                  type="date" 
+                  className="w-full" 
+                  placeholder="Dari" 
+                  value={dateStart}
+                  onChange={(e) => setDateStart(e.target.value)}
+                />
                 <span>-</span>
-                <Input type="date" className="w-full" placeholder="Sampai" />
+                <Input 
+                  type="date" 
+                  className="w-full" 
+                  placeholder="Sampai" 
+                  value={dateEnd}
+                  onChange={(e) => setDateEnd(e.target.value)}
+                />
               </div>
             </div>
+            
             <div>
-              <label className="text-sm font-medium mb-1 block">Jumlah Minimum</label>
-              <Input type="number" placeholder="Rp 0" className="w-full" />
+              <label className="text-sm font-medium mb-1 block">Rentang Jumlah</label>
+              <div className="flex gap-2 items-center">
+                <Input 
+                  type="number" 
+                  className="w-full" 
+                  placeholder="Min" 
+                  value={amountMin}
+                  onChange={(e) => setAmountMin(e.target.value)}
+                />
+                <span>-</span>
+                <Input 
+                  type="number" 
+                  className="w-full" 
+                  placeholder="Max" 
+                  value={amountMax}
+                  onChange={(e) => setAmountMax(e.target.value)}
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Jumlah Maksimum</label>
-              <Input type="number" placeholder="Rp 1.000.000" className="w-full" />
+            <div className="flex flex-col justify-end">
+              <div className="flex justify-end mt-auto">
+                <Button variant="outline" className="mr-2" onClick={resetFilters}>
+                  Reset
+                </Button>
+                <Button onClick={() => setShowFilters(false)}>
+                  Terapkan Filter
+                </Button>
+              </div>
             </div>
-          </div>
-          <div className="flex justify-end mt-4">
-            <Button variant="outline" className="mr-2" onClick={() => {
-              setTypeFilter('all')
-              setCategoryFilter('all')
-              setSearchQuery('')
-              setShowFilters(false)
-            }}>
-              Reset
-            </Button>
-            <Button onClick={() => setShowFilters(false)}>
-              Terapkan Filter
-            </Button>
           </div>
         </div>
       )}
