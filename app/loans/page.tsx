@@ -33,8 +33,6 @@ export default function LoansPage() {
   const [amountMax, setAmountMax] = useState('')
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
-  const [interestMin, setInterestMin] = useState('')
-  const [interestMax, setInterestMax] = useState('')
 
   // Format date function
   const formatDate = (dateString: string) => {
@@ -149,24 +147,7 @@ export default function LoansPage() {
       }
     }
     
-    // Apply interest rate range filter
-    if (interestMin) {
-      const min = parseFloat(interestMin)
-      if (!isNaN(min)) {
-        filtered = filtered.filter(loan => 
-          Number(loan.bunga_persen) >= min
-        )
-      }
-    }
-    
-    if (interestMax) {
-      const max = parseFloat(interestMax)
-      if (!isNaN(max)) {
-        filtered = filtered.filter(loan => 
-          Number(loan.bunga_persen) <= max
-        )
-      }
-    }
+    // Interest rate filter removed as per Syariah requirements
     
     // Apply date range filter
     if (dateStart) {
@@ -198,8 +179,6 @@ export default function LoansPage() {
     setAmountMax('')
     setDateStart('')
     setDateEnd('')
-    setInterestMin('')
-    setInterestMax('')
     setFilteredPinjaman(pinjaman)
   }
   
@@ -216,7 +195,6 @@ export default function LoansPage() {
       "Nama Anggota": loan.anggota?.nama || 'Anggota',
       "Jumlah Pinjaman": formatCurrency(Number(loan.jumlah)),
       "Sisa Pembayaran": formatCurrency(Number(loan.sisa_pembayaran)),
-      "Bunga (%)": loan.bunga_persen,
       "Status": loan.status,
       "Tanggal Pengajuan": formatDate(String(loan.created_at)),
       "Jatuh Tempo": formatDate(String(loan.jatuh_tempo))
@@ -235,7 +213,7 @@ export default function LoansPage() {
   // Apply filters when filter values change
   useEffect(() => {
     applyFilters()
-  }, [pinjaman, searchQuery, statusFilter, amountMin, amountMax, dateStart, dateEnd, interestMin, interestMax])
+  }, [pinjaman, searchQuery, statusFilter, amountMin, amountMax, dateStart, dateEnd])
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -303,7 +281,6 @@ export default function LoansPage() {
                 <TableHead>Nama Anggota</TableHead>
                 <TableHead>Jumlah</TableHead>
                 <TableHead>Sisa</TableHead>
-                <TableHead>Bunga</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Tanggal Pengajuan</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -316,7 +293,6 @@ export default function LoansPage() {
                   <TableCell>{loan.anggota?.nama || 'Anggota'}</TableCell>
                   <TableCell>{formatCurrency(Number(loan.jumlah))}</TableCell>
                   <TableCell>{formatCurrency(Number(loan.sisa_pembayaran))}</TableCell>
-                  <TableCell>{loan.bunga_persen}%</TableCell>
                   <TableCell>
                     <Badge
                       variant={getStatusBadgeVariant(loan.status).variant as any}

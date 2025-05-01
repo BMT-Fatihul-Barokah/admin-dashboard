@@ -7,7 +7,6 @@ export type Pinjaman = {
   status: string;
   jumlah: number;
   jatuh_tempo: Date;
-  bunga_persen: number;
   total_pembayaran: number;
   sisa_pembayaran: number;
   created_at: Date;
