@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, RefreshCcw, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getAllPinjaman, Pinjaman } from "@/lib/supabase"
+import { getAllPinjaman, Pinjaman } from "@/lib/pinjaman"
 import { format, parseISO, differenceInMonths } from "date-fns"
 import { downloadCSV, formatDataForExport } from "@/utils/export-data"
 import { toast } from "sonner"
@@ -64,12 +64,17 @@ export default function LoansPage() {
           variant: 'outline',
           className: 'border-green-500 text-green-500'
         };
-      case 'menunggu':
+      case 'diajukan':
         return {
           variant: 'secondary',
           className: ''
         };
-      case 'terlambat':
+      case 'disetujui':
+        return {
+          variant: 'default',
+          className: 'bg-blue-500'
+        };
+      case 'ditolak':
         return {
           variant: 'destructive',
           className: ''
@@ -86,9 +91,14 @@ export default function LoansPage() {
   const fetchPinjaman = async () => {
     setIsLoading(true)
     try {
+      console.log('Fetching pinjaman data...')
       const data = await getAllPinjaman()
+      console.log('Pinjaman data received:', data)
       setPinjaman(data)
       setFilteredPinjaman(data)
+      if (data.length === 0) {
+        console.log('No pinjaman data returned from API')
+      }
     } catch (error) {
       console.error('Error fetching loans:', error)
       toast.error('Gagal memuat data pinjaman')
@@ -255,10 +265,11 @@ export default function LoansPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="diajukan">Diajukan</SelectItem>
+              <SelectItem value="disetujui">Disetujui</SelectItem>
+              <SelectItem value="ditolak">Ditolak</SelectItem>
               <SelectItem value="aktif">Aktif</SelectItem>
-              <SelectItem value="menunggu">Menunggu</SelectItem>
               <SelectItem value="lunas">Lunas</SelectItem>
-              <SelectItem value="terlambat">Terlambat</SelectItem>
             </SelectContent>
           </Select>
         </div>
