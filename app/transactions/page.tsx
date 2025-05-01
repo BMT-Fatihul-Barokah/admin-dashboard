@@ -19,6 +19,8 @@ import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
 import { downloadCSV, formatDataForExport } from "@/utils/export-data"
 import { toast } from "sonner"
+import { TransactionDetailModal } from "./components/transaction-detail-modal"
+import { TransactionReceipt } from "./components/transaction-receipt"
 
 // Define transaction type
 interface Transaksi {
@@ -48,6 +50,11 @@ export default function TransactionsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Modal states
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaksi | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
   
   // Component initialization
   
@@ -397,8 +404,18 @@ export default function TransactionsPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>Lihat Detail</DropdownMenuItem>
-                        <DropdownMenuItem>Cetak Bukti</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedTransaction(transaction);
+                          setShowDetailModal(true);
+                        }}>
+                          Lihat Detail
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedTransaction(transaction);
+                          setShowReceiptModal(true);
+                        }}>
+                          Cetak Bukti
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive">Batalkan Transaksi</DropdownMenuItem>
                       </DropdownMenuContent>
@@ -431,6 +448,23 @@ export default function TransactionsPage() {
           </div>
         </div>
       )}
+      {/* Transaction Detail Modal */}
+      <TransactionDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        transaction={selectedTransaction}
+        onPrint={() => {
+          setShowDetailModal(false);
+          setShowReceiptModal(true);
+        }}
+      />
+
+      {/* Transaction Receipt Modal */}
+      <TransactionReceipt
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        transaction={selectedTransaction}
+      />
     </div>
   )
 }
