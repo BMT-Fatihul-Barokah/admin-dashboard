@@ -106,12 +106,7 @@ export function RecordPaymentModal({
     }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="flex justify-between items-center">
-            <span>Catat Pembayaran</span>
-            <Button variant="outline" size="icon" onClick={onClose} disabled={isSubmitting}>
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
+          <DialogTitle>Catat Pembayaran</DialogTitle>
           <DialogDescription>
             Pinjaman: {loan.id.substring(0, 8)} - {loan.anggota?.nama || 'Anggota'}
           </DialogDescription>

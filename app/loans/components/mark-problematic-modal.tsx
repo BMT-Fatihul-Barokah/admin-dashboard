@@ -75,14 +75,9 @@ export function MarkProblematicModal({
     }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="flex justify-between items-center">
-            <div className="flex items-center">
-              <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
-              <span>Tandai Pinjaman Bermasalah</span>
-            </div>
-            <Button variant="outline" size="icon" onClick={onClose} disabled={isSubmitting}>
-              <X className="h-4 w-4" />
-            </Button>
+          <DialogTitle className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
+            <span>Tandai Pinjaman Bermasalah</span>
           </DialogTitle>
           <DialogDescription>
             Pinjaman: {loan.id.substring(0, 8)} - {loan.anggota?.nama || 'Anggota'}

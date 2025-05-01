@@ -89,12 +89,7 @@ export function LoanDetailModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle className="flex justify-between items-center">
-            <span>Detail Pinjaman</span>
-            <Button variant="outline" size="icon" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
+          <DialogTitle>Detail Pinjaman</DialogTitle>
           <DialogDescription>
             ID: {loan.id}
           </DialogDescription>
