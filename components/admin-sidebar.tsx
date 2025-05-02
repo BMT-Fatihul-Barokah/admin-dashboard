@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
 	BarChart3,
 	Bell,
@@ -17,7 +17,9 @@ import {
 	Upload,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAdminAuth } from "@/lib/admin-auth-context";
+import { logoutAdmin } from "@/lib/admin-auth";
 
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,29 +39,58 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// Define navigation items
-const navigation = [
-	{ name: "Dashboard", href: "/", icon: Home },
-	{ name: "Manajemen User", href: "/users", icon: Users },
-	{ name: "Transaksi", href: "/transactions", icon: CreditCard },
-	{ name: "Pinjaman", href: "/loans", icon: Wallet },
-	{ name: "Persetujuan Nasabah", href: "/approvals", icon: UserPlus },
-	{ name: "Laporan", href: "/reports", icon: FileText },
-	{ name: "Analitik", href: "/analytics", icon: BarChart3 },
-	{ name: "Notifikasi", href: "/notifications", icon: Bell },
-	{ name: "Import Data", href: "/import", icon: Upload },
+// Define all navigation items
+const allNavigation = [
+	{ name: "Dashboard", href: "/", icon: Home, roles: ["ketua", "admin", "sekretaris", "bendahara"] },
+	{ name: "Manajemen User", href: "/users", icon: Users, roles: ["ketua", "admin", "sekretaris"] },
+	{ name: "Transaksi", href: "/transactions", icon: CreditCard, roles: ["ketua", "admin", "bendahara"] },
+	{ name: "Pinjaman", href: "/loans", icon: Wallet, roles: ["ketua", "admin", "bendahara"] },
+	{ name: "Persetujuan Nasabah", href: "/approvals", icon: UserPlus, roles: ["ketua", "admin", "sekretaris"] },
+	{ name: "Laporan", href: "/reports", icon: FileText, roles: ["ketua", "admin", "bendahara"] },
+	{ name: "Analitik", href: "/analytics", icon: BarChart3, roles: ["ketua", "admin", "bendahara"] },
+	{ name: "Notifikasi", href: "/notifications", icon: Bell, roles: ["ketua", "admin", "sekretaris", "bendahara"] },
+	{ name: "Import Data", href: "/import", icon: Upload, roles: ["admin"] },
 ];
 
 const bottomNavigation = [
-	{ name: "Pengaturan", href: "/settings", icon: Settings },
+	{ name: "Pengaturan", href: "/settings", icon: Settings, roles: ["ketua", "admin", "sekretaris", "bendahara"] },
 ];
 
 export function AdminSidebar() {
 	const pathname = usePathname();
+	const router = useRouter();
+	const { user, isAuthenticated, isLoading } = useAdminAuth();
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const [isMobileOpen, setIsMobileOpen] = useState(false);
+	
+	// Filter navigation items based on user role
+	const navigation = user ? allNavigation.filter(item => item.roles.includes(user.role)) : [];
+	
+	// Filter bottom navigation items based on user role
+	const filteredBottomNavigation = user ? bottomNavigation.filter(item => item.roles.includes(user.role)) : [];
+	
+	// Redirect to login if not authenticated and not already on login page
+	useEffect(() => {
+		if (!isLoading && !isAuthenticated && pathname !== "/login") {
+			router.push("/login");
+		}
+	}, [isAuthenticated, isLoading, pathname, router]);
+	
+	// Don't render sidebar on login page
+	if (pathname === "/login" || !isAuthenticated) {
+		return null;
+	}
 
-	const NavItem = ({ item }) => (
+	interface NavItemProps {
+		item: {
+			name: string;
+			href: string;
+			icon: React.ComponentType<{ className?: string }>;
+			roles?: string[];
+		};
+	}
+
+	const NavItem = ({ item }: NavItemProps) => (
 		<Tooltip delayDuration={0}>
 			<TooltipTrigger asChild>
 				<Link
@@ -172,7 +203,7 @@ export function AdminSidebar() {
 					</div>
 					<div className="border-t p-2">
 						<nav className="space-y-1">
-							{bottomNavigation.map((item) => (
+							{filteredBottomNavigation.map((item) => (
 								<NavItem
 									key={item.name}
 									item={item}
@@ -201,8 +232,7 @@ export function AdminSidebar() {
 										</Avatar>
 										{!isCollapsed && (
 											<span className="truncate">
-												Admin
-												User
+												{user?.nama || "User"}
 											</span>
 										)}
 									</Button>
@@ -219,7 +249,7 @@ export function AdminSidebar() {
 										<Settings className="mr-2 h-4 w-4" />
 										<span>Profil</span>
 									</DropdownMenuItem>
-									<DropdownMenuItem>
+									<DropdownMenuItem onClick={() => logoutAdmin()}>
 										<LogOut className="mr-2 h-4 w-4" />
 										<span>Keluar</span>
 									</DropdownMenuItem>

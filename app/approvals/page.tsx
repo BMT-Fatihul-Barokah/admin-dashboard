@@ -1,22 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAdminAuth } from "@/lib/admin-auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle, RefreshCcw } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createClient } from '@supabase/supabase-js'
-
-// Create a direct Supabase client instance to ensure we're using the latest credentials
-const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM'
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { downloadCSV, formatDataForExport } from '@/utils/export-data'
+import { supabase } from '@/lib/supabase'
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
@@ -37,15 +34,26 @@ type Pendaftaran = {
 
 export default function ApprovalsPage() {
   const { toast } = useToast()
+  const { user, isAuthenticated } = useAdminAuth()
+  
+  // Check if user has permission to perform actions
+  const canPerformActions = isAuthenticated && user?.role !== 'ketua'
   const [pendingApprovals, setPendingApprovals] = useState<Pendaftaran[]>([])
   const [approvedCustomers, setApprovedCustomers] = useState<Pendaftaran[]>([])
   const [rejectedCustomers, setRejectedCustomers] = useState<Pendaftaran[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [rejectReason, setRejectReason] = useState("")
   const [selectedCustomer, setSelectedCustomer] = useState<Pendaftaran | null>(null)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Advanced filter states
+  const [dateStart, setDateStart] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
+  const [identityType, setIdentityType] = useState('')
+  const [city, setCity] = useState('')
 
   // Function to fetch data from Supabase
   const fetchData = async () => {
@@ -127,8 +135,40 @@ export default function ApprovalsPage() {
     setIsProcessing(true)
     try {
       console.log('Approving customer:', customer) // Debug log
+      
+      // Verify customer data is valid
+      if (!customer || !customer.id) {
+        throw new Error('Data nasabah tidak valid')
+      }
+      
+      if (!customer.akun_id) {
+        throw new Error('ID akun tidak ditemukan')
+      }
+      
       // Start a transaction by using the same timestamp for both updates
       const now = new Date().toISOString()
+      
+      // First, verify the current status to ensure we're not processing an already approved customer
+      const { data: currentData, error: checkError } = await supabase
+        .from('pendaftaran')
+        .select('status')
+        .eq('id', customer.id)
+        .single()
+      
+      if (checkError) {
+        console.error('Error checking current status:', checkError)
+        throw checkError
+      }
+      
+      if (currentData.status !== 'menunggu') {
+        console.warn(`Customer ${customer.nama} is not in 'menunggu' status (current: ${currentData.status})`)
+        toast({
+          title: 'Perhatian',
+          description: `Nasabah ${customer.nama} tidak dalam status menunggu persetujuan.`,
+          variant: 'default'
+        })
+        return
+      }
       
       // Update pendaftaran status to 'diterima'
       const { error: updatePendaftaranError } = await supabase
@@ -144,11 +184,9 @@ export default function ApprovalsPage() {
         throw updatePendaftaranError
       }
       
-      // Update akun is_active to true
-      if (!customer.akun_id) {
-        throw new Error('ID akun tidak ditemukan')
-      }
+      console.log(`Successfully updated pendaftaran status to 'diterima' for customer ${customer.nama}`)
       
+      // Update akun is_active to true
       const { error: updateAkunError } = await supabase
         .from('akun')
         .update({ 
@@ -159,8 +197,23 @@ export default function ApprovalsPage() {
       
       if (updateAkunError) {
         console.error('Error updating akun:', updateAkunError)
+        // If akun update fails, revert pendaftaran status
+        const { error: revertError } = await supabase
+          .from('pendaftaran')
+          .update({ 
+            status: 'menunggu',
+            updated_at: now
+          })
+          .eq('id', customer.id)
+        
+        if (revertError) {
+          console.error('Error reverting pendaftaran status:', revertError)
+        }
+        
         throw updateAkunError
       }
+      
+      console.log(`Successfully updated akun.is_active to true for customer ${customer.nama}`)
       
       toast({
         title: 'Berhasil',
@@ -174,7 +227,7 @@ export default function ApprovalsPage() {
       console.error('Error approving customer:', error)
       toast({
         title: 'Error',
-        description: 'Gagal menyetujui nasabah. Silakan coba lagi.',
+        description: `Gagal menyetujui nasabah: ${error instanceof Error ? error.message : 'Silakan coba lagi.'}`,
         variant: 'destructive'
       })
     } finally {
@@ -184,7 +237,12 @@ export default function ApprovalsPage() {
 
   // Function to reject a customer
   const rejectCustomer = async () => {
-    if (!selectedCustomer) return
+    // Validate inputs
+    if (!selectedCustomer) {
+      console.error('No customer selected for rejection')
+      return
+    }
+    
     if (!rejectReason.trim()) {
       toast({
         title: 'Error',
@@ -196,8 +254,42 @@ export default function ApprovalsPage() {
     
     setIsProcessing(true)
     try {
+      console.log('Rejecting customer:', selectedCustomer)
+      
+      // Verify customer data is valid
+      if (!selectedCustomer.id) {
+        throw new Error('Data nasabah tidak valid')
+      }
+      
       // Start a transaction by using the same timestamp for both updates
       const now = new Date().toISOString()
+      
+      // First, verify the current status to ensure we're not processing an already rejected customer
+      const { data: currentData, error: checkError } = await supabase
+        .from('pendaftaran')
+        .select('status')
+        .eq('id', selectedCustomer.id)
+        .single()
+      
+      if (checkError) {
+        console.error('Error checking current status:', checkError)
+        throw checkError
+      }
+      
+      if (currentData.status !== 'menunggu') {
+        console.warn(`Customer ${selectedCustomer.nama} is not in 'menunggu' status (current: ${currentData.status})`)
+        toast({
+          title: 'Perhatian',
+          description: `Nasabah ${selectedCustomer.nama} tidak dalam status menunggu persetujuan.`,
+          variant: 'default'
+        })
+        
+        // Reset form and close dialog
+        setRejectReason('')
+        setIsRejectDialogOpen(false)
+        setSelectedCustomer(null)
+        return
+      }
       
       // Update pendaftaran status to 'ditolak' and add rejection reason
       const { error: updatePendaftaranError } = await supabase
@@ -209,7 +301,12 @@ export default function ApprovalsPage() {
         })
         .eq('id', selectedCustomer.id)
       
-      if (updatePendaftaranError) throw updatePendaftaranError
+      if (updatePendaftaranError) {
+        console.error('Error updating pendaftaran:', updatePendaftaranError)
+        throw updatePendaftaranError
+      }
+      
+      console.log(`Successfully updated pendaftaran status to 'ditolak' for customer ${selectedCustomer.nama}`)
       
       // Ensure akun remains inactive (is_active = false)
       if (selectedCustomer.akun_id) {
@@ -221,7 +318,28 @@ export default function ApprovalsPage() {
           })
           .eq('id', selectedCustomer.akun_id)
         
-        if (updateAkunError) throw updateAkunError
+        if (updateAkunError) {
+          console.error('Error updating akun:', updateAkunError)
+          // If akun update fails, revert pendaftaran status
+          const { error: revertError } = await supabase
+            .from('pendaftaran')
+            .update({ 
+              status: 'menunggu',
+              alasan_penolakan: null,
+              updated_at: now
+            })
+            .eq('id', selectedCustomer.id)
+          
+          if (revertError) {
+            console.error('Error reverting pendaftaran status:', revertError)
+          }
+          
+          throw updateAkunError
+        }
+        
+        console.log(`Successfully confirmed akun.is_active is false for customer ${selectedCustomer.nama}`)
+      } else {
+        console.warn(`No akun_id found for customer ${selectedCustomer.nama}, skipping akun update`)
       }
       
       toast({
@@ -241,7 +359,7 @@ export default function ApprovalsPage() {
       console.error('Error rejecting customer:', error)
       toast({
         title: 'Error',
-        description: 'Gagal menolak nasabah. Silakan coba lagi.',
+        description: `Gagal menolak nasabah: ${error instanceof Error ? error.message : 'Silakan coba lagi.'}`,
         variant: 'destructive'
       })
     } finally {
@@ -252,26 +370,76 @@ export default function ApprovalsPage() {
   // Function to handle search
   const handleSearch = (query: string) => {
     setSearchQuery(query)
+    console.log('Search query:', query)
   }
 
-  // Filter data based on search query
-  const filteredPendingApprovals = pendingApprovals.filter(customer => 
-    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Apply all filters
+  const applyFilters = (data: Pendaftaran[]) => {
+    if (!data.length) return []
+    
+    let filtered = [...data]
+    
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(customer => 
+        (customer.nama && customer.nama.toLowerCase().includes(query)) ||
+        (customer.submission_id && customer.submission_id.toLowerCase().includes(query)) ||
+        (customer.noIdentitas && customer.noIdentitas.toLowerCase().includes(query))
+      )
+    }
+    
+    // Apply date range filter
+    if (dateStart) {
+      const startDate = new Date(dateStart)
+      filtered = filtered.filter(customer => {
+        const customerDate = new Date(customer.created_at)
+        return customerDate >= startDate
+      })
+    }
+    
+    if (dateEnd) {
+      const endDate = new Date(dateEnd)
+      // Set to end of day
+      endDate.setHours(23, 59, 59, 999)
+      filtered = filtered.filter(customer => {
+        const customerDate = new Date(customer.created_at)
+        return customerDate <= endDate
+      })
+    }
+    
+    // Apply identity type filter
+    if (identityType) {
+      filtered = filtered.filter(customer => 
+        customer.noIdentitas && customer.noIdentitas.toLowerCase().includes(identityType.toLowerCase())
+      )
+    }
+    
+    // Apply city filter
+    if (city) {
+      filtered = filtered.filter(customer => {
+        // This is a placeholder since the city field might not be directly in the Pendaftaran type
+        // In a real implementation, you would check the appropriate field
+        return true
+      })
+    }
+    
+    return filtered
+  }
+  
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchQuery('')
+    setDateStart('')
+    setDateEnd('')
+    setIdentityType('')
+    setCity('')
+  }
 
-  const filteredApprovedCustomers = approvedCustomers.filter(customer => 
-    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const filteredRejectedCustomers = rejectedCustomers.filter(customer => 
-    customer.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.submission_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.noIdentitas.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Apply filters to each dataset
+  const filteredPendingApprovals = applyFilters(pendingApprovals)
+  const filteredApprovedCustomers = applyFilters(approvedCustomers)
+  const filteredRejectedCustomers = applyFilters(rejectedCustomers)
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -282,10 +450,143 @@ export default function ApprovalsPage() {
     }
   }
 
+  // Export functions for each tab
+  const exportPendingData = (): void => {
+    if (filteredPendingApprovals.length === 0) {
+      toast({
+        title: "Info",
+        description: "Tidak ada data untuk diekspor",
+        variant: "default"
+      })
+      return
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      submission_id: "ID Pengajuan",
+      nama: "Nama Nasabah",
+      noIdentitas: "Nomor Identitas",
+      noTelepon: "Nomor Telepon",
+      created_at: "Tanggal Pengajuan",
+      status: "Status"
+    }
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      filteredPendingApprovals,
+      fieldMap,
+      {
+        "Tanggal Pengajuan": (value) => formatDate(value),
+        "Status": () => "Menunggu"
+      }
+    )
+
+    // Download as CSV
+    downloadCSV(exportData, `nasabah-menunggu-${new Date().toISOString().split('T')[0]}`)
+    
+    toast({
+      title: "Berhasil",
+      description: "Data nasabah berhasil diekspor",
+      variant: "default"
+    })
+  }
+
+  const exportApprovedData = (): void => {
+    if (filteredApprovedCustomers.length === 0) {
+      toast({
+        title: "Info",
+        description: "Tidak ada data untuk diekspor",
+        variant: "default"
+      })
+      return
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      submission_id: "ID Pengajuan",
+      nama: "Nama Nasabah",
+      noIdentitas: "Nomor Identitas",
+      noTelepon: "Nomor Telepon",
+      created_at: "Tanggal Pengajuan",
+      updated_at: "Tanggal Disetujui",
+      status: "Status"
+    }
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      filteredApprovedCustomers,
+      fieldMap,
+      {
+        "Tanggal Pengajuan": (value: string) => formatDate(value),
+        "Tanggal Disetujui": (value: string) => formatDate(value),
+        "Status": () => "Disetujui"
+      }
+    )
+
+    // Download as CSV
+    downloadCSV(exportData, `nasabah-disetujui-${new Date().toISOString().split('T')[0]}`)
+    
+    toast({
+      title: "Berhasil",
+      description: "Data nasabah berhasil diekspor",
+      variant: "default"
+    })
+  }
+
+  const exportRejectedData = (): void => {
+    if (filteredRejectedCustomers.length === 0) {
+      toast({
+        title: "Info",
+        description: "Tidak ada data untuk diekspor",
+        variant: "default"
+      })
+      return
+    }
+
+    // Define field mapping for export
+    const fieldMap = {
+      submission_id: "ID Pengajuan",
+      nama: "Nama Nasabah",
+      noIdentitas: "Nomor Identitas",
+      noTelepon: "Nomor Telepon",
+      created_at: "Tanggal Pengajuan",
+      updated_at: "Tanggal Ditolak",
+      status: "Status",
+      alasan_penolakan: "Alasan Penolakan"
+    }
+
+    // Format data with transformations
+    const exportData = formatDataForExport(
+      filteredRejectedCustomers,
+      fieldMap,
+      {
+        "Tanggal Pengajuan": (value: string) => formatDate(value),
+        "Tanggal Ditolak": (value: string) => formatDate(value),
+        "Status": () => "Ditolak",
+        "Alasan Penolakan": (value: string | null) => value || "-"
+      }
+    )
+
+    // Download as CSV
+    downloadCSV(exportData, `nasabah-ditolak-${new Date().toISOString().split('T')[0]}`)
+    
+    toast({
+      title: "Berhasil",
+      description: "Data nasabah berhasil diekspor",
+      variant: "default"
+    })
+  }
+
   // Load data on component mount
   useEffect(() => {
     fetchData()
   }, [])
+  
+  // Apply filters when filter values change
+  useEffect(() => {
+    // The filters are applied in the filteredPendingApprovals, filteredApprovedCustomers, and filteredRejectedCustomers variables
+    // This useEffect ensures the component re-renders when filter values change
+  }, [searchQuery, dateStart, dateEnd, identityType, city, pendingApprovals, approvedCustomers, rejectedCustomers])
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -311,15 +612,18 @@ export default function ApprovalsPage() {
                 onChange={(e) => handleSearch(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon" className="ml-auto">
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="sr-only">Filter</span>
-            </Button>
+            <div className="ml-auto"></div>
             <Button variant="outline" size="icon" onClick={() => fetchData()}>
-              <Download className="h-4 w-4" />
+              <RefreshCcw className="h-4 w-4" />
               <span className="sr-only">Refresh</span>
             </Button>
+            <Button variant="outline" size="icon" onClick={exportPendingData}>
+              <Download className="h-4 w-4" />
+              <span className="sr-only">Export</span>
+            </Button>
           </div>
+
+
 
           {isLoading ? (
             <div className="flex justify-center items-center py-8">
@@ -361,11 +665,12 @@ export default function ApprovalsPage() {
                       <Button 
                         variant="destructive" 
                         size="icon"
-                        disabled={isProcessing}
+                        disabled={isProcessing || !canPerformActions}
                         onClick={() => {
                           setSelectedCustomer(customer)
                           setIsRejectDialogOpen(true)
                         }}
+                        title={!canPerformActions && user?.role === 'ketua' ? 'Ketua hanya dapat melihat data' : ''}
                       >
                         <XCircle className="h-4 w-4" />
                       </Button>
@@ -373,8 +678,9 @@ export default function ApprovalsPage() {
                         variant="default" 
                         size="icon" 
                         className="bg-green-500 hover:bg-green-600"
-                        disabled={isProcessing}
+                        disabled={isProcessing || !canPerformActions}
                         onClick={() => approveCustomer(customer)}
+                        title={!canPerformActions && user?.role === 'ketua' ? 'Ketua hanya dapat melihat data' : ''}
                       >
                         <CheckCircle className="h-4 w-4" />
                       </Button>
