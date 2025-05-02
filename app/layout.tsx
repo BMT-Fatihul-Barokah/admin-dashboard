@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { Toaster } from "@/components/ui/toaster"
+import { AdminAuthProvider } from "@/lib/admin-auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,11 +27,13 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <div className="flex min-h-screen">
-            <AdminSidebar />
-            <main className="flex-1 overflow-y-auto transition-all duration-200">{children}</main>
-          </div>
-          <Toaster />
+          <AdminAuthProvider>
+            <div className="flex min-h-screen">
+              <AdminSidebar />
+              <main className="flex-1 overflow-y-auto transition-all duration-200">{children}</main>
+            </div>
+            <Toaster />
+          </AdminAuthProvider>
         </ThemeProvider>
       </body>
     </html>

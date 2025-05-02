@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAdminAuth } from "@/lib/admin-auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -38,6 +39,10 @@ type Pendaftaran = {
 
 export default function ApprovalsPage() {
   const { toast } = useToast()
+  const { user, isAuthenticated } = useAdminAuth()
+  
+  // Check if user has permission to perform actions
+  const canPerformActions = isAuthenticated && user?.role !== 'ketua'
   const [pendingApprovals, setPendingApprovals] = useState<Pendaftaran[]>([])
   const [approvedCustomers, setApprovedCustomers] = useState<Pendaftaran[]>([])
   const [rejectedCustomers, setRejectedCustomers] = useState<Pendaftaran[]>([])
@@ -665,11 +670,12 @@ export default function ApprovalsPage() {
                       <Button 
                         variant="destructive" 
                         size="icon"
-                        disabled={isProcessing}
+                        disabled={isProcessing || !canPerformActions}
                         onClick={() => {
                           setSelectedCustomer(customer)
                           setIsRejectDialogOpen(true)
                         }}
+                        title={!canPerformActions && user?.role === 'ketua' ? 'Ketua hanya dapat melihat data' : ''}
                       >
                         <XCircle className="h-4 w-4" />
                       </Button>
@@ -677,8 +683,9 @@ export default function ApprovalsPage() {
                         variant="default" 
                         size="icon" 
                         className="bg-green-500 hover:bg-green-600"
-                        disabled={isProcessing}
+                        disabled={isProcessing || !canPerformActions}
                         onClick={() => approveCustomer(customer)}
+                        title={!canPerformActions && user?.role === 'ketua' ? 'Ketua hanya dapat melihat data' : ''}
                       >
                         <CheckCircle className="h-4 w-4" />
                       </Button>

@@ -1,5 +1,36 @@
 import * as XLSX from 'xlsx';
 import { supabase } from './supabase';
+import { PostgrestResponse } from '@supabase/supabase-js';
+
+// Flag to track if import_history table exists
+let importHistoryTableExists = false;
+
+// Create import_history table if it doesn't exist
+async function ensureImportHistoryTable(): Promise<boolean> {
+  if (importHistoryTableExists) {
+    return true;
+  }
+  
+  try {
+    // Check if table exists by querying it
+    const { data, error } = await supabase
+      .from('import_history')
+      .select('id')
+      .limit(1);
+    
+    if (!error) {
+      importHistoryTableExists = true;
+      return true;
+    }
+    
+    // Table doesn't exist or other error, we'll skip recording history
+    console.log('Import history table not available:', error.message);
+    return false;
+  } catch (err) {
+    console.error('Error checking import_history table:', err);
+    return false;
+  }
+}
 
 // Define types for the Excel data
 export type AnggotaExcelRow = {
@@ -68,7 +99,10 @@ export async function parseExcelFile(file: File): Promise<AnggotaExcelRow[]> {
 }
 
 // Import anggota data to Supabase
-export async function importAnggotaData(data: AnggotaExcelRow[]): Promise<{
+export async function importAnggotaData(
+  data: AnggotaExcelRow[],
+  onProgress?: (progress: number) => void
+): Promise<{
   success: boolean;
   message: string;
   processed: number;
@@ -86,32 +120,49 @@ export async function importAnggotaData(data: AnggotaExcelRow[]): Promise<{
   };
   
   try {
-    // Process each row
-    for (const row of data) {
-      result.processed++;
+    // First check if the update_anggota_balance RPC function exists
+    let rpcExists = false;
+    try {
+      const testRpc = await supabase.rpc('update_anggota_balance', {
+        p_nomor_rekening: 'test',
+        p_saldo: 0
+      });
+      // Check if the RPC function exists based on the error message
+      if (testRpc.error) {
+        const errorMsg = testRpc.error.message || '';
+        rpcExists = !errorMsg.includes('Could not find');
+      } else {
+        rpcExists = true;
+      }
+      console.log('RPC function exists:', rpcExists);
+    } catch (e) {
+      console.log('RPC function check failed, assuming it does not exist');
+      rpcExists = false;
+    }
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      let response: PostgrestResponse<any>;
       
       try {
-        // Check if anggota with this nomor_rekening already exists
+        // Check if anggota already exists by nomor_rekening
         const { data: existingAnggota, error: fetchError } = await supabase
           .from('anggota')
-          .select('id, nomor_rekening')
+          .select('id, nomor_rekening, saldo')
           .eq('nomor_rekening', row['No. Rekening'])
           .maybeSingle();
         
         if (fetchError) throw fetchError;
         
-        // Convert Excel date to JavaScript Date
-        const tanggalLahir = excelDateToJSDate(row['Tanggal Lahir']);
-        
         // Prepare anggota data
         const anggotaData = {
-          nama: row['Nama Anggota'],
           nomor_rekening: row['No. Rekening'],
-          saldo: row['Saldo'],
+          nama: row['Nama Anggota'],
+          saldo: Number(row['Saldo']), // Convert to number
           alamat: row['Alamat'],
           kota: row['Kota'],
           tempat_lahir: row['Tempat Lahir'],
-          tanggal_lahir: formatDate(tanggalLahir),
+          tanggal_lahir: formatDate(excelDateToJSDate(row['Tanggal Lahir'])),
           pekerjaan: row['Pekerjaan'],
           jenis_identitas: row['Jenis Identitas'],
           nomor_identitas: String(row['Nomor Identitas']),
@@ -119,17 +170,106 @@ export async function importAnggotaData(data: AnggotaExcelRow[]): Promise<{
           updated_at: new Date().toISOString()
         };
         
-        let response;
-        
         if (existingAnggota) {
           // Update existing anggota
-          response = await supabase
-            .from('anggota')
-            .update(anggotaData)
-            .eq('id', existingAnggota.id);
+          console.log(`Updating account ${row['No. Rekening']} with new balance: ${row['Saldo']}`);
+          console.log('Current balance in database:', existingAnggota.saldo);
           
-          if (response.error) throw response.error;
-          result.updated++;
+          let updateSuccess = false;
+          
+          // If RPC exists, use it as the primary method (most reliable)
+          if (rpcExists) {
+            console.log('Using RPC function to update balance');
+            const rpcResponse = await supabase.rpc('update_anggota_balance', {
+              p_nomor_rekening: row['No. Rekening'],
+              p_saldo: Number(row['Saldo'])
+            });
+            
+            console.log('RPC update response:', rpcResponse);
+            if (!rpcResponse.error) {
+              updateSuccess = true;
+            }
+          }
+          
+          // If RPC failed or doesn't exist, try standard update methods
+          if (!updateSuccess) {
+            // Approach 1: Standard update by nomor_rekening
+            console.log('Trying standard update by nomor_rekening');
+            response = await supabase
+              .from('anggota')
+              .update({
+                ...anggotaData,
+                saldo: Number(row['Saldo'])
+              })
+              .eq('nomor_rekening', row['No. Rekening']);
+            
+            console.log('Update response:', response);
+            
+            if (!response.error) {
+              updateSuccess = true;
+            } else {
+              // Approach 2: Update by ID
+              console.log('Trying update by ID');
+              response = await supabase
+                .from('anggota')
+                .update({
+                  ...anggotaData,
+                  saldo: Number(row['Saldo'])
+                })
+                .eq('id', existingAnggota.id);
+              
+              console.log('Update by ID response:', response);
+              
+              if (!response.error) {
+                updateSuccess = true;
+              } else {
+                // Approach 3: Upsert
+                console.log('Trying upsert');
+                response = await supabase
+                  .from('anggota')
+                  .upsert({
+                    id: existingAnggota.id,
+                    ...anggotaData,
+                    saldo: Number(row['Saldo'])
+                  });
+                
+                console.log('Upsert response:', response);
+                
+                if (!response.error) {
+                  updateSuccess = true;
+                }
+              }
+            }
+          }
+          
+          // Verify the update was successful
+          const { data: verifyData, error: verifyError } = await supabase
+            .from('anggota')
+            .select('*')
+            .eq('nomor_rekening', row['No. Rekening'])
+            .single();
+          
+          if (verifyError) {
+            console.error('Error verifying update:', verifyError);
+          } else {
+            console.log('Updated data in database:', verifyData);
+            
+            // Check if the balance was actually updated
+            if (verifyData.saldo === Number(row['Saldo'])) {
+              console.log('✅ Balance successfully updated!');
+              updateSuccess = true;
+            } else {
+              console.log('❌ Balance not updated correctly. Expected:', Number(row['Saldo']), 'Actual:', verifyData.saldo);
+              console.log('The update appeared to succeed but the balance was not updated. This is likely due to RLS policies.');
+            }
+          }
+          
+          // Count as updated if any of the approaches succeeded
+          if (updateSuccess) {
+            result.updated++;
+          } else {
+            throw new Error(`Failed to update account ${row['No. Rekening']} after multiple attempts`);
+          }
         } else {
           // Create new anggota
           response = await supabase
@@ -211,6 +351,14 @@ export async function recordImportHistory(
   details: string
 ): Promise<void> {
   try {
+    // Check if import_history table exists
+    const tableExists = await ensureImportHistoryTable();
+    if (!tableExists) {
+      console.log('Skipping import history recording as table does not exist');
+      return;
+    }
+    
+    // Record the import history
     const { error } = await supabase
       .from('import_history')
       .insert({
@@ -223,9 +371,14 @@ export async function recordImportHistory(
       });
     
     if (error) {
-      console.error('Error recording import history:', error);
+      const errorMessage = typeof error === 'object' && error !== null && 'message' in error
+        ? (error.message as string)
+        : 'Unknown error';
+      console.log('Error recording import history (non-critical):', errorMessage);
+    } else {
+      console.log('Import history recorded successfully');
     }
-  } catch (error) {
-    console.error('Error recording import history:', error);
+  } catch (error: any) {
+    console.log('Error in recordImportHistory (non-critical):', error?.message || error);
   }
 }
