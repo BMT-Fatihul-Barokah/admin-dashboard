@@ -53,7 +53,7 @@ const allNavigation = [
 ];
 
 const bottomNavigation = [
-	{ name: "Pengaturan", href: "/settings", icon: Settings },
+	{ name: "Pengaturan", href: "/settings", icon: Settings, roles: ["ketua", "admin", "sekretaris", "bendahara"] },
 ];
 
 export function AdminSidebar() {
@@ -65,6 +65,9 @@ export function AdminSidebar() {
 	
 	// Filter navigation items based on user role
 	const navigation = user ? allNavigation.filter(item => item.roles.includes(user.role)) : [];
+	
+	// Filter bottom navigation items based on user role
+	const filteredBottomNavigation = user ? bottomNavigation.filter(item => item.roles.includes(user.role)) : [];
 	
 	// Redirect to login if not authenticated and not already on login page
 	useEffect(() => {
@@ -200,7 +203,7 @@ export function AdminSidebar() {
 					</div>
 					<div className="border-t p-2">
 						<nav className="space-y-1">
-							{bottomNavigation.map((item) => (
+							{filteredBottomNavigation.map((item) => (
 								<NavItem
 									key={item.name}
 									item={item}
