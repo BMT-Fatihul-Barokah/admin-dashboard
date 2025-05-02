@@ -1,14 +1,80 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Users, UserPlus, CheckCircle, XCircle, Bell, FileText, Mail } from "lucide-react";
+import { Users, UserPlus, CheckCircle, XCircle, Bell, FileText, Mail, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth-context";
+import { 
+  testDatabaseConnection,
+  getTotalAnggota, 
+  getPendingRegistrations, 
+  getRecentActivities 
+} from '@/lib/dashboard-data';
+import { format, parseISO, formatDistanceToNow } from "date-fns";
+import { id } from "date-fns/locale";
+
+// Activity type definition
+type Activity = {
+  id: string;
+  type: 'transaction' | 'registration' | 'loan';
+  description: string;
+  amount?: number;
+  created_at: string;
+  status?: string;
+};
 
 export function SekretarisDashboard() {
   const { user } = useAdminAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState({
+    totalMembers: 0,
+    pendingRegistrations: 0,
+    recentActivities: [] as Activity[]
+  });
+  
+  // Format relative time
+  const formatRelativeTime = (dateString: string) => {
+    try {
+      return formatDistanceToNow(parseISO(dateString), { addSuffix: true, locale: id });
+    } catch (error) {
+      return dateString;
+    }
+  };
+  
+  useEffect(() => {
+    async function fetchDashboardData() {
+      setIsLoading(true);
+      try {
+        console.log('Fetching sekretaris dashboard data...');
+        const [members, registrations, activities] = await Promise.all([
+          getTotalAnggota(),
+          getPendingRegistrations(),
+          getRecentActivities(5)
+        ]);
+        
+        console.log('Sekretaris dashboard data fetched:', {
+          members,
+          registrations,
+          activitiesCount: activities.length
+        });
+        
+        setDashboardData({
+          totalMembers: members,
+          pendingRegistrations: registrations,
+          recentActivities: activities.filter(a => a.type === 'registration')
+        });
+      } catch (error) {
+        console.error('Error fetching sekretaris dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchDashboardData();
+  }, []);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -30,28 +96,34 @@ export function SekretarisDashboard() {
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-white">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pendaftaran Baru</CardTitle>
-                <UserPlus className="h-4 w-4 text-white" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">15</div>
-                <p className="text-xs text-purple-100">Menunggu persetujuan</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gradient-to-br from-pink-400 to-pink-500 text-white">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Anggota</CardTitle>
-                <Users className="h-4 w-4 text-white" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">245</div>
-                <p className="text-xs text-pink-100">+12% dari bulan lalu</p>
-              </CardContent>
-            </Card>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Memuat data...</span>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-white">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pendaftaran Baru</CardTitle>
+                  <UserPlus className="h-4 w-4 text-white" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{dashboardData.pendingRegistrations}</div>
+                  <p className="text-xs text-purple-100">Menunggu persetujuan</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-br from-pink-400 to-pink-500 text-white">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Anggota</CardTitle>
+                  <Users className="h-4 w-4 text-white" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{dashboardData.totalMembers}</div>
+                  <p className="text-xs text-pink-100">Anggota aktif</p>
+                </CardContent>
+              </Card>
             
             <Card className="bg-gradient-to-br from-violet-400 to-violet-500 text-white">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -63,7 +135,8 @@ export function SekretarisDashboard() {
                 <p className="text-xs text-violet-100">Belum dibaca</p>
               </CardContent>
             </Card>
-          </div>
+            </div>
+          )}
           
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
@@ -74,29 +147,43 @@ export function SekretarisDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center">
-                      <div className="mr-2 h-2 w-2 rounded-full bg-purple-500" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium leading-none">
-                          {`Nasabah ${i}`}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {`Mendaftar ${i} jam yang lalu`}
-                        </p>
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-40">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : dashboardData.recentActivities.length > 0 ? (
+                  <div className="space-y-4">
+                    {dashboardData.recentActivities.map((activity: Activity) => (
+                      <div key={activity.id} className="flex items-center">
+                        <div className="mr-2 h-2 w-2 rounded-full bg-purple-500" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium leading-none">
+                            {activity.description}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatRelativeTime(activity.created_at)}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Link href={`/approvals?id=${activity.id}`}>
+                            <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </Link>
+                          <Link href={`/approvals?id=${activity.id}&action=approve`}>
+                            <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        </Button>
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Tidak ada pendaftaran baru yang menunggu persetujuan
+                  </div>
+                )}
               </CardContent>
             </Card>
             
@@ -210,7 +297,13 @@ export function SekretarisDashboard() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Anggota Aktif (245)</h3>
+                  <h3 className="text-lg font-medium">
+                    {isLoading ? (
+                      <span>Anggota Aktif (Loading...)</span>
+                    ) : (
+                      <span>Anggota Aktif ({dashboardData.totalMembers})</span>
+                    )}
+                  </h3>
                   <Link href="/users">
                     <Button>
                       Lihat Semua

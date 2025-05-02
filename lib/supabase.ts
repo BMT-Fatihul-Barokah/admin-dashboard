@@ -1,20 +1,40 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Using direct URL and key for the koperasi fatihul barokah project
+// Supabase project credentials for koperasi fatihul barokah
 const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM';
 
 console.log('Initializing Supabase client with URL:', supabaseUrl);
 
-// Create the Supabase client with debug logging
+// Create the Supabase client with debug logging and proper configuration
 let supabaseClient;
 try {
   supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: true,
-      persistSession: true
+      persistSession: true,
+      detectSessionInUrl: false
+    },
+    db: {
+      schema: 'public',
+    },
+    // Enable debug mode in development
+    global: {
+      headers: {
+        'x-client-info': 'admin-dashboard'
+      },
+    },
+  });
+  
+  // Set default headers for admin access
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      console.log('Auth state changed:', event, 'User:', session.user?.email);
+    } else {
+      console.log('No active session');
     }
   });
+  
   console.log('Supabase client initialized successfully');
 } catch (error) {
   console.error('Error initializing Supabase client:', error);

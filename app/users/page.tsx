@@ -17,20 +17,15 @@ import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, Slid
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
-import { createClient } from '@supabase/supabase-js'
 import { useToast } from "@/components/ui/use-toast"
 import { downloadCSV, formatDataForExport } from "@/utils/export-data"
+import { supabase, type Anggota as AnggotaType } from "@/lib/supabase"
 
 // Import our custom components
 import { UserDetailDialog } from "./components/user-detail-dialog"
 import { EditUserForm } from "./components/edit-user-form"
 import { UserTransactions } from "./components/user-transactions"
 import { ToggleUserStatus } from "./components/toggle-user-status"
-
-// Create a direct Supabase client instance
-const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM'
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 type Anggota = {
   id: string

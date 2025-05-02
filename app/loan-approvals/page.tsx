@@ -6,84 +6,49 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle, RefreshCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle, RefreshCcw, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { downloadCSV, formatDataForExport } from "@/utils/export-data";
-import { createClient } from "@/utils/supabase/client";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { format, parseISO } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+import { LoanApplication, getPendingLoanApplications, getApprovedLoanApplications, getRejectedLoanApplications, approveLoanApplication, rejectLoanApplication, activateLoan } from "@/lib/loan-approvals";
+import { supabase } from "@/lib/supabase";
 
-interface Loan {
-  id: string;
-  anggota_id: string;
+// Extended loan application with display properties
+type FormattedLoanApplication = LoanApplication & {
   anggota_nama: string;
-  jumlah: number;
-  tenor: number;
-  tujuan: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  alasan_penolakan?: string;
+  tenor?: number; // For compatibility with existing code
+  tujuan?: string; // For compatibility with existing code
 }
 
 export default function LoanApprovalsPage() {
-  const [pendingLoans, setPendingLoans] = useState<Loan[]>([]);
-  const [approvedLoans, setApprovedLoans] = useState<Loan[]>([]);
-  const [rejectedLoans, setRejectedLoans] = useState<Loan[]>([]);
-  const [isLoading, setIsLoading] = useState(true)
+  const [pendingLoans, setPendingLoans] = useState<FormattedLoanApplication[]>([]);
+  const [approvedLoans, setApprovedLoans] = useState<FormattedLoanApplication[]>([]);
+  const [rejectedLoans, setRejectedLoans] = useState<FormattedLoanApplication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [selectedLoan, setSelectedLoan] = useState<FormattedLoanApplication | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
-  const supabase = createClient();
+  // Using the centralized Supabase client from lib/supabase
 
   const fetchLoans = async () => {
     setIsLoading(true);
     try {
-      // Fetch pending loans
-      const { data: pendingData, error: pendingError } = await supabase
-        .from("pinjaman")
-        .select(`
-          *,
-          anggota:anggota_id (
-            nama
-          )
-        `)
-        .eq("status", "menunggu");
-
-      if (pendingError) throw pendingError;
-
-      // Fetch approved loans
-      const { data: approvedData, error: approvedError } = await supabase
-        .from("pinjaman")
-        .select(`
-          *,
-          anggota:anggota_id (
-            nama
-          )
-        `)
-        .eq("status", "disetujui");
-
-      if (approvedError) throw approvedError;
-
-      // Fetch rejected loans
-      const { data: rejectedData, error: rejectedError } = await supabase
-        .from("pinjaman")
-        .select(`
-          *,
-          anggota:anggota_id (
-            nama
-          )
-        `)
-        .eq("status", "ditolak");
-
-      if (rejectedError) throw rejectedError;
-
-      // Format the data
+      // Fetch all loan data in parallel using our loan-approvals functions
+      const [pendingData, approvedData, rejectedData] = await Promise.all([
+        getPendingLoanApplications(),
+        getApprovedLoanApplications(),
+        getRejectedLoanApplications()
+      ]);
+      
+      // Format the data to include anggota_nama for display
       const formattedPending = pendingData.map((loan) => ({
         ...loan,
         anggota_nama: loan.anggota?.nama || "Unknown",
@@ -102,6 +67,8 @@ export default function LoanApprovalsPage() {
       setPendingLoans(formattedPending);
       setApprovedLoans(formattedApproved);
       setRejectedLoans(formattedRejected);
+      
+      console.log(`Fetched ${pendingData.length} pending, ${approvedData.length} approved, and ${rejectedData.length} rejected loan applications`);
     } catch (error) {
       console.error("Error fetching loans:", error);
       toast.error("Gagal memuat data pinjaman");
@@ -114,14 +81,14 @@ export default function LoanApprovalsPage() {
     fetchLoans();
   }, []);
 
-  const handleApprove = async (loan: Loan) => {
+  const handleApprove = async (loan: FormattedLoanApplication) => {
     try {
-      const { error } = await supabase
-        .from("pinjaman")
-        .update({ status: "disetujui", updated_at: new Date().toISOString() })
-        .eq("id", loan.id);
-
-      if (error) throw error;
+      // Use the loan-approvals function to approve the loan
+      const success = await approveLoanApplication(loan.id);
+      
+      if (!success) {
+        throw new Error("Failed to approve loan");
+      }
 
       toast.success("Pinjaman berhasil disetujui");
       fetchLoans();
@@ -131,7 +98,7 @@ export default function LoanApprovalsPage() {
     }
   };
 
-  const openRejectDialog = (loan: Loan) => {
+  const openRejectDialog = (loan: FormattedLoanApplication) => {
     setSelectedLoan(loan);
     setRejectionReason("");
     setIsRejectDialogOpen(true);
@@ -141,16 +108,12 @@ export default function LoanApprovalsPage() {
     if (!selectedLoan) return;
 
     try {
-      const { error } = await supabase
-        .from("pinjaman")
-        .update({
-          status: "ditolak",
-          alasan_penolakan: rejectionReason,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedLoan.id);
-
-      if (error) throw error;
+      // Use the loan-approvals function to reject the loan
+      const success = await rejectLoanApplication(selectedLoan.id, rejectionReason);
+      
+      if (!success) {
+        throw new Error("Failed to reject loan");
+      }
 
       toast.success("Pinjaman berhasil ditolak");
       setIsRejectDialogOpen(false);
@@ -163,7 +126,8 @@ export default function LoanApprovalsPage() {
 
   const filteredPendingLoans = pendingLoans.filter(loan => 
     loan.anggota_nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    loan.id.toLowerCase().includes(searchTerm.toLowerCase())
+    loan.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (loan.alasan && loan.alasan.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const formatCurrency = (amount: number) => {
@@ -172,6 +136,15 @@ export default function LoanApprovalsPage() {
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(amount);
+  };
+  
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), 'dd MMM yyyy', { locale: idLocale });
+    } catch (error) {
+      return dateString;
+    }
   };
   
   // Export functions for each tab
@@ -186,8 +159,7 @@ export default function LoanApprovalsPage() {
       id: "ID Pinjaman",
       anggota_nama: "Nama Anggota",
       jumlah: "Jumlah Pinjaman",
-      tenor: "Tenor (bulan)",
-      tujuan: "Tujuan",
+      alasan: "Alasan/Tujuan",
       created_at: "Tanggal Pengajuan",
       status: "Status"
     };
@@ -198,8 +170,9 @@ export default function LoanApprovalsPage() {
       fieldMap,
       {
         "Jumlah Pinjaman": (value: number) => formatCurrency(value),
-        "Tanggal Pengajuan": (value: string) => new Date(value).toLocaleDateString('id-ID'),
-        "Status": () => "Menunggu"
+        "Tanggal Pengajuan": (value: string) => formatDate(value),
+        "Status": () => "Menunggu",
+        "Alasan/Tujuan": (value: string) => value || "-"
       }
     );
 
@@ -219,8 +192,7 @@ export default function LoanApprovalsPage() {
       id: "ID Pinjaman",
       anggota_nama: "Nama Anggota",
       jumlah: "Jumlah Pinjaman",
-      tenor: "Tenor (bulan)",
-      tujuan: "Tujuan",
+      alasan: "Alasan/Tujuan",
       created_at: "Tanggal Pengajuan",
       updated_at: "Tanggal Disetujui",
       status: "Status"
@@ -232,9 +204,10 @@ export default function LoanApprovalsPage() {
       fieldMap,
       {
         "Jumlah Pinjaman": (value: number) => formatCurrency(value),
-        "Tanggal Pengajuan": (value: string) => new Date(value).toLocaleDateString('id-ID'),
-        "Tanggal Disetujui": (value: string) => new Date(value).toLocaleDateString('id-ID'),
-        "Status": () => "Disetujui"
+        "Tanggal Pengajuan": (value: string) => formatDate(value),
+        "Tanggal Disetujui": (value: string) => formatDate(value),
+        "Status": () => "Disetujui",
+        "Alasan/Tujuan": (value: string) => value || "-"
       }
     );
 
@@ -254,12 +227,11 @@ export default function LoanApprovalsPage() {
       id: "ID Pinjaman",
       anggota_nama: "Nama Anggota",
       jumlah: "Jumlah Pinjaman",
-      tenor: "Tenor (bulan)",
-      tujuan: "Tujuan",
+      alasan: "Alasan/Tujuan",
       created_at: "Tanggal Pengajuan",
       updated_at: "Tanggal Ditolak",
-      status: "Status",
-      alasan_penolakan: "Alasan Penolakan"
+      alasan_penolakan: "Alasan Penolakan",
+      status: "Status"
     };
 
     // Format data with transformations
@@ -268,10 +240,11 @@ export default function LoanApprovalsPage() {
       fieldMap,
       {
         "Jumlah Pinjaman": (value: number) => formatCurrency(value),
-        "Tanggal Pengajuan": (value: string) => new Date(value).toLocaleDateString('id-ID'),
-        "Tanggal Ditolak": (value: string) => new Date(value).toLocaleDateString('id-ID'),
+        "Tanggal Pengajuan": (value: string) => formatDate(value),
+        "Tanggal Ditolak": (value: string) => formatDate(value),
         "Status": () => "Ditolak",
-        "Alasan Penolakan": (value: string | undefined) => value || "-"
+        "Alasan Penolakan": (value: string) => value || "-",
+        "Alasan/Tujuan": (value: string) => value || "-"
       }
     );
 
