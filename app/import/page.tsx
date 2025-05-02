@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -12,93 +10,167 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Database, RefreshCw } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { parseExcelFile, importAnggotaData, getImportHistory, recordImportHistory, AnggotaExcelRow, formatDate, excelDateToJSDate } from "@/lib/excel-import"
+
+type ImportResult = {
+  success: boolean;
+  message: string;
+  processed: number;
+  created: number;
+  updated: number;
+  errors: any[];
+};
+
+type ImportHistory = {
+  id: number;
+  type: string;
+  count: number;
+  created_at: string;
+  status: string;
+  user: string;
+};
 
 export default function ImportPage() {
-  const [activeTab, setActiveTab] = useState("upload")
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewData, setPreviewData] = useState<any[] | null>(null)
-  const [importStatus, setImportStatus] = useState<"idle" | "processing" | "success" | "error">("idle")
-  const [progress, setProgress] = useState(0)
+  const [activeTab, setActiveTab] = useState("upload");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<AnggotaExcelRow[] | null>(null);
+  const [importStatus, setImportStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+  const [progress, setProgress] = useState(0);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importHistoryData, setImportHistoryData] = useState<ImportHistory[]>([]);
+  const [importType, setImportType] = useState<string>("anggota");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-      // Simulasi preview data
-      // Dalam implementasi nyata, Anda akan membaca file Excel dan mengekstrak data
-      setTimeout(() => {
-        const mockPreviewData = [
-          {
-            id: "USR-001",
-            name: "Budi Santoso",
-            email: "budi.santoso@example.com",
-            role: "Anggota",
-            status: "Aktif",
-            joinDate: "12 Jan 2023",
-          },
-          {
-            id: "USR-002",
-            name: "Siti Rahayu",
-            email: "siti.rahayu@example.com",
-            role: "Anggota",
-            status: "Aktif",
-            joinDate: "15 Jan 2023",
-          },
-          {
-            id: "USR-003",
-            name: "Ahmad Hidayat",
-            email: "ahmad.hidayat@example.com",
-            role: "Anggota",
-            status: "Aktif",
-            joinDate: "20 Jan 2023",
-          },
-          {
-            id: "USR-004",
-            name: "Dewi Lestari",
-            email: "dewi.lestari@example.com",
-            role: "Admin",
-            status: "Aktif",
-            joinDate: "25 Jan 2023",
-          },
-          {
-            id: "USR-005",
-            name: "Eko Prasetyo",
-            email: "eko.prasetyo@example.com",
-            role: "Anggota",
-            status: "Nonaktif",
-            joinDate: "01 Feb 2023",
-          },
-        ]
-        setPreviewData(mockPreviewData)
-        setActiveTab("preview")
-      }, 1000)
+  useEffect(() => {
+    const fetchImportHistory = async () => {
+      const history = await getImportHistory();
+      setImportHistoryData(history);
+    };
+
+    if (activeTab === "history") {
+      fetchImportHistory();
     }
-  }
+  }, [activeTab]);
 
-  const handleImport = () => {
-    setImportStatus("processing")
-    setProgress(0)
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    // Simulasi proses import
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setImportStatus("success")
-          return 100
-        }
-        return prev + 10
-      })
-    }, 300)
-  }
+    try {
+      setSelectedFile(file);
+      setError(null);
+
+      const fileExtension = file.name.split(".").pop()?.toLowerCase();
+      if (fileExtension !== "xlsx" && fileExtension !== "xls") {
+        throw new Error("Format file tidak valid. Harap unggah file Excel (.xlsx atau .xls)");
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error("Ukuran file terlalu besar. Maksimal 10MB");
+      }
+
+      const excelData = await parseExcelFile(file);
+      if (excelData.length === 0) {
+        throw new Error("File Excel kosong atau tidak memiliki data yang valid");
+      }
+
+      setPreviewData(excelData);
+      setActiveTab("preview");
+    } catch (err: any) {
+      console.error("Error processing file:", err);
+      setError(err.message || "Terjadi kesalahan saat memproses file");
+      setPreviewData(null);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!previewData || previewData.length === 0) {
+      setError("Tidak ada data untuk diimpor");
+      return;
+    }
+
+    setImportStatus("processing");
+    setProgress(0);
+    setError(null);
+
+    let progressInterval: NodeJS.Timeout | undefined;
+
+    try {
+      const totalItems = previewData.length;
+      const progressStep = 100 / totalItems;
+      let currentProgress = 0;
+
+      progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 95) {
+            return prev;
+          }
+          return Math.min(prev + 1, 95);
+        });
+      }, 100);
+
+      let result;
+      if (importType === "anggota") {
+        result = await importAnggotaData(previewData);
+      } else {
+        throw new Error("Tipe import tidak didukung");
+      }
+
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = undefined;
+      }
+      setProgress(100);
+
+      setImportResult(result);
+
+      if (result.success) {
+        setImportStatus("success");
+
+        await recordImportHistory(
+          `Data ${importType.charAt(0).toUpperCase() + importType.slice(1)}`,
+          result.processed,
+          "Berhasil",
+          `Berhasil: ${result.created} ditambahkan, ${result.updated} diperbarui, ${result.errors.length} gagal`
+        );
+      } else {
+        setImportStatus("error");
+        setError(result.message);
+
+        await recordImportHistory(
+          `Data ${importType.charAt(0).toUpperCase() + importType.slice(1)}`,
+          result.processed,
+          "Gagal",
+          result.message
+        );
+      }
+    } catch (err: any) {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = undefined;
+      }
+      setImportStatus("error");
+      setError(err.message || "Terjadi kesalahan saat mengimpor data");
+      console.error("Import error:", err);
+
+      await recordImportHistory(
+        `Data ${importType.charAt(0).toUpperCase() + importType.slice(1)}`,
+        0,
+        "Gagal",
+        err.message || "Terjadi kesalahan saat mengimpor data"
+      );
+    }
+  };
 
   const resetImport = () => {
-    setSelectedFile(null)
-    setPreviewData(null)
-    setImportStatus("idle")
-    setProgress(0)
-    setActiveTab("upload")
-  }
+    setSelectedFile(null);
+    setPreviewData(null);
+    setImportStatus("idle");
+    setProgress(0);
+    setActiveTab("upload");
+    setImportResult(null);
+    setError(null);
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -165,24 +237,37 @@ export default function ImportPage() {
                 </Alert>
               )}
 
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
               <div className="space-y-2">
                 <h3 className="font-medium">Template File</h3>
                 <p className="text-sm text-muted-foreground">
                   Unduh template file Excel untuk memastikan format data yang benar.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => setImportType("anggota")}>
                     <FileSpreadsheet className="mr-2 h-4 w-4" />
-                    Template Data User
+                    Template Data Anggota
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => setImportType("transaksi")}>
                     <FileSpreadsheet className="mr-2 h-4 w-4" />
                     Template Data Transaksi
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => setImportType("pinjaman")}>
                     <FileSpreadsheet className="mr-2 h-4 w-4" />
                     Template Data Pinjaman
                   </Button>
+                </div>
+                <div className="mt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Tipe Data Terpilih: <span className="font-medium">{importType.charAt(0).toUpperCase() + importType.slice(1)}</span>
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -207,14 +292,14 @@ export default function ImportPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
-                <Select defaultValue="users">
+                <Select value={importType} onValueChange={setImportType}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Pilih Jenis Data" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="users">Data User</SelectItem>
-                    <SelectItem value="transactions">Data Transaksi</SelectItem>
-                    <SelectItem value="loans">Data Pinjaman</SelectItem>
+                    <SelectItem value="anggota">Data Anggota</SelectItem>
+                    <SelectItem value="transaksi">Data Transaksi</SelectItem>
+                    <SelectItem value="pinjaman">Data Pinjaman</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
@@ -226,30 +311,27 @@ export default function ImportPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Nama</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Tanggal Bergabung</TableHead>
+                      <TableHead>No.</TableHead>
+                      <TableHead>Nama Anggota</TableHead>
+                      <TableHead>No. Rekening</TableHead>
+                      <TableHead>Saldo</TableHead>
+                      <TableHead>Alamat</TableHead>
+                      <TableHead>Kota</TableHead>
+                      <TableHead>Tanggal Lahir</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {previewData?.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.id}</TableCell>
-                        <TableCell>{user.name}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.role}</TableCell>
+                    {previewData?.map((row, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{row["NO."]}</TableCell>
+                        <TableCell>{row["Nama Anggota"]}</TableCell>
+                        <TableCell>{row["No. Rekening"]}</TableCell>
+                        <TableCell>Rp {row["Saldo"].toLocaleString("id-ID")}</TableCell>
+                        <TableCell>{row["Alamat"]}</TableCell>
+                        <TableCell>{row["Kota"]}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={user.status === "Aktif" ? "default" : "destructive"}
-                            className={user.status === "Aktif" ? "bg-green-500 hover:bg-green-600" : ""}
-                          >
-                            {user.status}
-                          </Badge>
+                          {formatDate(excelDateToJSDate(row["Tanggal Lahir"]))}
                         </TableCell>
-                        <TableCell>{user.joinDate}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -271,7 +353,13 @@ export default function ImportPage() {
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <AlertTitle>Import berhasil</AlertTitle>
                   <AlertDescription>
-                    {previewData?.length || 0} data telah berhasil diimpor ke dalam sistem.
+                    <div className="space-y-1">
+                      <p>{importResult?.message}</p>
+                      <p>Total data diproses: {importResult?.processed}</p>
+                      <p>Data baru ditambahkan: {importResult?.created}</p>
+                      <p>Data diperbarui: {importResult?.updated}</p>
+                      <p>Data gagal: {importResult?.errors.length}</p>
+                    </div>
                   </AlertDescription>
                 </Alert>
               )}
@@ -281,7 +369,14 @@ export default function ImportPage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Import gagal</AlertTitle>
                   <AlertDescription>
-                    Terjadi kesalahan saat mengimpor data. Silakan coba lagi atau hubungi administrator.
+                    {error || "Terjadi kesalahan saat mengimpor data. Silakan coba lagi atau hubungi administrator."}
+                    {importResult && (
+                      <div className="mt-2">
+                        <p>Total data diproses: {importResult.processed}</p>
+                        <p>Data berhasil: {importResult.created + importResult.updated}</p>
+                        <p>Data gagal: {importResult.errors.length}</p>
+                      </div>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
@@ -331,23 +426,31 @@ export default function ImportPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {importHistory.map((history) => (
-                      <TableRow key={history.id}>
-                        <TableCell className="font-medium">{history.id}</TableCell>
-                        <TableCell>{history.type}</TableCell>
-                        <TableCell>{history.count}</TableCell>
-                        <TableCell>{history.date}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={history.status === "Berhasil" ? "default" : "destructive"}
-                            className={history.status === "Berhasil" ? "bg-green-500 hover:bg-green-600" : ""}
-                          >
-                            {history.status}
-                          </Badge>
+                    {importHistoryData.length > 0 ? (
+                      importHistoryData.map((history, index) => (
+                        <TableRow key={history.id || index}>
+                          <TableCell className="font-medium">IMP-{String(index + 1).padStart(3, "0")}</TableCell>
+                          <TableCell>{history.type}</TableCell>
+                          <TableCell>{history.count}</TableCell>
+                          <TableCell>{formatDisplayDate(history.created_at)}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={history.status === "Berhasil" ? "default" : "destructive"}
+                              className={history.status === "Berhasil" ? "bg-green-500 hover:bg-green-600" : ""}
+                            >
+                              {history.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{history.user || "Admin"}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                          Belum ada riwayat import
                         </TableCell>
-                        <TableCell>{history.user}</TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -359,45 +462,12 @@ export default function ImportPage() {
   )
 }
 
-const importHistory = [
-  {
-    id: "IMP-001",
-    type: "Data User",
-    count: 150,
-    date: "27 Apr 2023",
-    status: "Berhasil",
-    user: "Admin",
-  },
-  {
-    id: "IMP-002",
-    type: "Data Transaksi",
-    count: 500,
-    date: "26 Apr 2023",
-    status: "Berhasil",
-    user: "Admin",
-  },
-  {
-    id: "IMP-003",
-    type: "Data Pinjaman",
-    count: 75,
-    date: "25 Apr 2023",
-    status: "Berhasil",
-    user: "Admin",
-  },
-  {
-    id: "IMP-004",
-    type: "Data User",
-    count: 50,
-    date: "24 Apr 2023",
-    status: "Gagal",
-    user: "Admin",
-  },
-  {
-    id: "IMP-005",
-    type: "Data Transaksi",
-    count: 300,
-    date: "23 Apr 2023",
-    status: "Berhasil",
-    user: "Admin",
-  },
-]
+// Format date for display
+function formatDisplayDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+}
