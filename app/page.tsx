@@ -15,6 +15,12 @@ export default async function Dashboard() {
   
   // Format currency
   const formatCurrency = (amount: number) => {
+    // Format as millions (juta) if amount is large enough
+    if (amount >= 1000000) {
+      return `Rp ${(amount / 1000000).toFixed(1)} juta`;
+    } else if (amount >= 1000) {
+      return `Rp ${(amount / 1000).toFixed(0)} ribu`;
+    }
     return `Rp ${amount.toLocaleString('id-ID')}`;
   };
 
