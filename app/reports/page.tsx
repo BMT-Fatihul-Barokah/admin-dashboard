@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FinancialTrendsChart } from "@/components/financial-trends-chart"
 import { TransactionDistributionChart } from "@/components/transaction-distribution-chart"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import {
   getFinancialSummary,
   getTransactionDistribution,
@@ -28,6 +29,8 @@ import {
 } from "@/lib/reports"
 
 export default function ReportsPage() {
+  const router = useRouter()
+  
   // State for data
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null)
   const [transactionDistribution, setTransactionDistribution] = useState<TransactionDistribution[]>([])
@@ -122,7 +125,7 @@ export default function ReportsPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Pendapatan</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Pemasukan</CardTitle>
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -324,7 +327,13 @@ export default function ReportsPage() {
                     <div className="rounded-md border">
                       <div className="p-4 text-center">
                         <p>Ada {memberStats.newMembers} anggota baru pada periode {memberStats.period}</p>
-                        <Button className="mt-4" onClick={() => toast.success('Membuka halaman anggota')}>
+                        <Button 
+                          className="mt-4" 
+                          onClick={() => {
+                            toast.success('Membuka halaman anggota')
+                            router.push('/members')
+                          }}
+                        >
                           Lihat Daftar Anggota
                         </Button>
                       </div>
@@ -413,7 +422,13 @@ export default function ReportsPage() {
                       </div>
                     </div>
                     
-                    <Button className="w-full" onClick={() => toast.success('Membuka halaman pinjaman')}>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => {
+                        toast.success('Membuka halaman pinjaman')
+                        router.push('/loans')
+                      }}
+                    >
                       Lihat Semua Pinjaman
                     </Button>
                   </div>
