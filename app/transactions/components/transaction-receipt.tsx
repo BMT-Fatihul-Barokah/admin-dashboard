@@ -75,11 +75,12 @@ export function TransactionReceipt({
   };
 
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
     documentTitle: `Bukti_Transaksi_${transaction?.reference_number || transaction?.id}`,
     onAfterPrint: () => {
       console.log('Print completed');
     },
+    // Use this function to return the element to print
+    contentRef: printRef,
   });
 
   if (!transaction) return null;
@@ -90,15 +91,10 @@ export function TransactionReceipt({
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center">
             <span>Bukti Transaksi</span>
-            <div className="flex gap-2">
-              <Button variant="default" size="sm" onClick={handlePrint}>
-                <Printer className="h-4 w-4 mr-2" />
-                Cetak
-              </Button>
-              <Button variant="outline" size="icon" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button variant="default" size="sm" onClick={handlePrint} className="mr-10">
+              <Printer className="h-4 w-4 mr-2" />
+              Cetak
+            </Button>
           </DialogTitle>
         </DialogHeader>
         

@@ -82,14 +82,9 @@ export function TransactionDetailModal({
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center">
             <span>Detail Transaksi</span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={onPrint}>
-                <Printer className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button variant="outline" size="icon" onClick={onPrint} className="mr-10">
+              <Printer className="h-4 w-4" />
+            </Button>
           </DialogTitle>
           <DialogDescription>
             {transaction.reference_number || transaction.id}

@@ -136,7 +136,7 @@ export function PaymentScheduleModal({
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center">
             <span>Jadwal Pembayaran</span>
-            <Button variant="outline" size="icon" onClick={handlePrint}>
+            <Button variant="outline" size="icon" onClick={handlePrint} className="mr-10">
               <Printer className="h-4 w-4" />
             </Button>
           </DialogTitle>
