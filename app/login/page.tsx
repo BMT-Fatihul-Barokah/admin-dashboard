@@ -45,7 +45,7 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <Wallet className="h-12 w-12" />
           </div>
-          <CardTitle className="text-2xl font-bold">Admin Panel</CardTitle>
+          <CardTitle className="text-2xl font-bold">Control Panel</CardTitle>
           <CardDescription>Masuk ke panel admin untuk mengelola sistem koperasi</CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>

@@ -158,7 +158,7 @@ export function AdminSidebar() {
 								>
 									<Wallet className="h-6 w-6 mr-2" />
 									<span className="text-lg font-bold">
-										Admin Panel
+										Control Panel
 									</span>
 								</Link>
 							)}

@@ -1,9 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAdminAuth } from "@/lib/admin-auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { PermissionGuard } from "@/components/permission-guard"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,9 +15,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, RefreshCcw, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
@@ -26,6 +29,7 @@ import { UserDetailDialog } from "./components/user-detail-dialog"
 import { EditUserForm } from "./components/edit-user-form"
 import { UserTransactions } from "./components/user-transactions"
 import { ToggleUserStatus } from "./components/toggle-user-status"
+import { SavingsDetails } from "./components/savings-details"
 
 type Anggota = {
   id: string
@@ -65,6 +69,7 @@ export default function UsersPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [transactionsDialogOpen, setTransactionsDialogOpen] = useState(false)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
+  const [savingsDialogOpen, setSavingsDialogOpen] = useState(false)
   
   // Format date function
   const formatDate = (dateString: string | Date) => {
@@ -283,7 +288,7 @@ export default function UsersPage() {
                 <TableHead>No. Rekening</TableHead>
                 <TableHead>Nama</TableHead>
                 <TableHead>Alamat</TableHead>
-                <TableHead>Saldo</TableHead>
+                <TableHead>Tabungan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Tanggal Bergabung</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -295,7 +300,18 @@ export default function UsersPage() {
                   <TableCell className="font-medium">{member.nomor_rekening}</TableCell>
                   <TableCell>{member.nama}</TableCell>
                   <TableCell>{member.alamat || '-'}</TableCell>
-                  <TableCell>Rp {Number(member.saldo).toLocaleString('id-ID')}</TableCell>
+                  <TableCell>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedUser(member);
+                        setSavingsDialogOpen(true);
+                      }}
+                    >
+                      Lihat Detail Tabungan
+                    </Button>
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant={member.is_active ? "default" : "destructive"}
@@ -316,34 +332,47 @@ export default function UsersPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                         <DropdownMenuSeparator />
+                        {/* View Detail - Everyone can see this */}
                         <DropdownMenuItem onClick={() => {
                           setSelectedUser(member)
                           setDetailDialogOpen(true)
                         }}>
                           Lihat Detail
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedUser(member)
-                          setEditDialogOpen(true)
-                        }}>
-                          Edit Anggota
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedUser(member)
-                          setTransactionsDialogOpen(true)
-                        }}>
-                          Lihat Transaksi
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className={member.is_active ? "text-destructive" : "text-green-600"}
-                          onClick={() => {
+                        
+                        {/* Edit Member - Only users with edit_users permission */}
+                        <PermissionGuard permission="edit_users">
+                          <DropdownMenuItem onClick={() => {
                             setSelectedUser(member)
-                            setStatusDialogOpen(true)
-                          }}
-                        >
-                          {member.is_active ? 'Nonaktifkan Anggota' : 'Aktifkan Anggota'}
-                        </DropdownMenuItem>
+                            setEditDialogOpen(true)
+                          }}>
+                            Edit Anggota
+                          </DropdownMenuItem>
+                        </PermissionGuard>
+                        
+                        {/* View Transactions - Only users with view_transactions permission */}
+                        <PermissionGuard permission="view_transactions">
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedUser(member)
+                            setTransactionsDialogOpen(true)
+                          }}>
+                            Lihat Transaksi
+                          </DropdownMenuItem>
+                        </PermissionGuard>
+                        
+                        {/* Only show separator if user has permission to activate/deactivate */}
+                        <PermissionGuard permission="edit_users">
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className={member.is_active ? "text-destructive" : "text-green-600"}
+                            onClick={() => {
+                              setSelectedUser(member)
+                              setStatusDialogOpen(true)
+                            }}
+                          >
+                            {member.is_active ? 'Nonaktifkan Anggota' : 'Aktifkan Anggota'}
+                          </DropdownMenuItem>
+                        </PermissionGuard>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -399,6 +428,18 @@ export default function UsersPage() {
         onOpenChange={setStatusDialogOpen}
         onStatusChanged={fetchAnggota}
       />
+      
+      {selectedUser && (
+        <Dialog open={savingsDialogOpen} onOpenChange={setSavingsDialogOpen}>
+          <DialogHeader>
+            <DialogTitle>Detail Tabungan {selectedUser.nama}</DialogTitle>
+            <DialogDescription>
+              Berikut adalah daftar tabungan yang dimiliki oleh anggota ini.
+            </DialogDescription>
+          </DialogHeader>
+          <SavingsDetails userId={selectedUser.id} />
+        </Dialog>
+      )}
     </div>
   )
 }
