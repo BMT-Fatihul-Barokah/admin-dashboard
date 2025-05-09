@@ -10,6 +10,7 @@ import { DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Loader2 } from "lucide-react"
+import { UserTransactions } from "./user-transactions"
 
 interface SavingsDetailsProps {
   userId: string
@@ -43,6 +44,8 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [transactionsOpen, setTransactionsOpen] = useState(false)
+  const [selectedAccount, setSelectedAccount] = useState<SavingsAccount | null>(null)
 
   // Format currency function
   const formatCurrency = (amount: number) => {
@@ -201,7 +204,15 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
               </div>
             </CardContent>
             <CardFooter className="pt-2">
-              <Button variant="outline" size="sm" className="w-full">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={() => {
+                  setSelectedAccount(account);
+                  setTransactionsOpen(true);
+                }}
+              >
                 Lihat Riwayat Transaksi
               </Button>
             </CardFooter>
@@ -213,6 +224,20 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
           Tutup
         </Button>
       </DialogFooter>
+      
+      {/* Transaction History Dialog */}
+      {selectedAccount && (
+        <UserTransactions 
+          user={{
+            id: userId,
+            nama: selectedAccount.anggota_nama,
+            nomor_rekening: selectedAccount.nomor_rekening,
+            saldo: selectedAccount.saldo
+          }}
+          open={transactionsOpen}
+          onOpenChange={setTransactionsOpen}
+        />
+      )}
     </DialogContent>
   )
 }

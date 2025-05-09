@@ -10,6 +10,7 @@ import { FinancialTrendsChart } from "@/components/financial-trends-chart"
 import { TransactionDistributionChart } from "@/components/transaction-distribution-chart"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { useAdminAuth } from "@/lib/admin-auth-context"
 import {
   getFinancialSummary,
   getTransactionDistribution,
@@ -30,6 +31,7 @@ import {
 
 export default function ReportsPage() {
   const router = useRouter()
+  const { user } = useAdminAuth()
   
   // State for data
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null)
@@ -100,10 +102,12 @@ export default function ReportsPage() {
             <Calendar className="mr-2 h-4 w-4" />
             Pilih Periode
           </Button>
-          <Button onClick={handleExportReport}>
-            <Download className="mr-2 h-4 w-4" />
-            Ekspor Laporan
-          </Button>
+          {user?.role !== 'ketua' && (
+            <Button onClick={handleExportReport}>
+              <Download className="mr-2 h-4 w-4" />
+              Ekspor Laporan
+            </Button>
+          )}
         </div>
       </div>
 
@@ -186,9 +190,11 @@ export default function ReportsPage() {
                         <SelectItem value="yearly">Tahunan</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button variant="outline" size="icon" onClick={handleExportReport}>
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    {user?.role !== 'ketua' && (
+                      <Button variant="outline" size="icon" onClick={handleExportReport}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
