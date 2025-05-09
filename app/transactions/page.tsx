@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { PermissionGuard } from "@/components/permission-guard"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -404,20 +405,31 @@ export default function TransactionsPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                         <DropdownMenuSeparator />
+                        {/* View Detail - Everyone can see this */}
                         <DropdownMenuItem onClick={() => {
                           setSelectedTransaction(transaction);
                           setShowDetailModal(true);
                         }}>
                           Lihat Detail
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedTransaction(transaction);
-                          setShowReceiptModal(true);
-                        }}>
-                          Cetak Bukti
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">Batalkan Transaksi</DropdownMenuItem>
+                        
+                        {/* Print Receipt - Only users with view_transactions permission */}
+                        <PermissionGuard permission="view_transactions">
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedTransaction(transaction);
+                            setShowReceiptModal(true);
+                          }}>
+                            Cetak Bukti
+                          </DropdownMenuItem>
+                        </PermissionGuard>
+                        
+                        {/* Cancel Transaction - Only users with edit_transactions permission */}
+                        <PermissionGuard permission="edit_transactions">
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive">
+                            Batalkan Transaksi
+                          </DropdownMenuItem>
+                        </PermissionGuard>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

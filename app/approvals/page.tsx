@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase'
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
+import { PermissionGate } from "@/components/permission-gate"
 
 // Define types based on database schema
 type Pendaftaran = {
@@ -35,9 +36,6 @@ type Pendaftaran = {
 export default function ApprovalsPage() {
   const { toast } = useToast()
   const { user, isAuthenticated } = useAdminAuth()
-  
-  // Check if user has permission to perform actions
-  const canPerformActions = isAuthenticated && user?.role !== 'ketua'
   const [pendingApprovals, setPendingApprovals] = useState<Pendaftaran[]>([])
   const [approvedCustomers, setApprovedCustomers] = useState<Pendaftaran[]>([])
   const [rejectedCustomers, setRejectedCustomers] = useState<Pendaftaran[]>([])
@@ -617,10 +615,18 @@ export default function ApprovalsPage() {
               <RefreshCcw className="h-4 w-4" />
               <span className="sr-only">Refresh</span>
             </Button>
-            <Button variant="outline" size="icon" onClick={exportPendingData}>
-              <Download className="h-4 w-4" />
-              <span className="sr-only">Export</span>
-            </Button>
+            <PermissionGate permission="generate_reports">
+              <Button variant="outline" size="icon" onClick={exportPendingData}>
+                <Download className="h-4 w-4" />
+                <span className="sr-only">Export</span>
+              </Button>
+            </PermissionGate>
+            <PermissionGate permission="generate_reports">
+              <Button variant="outline" size="icon" onClick={exportRejectedData}>
+                <Download className="h-4 w-4" />
+                <span className="sr-only">Export</span>
+              </Button>
+            </PermissionGate>
           </div>
 
 
@@ -662,28 +668,55 @@ export default function ApprovalsPage() {
                   <CardFooter className="flex justify-between">
                     <Button variant="outline">Lihat Detail</Button>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="destructive" 
-                        size="icon"
-                        disabled={isProcessing || !canPerformActions}
-                        onClick={() => {
-                          setSelectedCustomer(customer)
-                          setIsRejectDialogOpen(true)
-                        }}
-                        title={!canPerformActions && user?.role === 'ketua' ? 'Ketua hanya dapat melihat data' : ''}
+                      <PermissionGate 
+                        permission="reject_customers"
+                        fallback={
+                          <Button 
+                            variant="destructive" 
+                            size="icon"
+                            disabled={true}
+                            title="Anda tidak memiliki izin untuk menolak nasabah"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        }
                       >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="default" 
-                        size="icon" 
-                        className="bg-green-500 hover:bg-green-600"
-                        disabled={isProcessing || !canPerformActions}
-                        onClick={() => approveCustomer(customer)}
-                        title={!canPerformActions && user?.role === 'ketua' ? 'Ketua hanya dapat melihat data' : ''}
+                        <Button 
+                          variant="destructive" 
+                          size="icon"
+                          disabled={isProcessing}
+                          onClick={() => {
+                            setSelectedCustomer(customer)
+                            setIsRejectDialogOpen(true)
+                          }}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </PermissionGate>
+                      <PermissionGate 
+                        permission="approve_customers"
+                        fallback={
+                          <Button 
+                            variant="default" 
+                            size="icon" 
+                            className="bg-green-500 hover:bg-green-600"
+                            disabled={true}
+                            title="Anda tidak memiliki izin untuk menyetujui nasabah"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        }
                       >
-                        <CheckCircle className="h-4 w-4" />
-                      </Button>
+                        <Button 
+                          variant="default" 
+                          size="icon" 
+                          className="bg-green-500 hover:bg-green-600"
+                          disabled={isProcessing}
+                          onClick={() => approveCustomer(customer)}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      </PermissionGate>
                     </div>
                   </CardFooter>
                 </Card>

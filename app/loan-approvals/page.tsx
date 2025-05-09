@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PermissionGuard } from "@/components/permission-guard";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, CheckCircle, XCircle, RefreshCcw, Loader2 } from "lucide-react";
@@ -329,21 +330,28 @@ export default function LoanApprovalsPage() {
                   <CardFooter className="flex justify-between">
                     <Button variant="outline">Lihat Detail</Button>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="destructive" 
-                        size="icon"
-                        onClick={() => openRejectDialog(loan)}
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="default" 
-                        size="icon" 
-                        className="bg-green-500 hover:bg-green-600"
-                        onClick={() => handleApprove(loan)}
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                      </Button>
+                      {/* Only show reject button to users with reject_loans permission */}
+                      <PermissionGuard permission="reject_loans">
+                        <Button 
+                          variant="destructive" 
+                          size="icon"
+                          onClick={() => openRejectDialog(loan)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </PermissionGuard>
+                      
+                      {/* Only show approve button to users with approve_loans permission */}
+                      <PermissionGuard permission="approve_loans">
+                        <Button 
+                          variant="default" 
+                          size="icon" 
+                          className="bg-green-500 hover:bg-green-600"
+                          onClick={() => handleApprove(loan)}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      </PermissionGuard>
                     </div>
                   </CardFooter>
                 </Card>
