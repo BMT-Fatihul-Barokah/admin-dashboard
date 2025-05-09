@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { usePermission } from "@/hooks/use-permission"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ import { RecordPaymentModal } from "./components/record-payment-modal"
 import { MarkProblematicModal } from "./components/mark-problematic-modal"
 
 export default function LoansPage() {
+  const { hasPermission: canCreateLoans } = usePermission('approve_loans')
   const [pinjaman, setPinjaman] = useState<Pinjaman[]>([])
   const [filteredPinjaman, setFilteredPinjaman] = useState<Pinjaman[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -230,10 +232,12 @@ export default function LoansPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Manajemen Pinjaman</h2>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Pinjaman
-        </Button>
+        {canCreateLoans && (
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Pinjaman
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row items-center gap-4">

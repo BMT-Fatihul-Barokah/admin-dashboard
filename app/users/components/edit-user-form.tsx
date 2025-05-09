@@ -45,9 +45,10 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<Partial<Anggota>>({})
 
-  // Initialize form data when user changes
+  // Initialize form data when user changes or dialog opens
   useState(() => {
     if (user) {
+      // Editing existing user
       setFormData({
         nama: user.nama,
         alamat: user.alamat || '',
@@ -58,6 +59,21 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
         pekerjaan: user.pekerjaan || '',
         jenis_identitas: user.jenis_identitas || '',
         nomor_identitas: user.nomor_identitas || '',
+      })
+    } else {
+      // Adding new user
+      setFormData({
+        nama: '',
+        alamat: '',
+        kota: '',
+        tempat_lahir: '',
+        tanggal_lahir: '',
+        pekerjaan: '',
+        jenis_identitas: '',
+        nomor_identitas: '',
+        nomor_rekening: '',
+        saldo: 0,
+        is_active: true
       })
     }
   })
@@ -74,36 +90,65 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!user) return
-    
     setIsSubmitting(true)
     try {
-      // Prepare data for update
-      const updateData = {
-        ...formData,
-        updated_at: new Date().toISOString()
+      if (user) {
+        // Editing existing user
+        // Prepare data for update
+        const updateData = {
+          ...formData,
+          updated_at: new Date().toISOString()
+        }
+        
+        // Update anggota in database
+        const { error } = await supabase
+          .from('anggota')
+          .update(updateData)
+          .eq('id', user.id)
+        
+        if (error) throw error
+        
+        toast({
+          title: "Berhasil",
+          description: `Data anggota ${user.nama} telah diperbarui.`,
+        })
+      } else {
+        // Adding new user
+        // Generate a unique account number
+        const timestamp = Date.now().toString().slice(-8);
+        const randomDigits = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        const accountNumber = `${timestamp}${randomDigits}`;
+        
+        // Prepare data for insert
+        const insertData = {
+          ...formData,
+          nomor_rekening: formData.nomor_rekening || accountNumber,
+          saldo: formData.saldo || 0,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        // Insert new anggota in database
+        const { error } = await supabase
+          .from('anggota')
+          .insert(insertData)
+        
+        if (error) throw error
+        
+        toast({
+          title: "Berhasil",
+          description: `Anggota baru telah ditambahkan.`,
+        })
       }
-      
-      // Update anggota in database
-      const { error } = await supabase
-        .from('anggota')
-        .update(updateData)
-        .eq('id', user.id)
-      
-      if (error) throw error
-      
-      toast({
-        title: "Berhasil",
-        description: `Data anggota ${user.nama} telah diperbarui.`,
-      })
       
       onUserUpdated()
       onOpenChange(false)
     } catch (error) {
-      console.error('Error updating user:', error)
+      console.error('Error updating/adding user:', error)
       toast({
         title: "Error",
-        description: "Gagal memperbarui data anggota. Silakan coba lagi.",
+        description: "Gagal memperbarui/menambahkan data anggota. Silakan coba lagi.",
         variant: "destructive"
       })
     } finally {
@@ -111,15 +156,15 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
     }
   }
 
-  if (!user) return null
+  // No longer need this check since we handle both edit and add cases
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Edit Anggota</DialogTitle>
+          <DialogTitle>{user ? 'Edit Anggota' : 'Tambah Anggota Baru'}</DialogTitle>
           <DialogDescription>
-            Edit informasi anggota {user.nama}
+            {user ? `Edit informasi anggota ${user.nama}` : 'Masukkan informasi anggota baru'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -128,9 +173,12 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
               <div className="space-y-2">
                 <Label htmlFor="nomor_rekening">Nomor Rekening</Label>
                 <Input 
-                  id="nomor_rekening" 
-                  value={user.nomor_rekening} 
-                  disabled 
+                  id="nomor_rekening"
+                  name="nomor_rekening"
+                  value={user ? user.nomor_rekening : (formData.nomor_rekening || '')}
+                  onChange={!user ? handleChange : undefined}
+                  disabled={!!user}
+                  placeholder={user ? '' : 'Otomatis dibuat jika kosong'}
                 />
               </div>
               <div className="space-y-2">
@@ -231,7 +279,7 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
               Batal
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+              {isSubmitting ? 'Menyimpan...' : (user ? 'Simpan Perubahan' : 'Tambah Anggota')}
             </Button>
           </DialogFooter>
         </form>

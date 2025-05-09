@@ -9,9 +9,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wallet, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginAdmin } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setUser } = useAdminAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +28,13 @@ export default function LoginPage() {
       const result = await loginAdmin(username, password);
       
       if (result.success && result.data) {
-        router.push("/");
+        // Update the auth context directly with the user data
+        setUser(result.data.user);
+        
+        // Small delay to ensure the auth context is updated before navigation
+        setTimeout(() => {
+          router.push("/");
+        }, 100);
       } else {
         setError(result.error || "Login gagal. Periksa username dan password Anda.");
       }

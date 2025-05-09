@@ -20,6 +20,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { logoutAdmin } from "@/lib/admin-auth";
+import { Permission } from "@/hooks/use-permission";
+import { PermissionGuard } from "./permission-guard";
 
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,22 +41,24 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// Define all navigation items
+// Define all navigation items with required permissions
 const allNavigation = [
-	{ name: "Dashboard", href: "/", icon: Home, roles: ["ketua", "admin", "sekretaris", "bendahara"] },
-	{ name: "Manajemen User", href: "/users", icon: Users, roles: ["ketua", "admin", "sekretaris"] },
-	{ name: "Transaksi", href: "/transactions", icon: CreditCard, roles: ["ketua", "admin", "bendahara"] },
-	{ name: "Pinjaman", href: "/loans", icon: Wallet, roles: ["ketua", "admin", "bendahara"] },
-	{ name: "Persetujuan Nasabah", href: "/approvals", icon: UserPlus, roles: ["ketua", "admin", "sekretaris"] },
-	{ name: "Laporan", href: "/reports", icon: FileText, roles: ["ketua", "admin", "bendahara"] },
-	{ name: "Analitik", href: "/analytics", icon: BarChart3, roles: ["ketua", "admin", "bendahara"] },
-	{ name: "Notifikasi", href: "/notifications", icon: Bell, roles: ["ketua", "admin", "sekretaris", "bendahara"] },
-	{ name: "Import Data", href: "/import", icon: Upload, roles: ["admin"] },
+	{ name: "Dashboard", href: "/", icon: Home, permission: "view_dashboard" as Permission },
+	{ name: "Manajemen User", href: "/users", icon: Users, permission: "view_users" as Permission },
+	{ name: "Transaksi", href: "/transactions", icon: CreditCard, permission: "view_transactions" as Permission },
+	{ name: "Pinjaman", href: "/loans", icon: Wallet, permission: "view_loans" as Permission },
+	{ name: "Persetujuan Nasabah", href: "/approvals", icon: UserPlus, permission: "view_approvals" as Permission },
+	{ name: "Laporan", href: "/reports", icon: FileText, permission: "view_reports" as Permission },
+	{ name: "Analitik", href: "/analytics", icon: BarChart3, permission: "view_analytics" as Permission },
+	{ name: "Notifikasi", href: "/notifications", icon: Bell, permission: "view_notifications" as Permission },
+	{ name: "Import Data", href: "/import", icon: Upload, permission: "import_data" as Permission },
 ];
 
 const bottomNavigation = [
-	{ name: "Pengaturan", href: "/settings", icon: Settings, roles: ["ketua", "admin", "sekretaris", "bendahara"] },
+	{ name: "Pengaturan", href: "/settings", icon: Settings, permission: "view_dashboard" as Permission }, // Everyone with dashboard access can see settings
 ];
+
+
 
 export function AdminSidebar() {
 	const pathname = usePathname();
@@ -63,11 +67,7 @@ export function AdminSidebar() {
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const [isMobileOpen, setIsMobileOpen] = useState(false);
 	
-	// Filter navigation items based on user role
-	const navigation = user ? allNavigation.filter(item => item.roles.includes(user.role)) : [];
-	
-	// Filter bottom navigation items based on user role
-	const filteredBottomNavigation = user ? bottomNavigation.filter(item => item.roles.includes(user.role)) : [];
+	// We'll filter items in the render based on permissions
 	
 	// Redirect to login if not authenticated and not already on login page
 	useEffect(() => {
@@ -86,7 +86,7 @@ export function AdminSidebar() {
 			name: string;
 			href: string;
 			icon: React.ComponentType<{ className?: string }>;
-			roles?: string[];
+			permission: Permission;
 		};
 	}
 
@@ -136,11 +136,12 @@ export function AdminSidebar() {
 				</button>
 				<div
 					className={cn(
-						"fixed inset-y-0 z-20 flex flex-col bg-background border-r transition-all duration-300 ease-in-out lg:static",
+						"z-20 flex flex-col bg-background border-r transition-all duration-300 ease-in-out h-screen",
 						isCollapsed ? "w-[72px]" : "w-72",
 						isMobileOpen
 							? "translate-x-0"
-							: "-translate-x-full lg:translate-x-0"
+							: "-translate-x-full lg:translate-x-0",
+						"lg:relative" /* Make it relative on large screens */
 					)}
 				>
 					<div className="border-b">
@@ -191,23 +192,21 @@ export function AdminSidebar() {
 							</Button>
 						</div>
 					</div>
-					<div className="flex-1 overflow-auto">
-						<nav className="flex-1 space-y-1 px-2 py-4">
-							{navigation.map((item) => (
-								<NavItem
-									key={item.name}
-									item={item}
-								/>
+					<div className="flex-1 overflow-hidden">
+						<nav className="h-full space-y-1 px-2 py-4">
+							{allNavigation.map((item) => (
+								<PermissionGuard key={item.name} permission={item.permission}>
+									<NavItem item={item} />
+								</PermissionGuard>
 							))}
 						</nav>
 					</div>
-					<div className="border-t p-2">
-						<nav className="space-y-1">
-							{filteredBottomNavigation.map((item) => (
-								<NavItem
-									key={item.name}
-									item={item}
-								/>
+					<div className="border-t p-2 mt-auto"> {/* Added mt-auto to ensure it stays at the bottom */}
+						<nav>
+							{bottomNavigation.map((item) => (
+								<PermissionGuard key={item.name} permission={item.permission}>
+									<NavItem item={item} />
+								</PermissionGuard>
 							))}
 						</nav>
 						<div className="mt-4 px-2">

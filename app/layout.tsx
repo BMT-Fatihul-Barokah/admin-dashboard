@@ -29,7 +29,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AdminAuthProvider>
             <div className="flex min-h-screen">
-              <AdminSidebar />
+              <div className="sticky top-0 h-screen">
+                <AdminSidebar />
+              </div>
               <main className="flex-1 overflow-y-auto transition-all duration-200">{children}</main>
             </div>
             <Toaster />

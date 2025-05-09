@@ -290,10 +290,12 @@ export default function TransactionsPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Manajemen Transaksi</h2>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Transaksi
-        </Button>
+        <PermissionGuard permission="create_transactions">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Transaksi
+          </Button>
+        </PermissionGuard>
       </div>
 
       <div className="flex flex-col md:flex-row items-center gap-4">
@@ -339,10 +341,12 @@ export default function TransactionsPage() {
           <RefreshCcw className="h-4 w-4" />
           <span className="sr-only">Refresh</span>
         </Button>
-        <Button variant="outline" size="icon" onClick={exportTransactions}>
-          <Download className="h-4 w-4" />
-          <span className="sr-only">Export</span>
-        </Button>
+        <PermissionGuard permission="generate_reports">
+          <Button variant="outline" size="icon" onClick={exportTransactions}>
+            <Download className="h-4 w-4" />
+            <span className="sr-only">Export</span>
+          </Button>
+        </PermissionGuard>
       </div>
 
       {isLoading ? (

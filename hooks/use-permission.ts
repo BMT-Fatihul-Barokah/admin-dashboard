@@ -52,43 +52,41 @@ export function usePermission(permission: Permission) {
           return;
         }
         
-        // Fetch user's role and permissions from database
-        const { data: userData, error: userError } = await supabase
-          .from('admin_users')
-          .select('role_id')
-          .eq('id', user.id)
-          .single();
+        // Define role-based permissions mapping
+        const rolePermissions: Record<string, Permission[]> = {
+          admin: [
+            'view_dashboard', 'view_users', 'edit_users', 'delete_users',
+            'view_transactions', 'create_transactions', 'edit_transactions',
+            'view_loans', 'approve_loans', 'reject_loans',
+            'view_approvals', 'approve_customers', 'reject_customers',
+            'view_reports', 'generate_reports', 'view_analytics',
+            'view_notifications', 'manage_roles', 'import_data'
+          ],
+          ketua: [
+            'view_dashboard', 'view_users', 'view_transactions',
+            'view_loans', 'view_approvals', 'view_reports',
+            'view_analytics', 'view_notifications'
+          ],
+          sekretaris: [
+            'view_dashboard', 'view_users', 'edit_users', 'delete_users',
+            'view_approvals', 'approve_customers', 'reject_customers',
+            'view_notifications'
+          ],
+          bendahara: [
+            'view_dashboard', 'view_users', 'view_transactions',
+            'create_transactions', 'edit_transactions', 'view_loans',
+            'view_reports', 'generate_reports', 'view_analytics'
+          ]
+        };
         
-        if (userError || !userData) {
-          console.error('Error fetching user role:', userError);
+        // Get permissions based on user role
+        if (user.role && rolePermissions[user.role]) {
+          const userPermissions = rolePermissions[user.role];
+          permissionsCache[user.id] = userPermissions;
+          setHasPermission(userPermissions.includes(permission));
+        } else {
           setHasPermission(false);
-          setIsLoading(false);
-          return;
         }
-        
-        const { data: permissions, error: permissionsError } = await supabase
-          .from('admin_role_permissions')
-          .select(`
-            admin_permissions (
-              code
-            )
-          `)
-          .eq('role_id', userData.role_id);
-        
-        if (permissionsError || !permissions) {
-          console.error('Error fetching permissions:', permissionsError);
-          setHasPermission(false);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Extract permission codes
-        const userPermissions = permissions.map(p => p.admin_permissions.code) as Permission[];
-        
-        // Cache the permissions
-        permissionsCache[user.id] = userPermissions;
-        
-        setHasPermission(userPermissions.includes(permission));
       } catch (error) {
         console.error('Error checking permission:', error);
         setHasPermission(false);
@@ -130,45 +128,44 @@ export function useAnyPermission(permissions: Permission[]) {
           return;
         }
         
-        // Fetch user's role and permissions from database
-        const { data: userData, error: userError } = await supabase
-          .from('admin_users')
-          .select('role_id')
-          .eq('id', user.id)
-          .single();
+        // Define role-based permissions mapping
+        const rolePermissions: Record<string, Permission[]> = {
+          admin: [
+            'view_dashboard', 'view_users', 'edit_users', 'delete_users',
+            'view_transactions', 'create_transactions', 'edit_transactions',
+            'view_loans', 'approve_loans', 'reject_loans',
+            'view_approvals', 'approve_customers', 'reject_customers',
+            'view_reports', 'generate_reports', 'view_analytics',
+            'view_notifications', 'manage_roles', 'import_data'
+          ],
+          ketua: [
+            'view_dashboard', 'view_users', 'view_transactions',
+            'view_loans', 'view_approvals', 'view_reports',
+            'view_analytics', 'view_notifications'
+          ],
+          sekretaris: [
+            'view_dashboard', 'view_users', 'edit_users', 'delete_users',
+            'view_approvals', 'approve_customers', 'reject_customers',
+            'view_notifications'
+          ],
+          bendahara: [
+            'view_dashboard', 'view_users', 'view_transactions',
+            'create_transactions', 'edit_transactions', 'view_loans',
+            'view_reports', 'generate_reports', 'view_analytics'
+          ]
+        };
         
-        if (userError || !userData) {
-          console.error('Error fetching user role:', userError);
+        // Get permissions based on user role
+        if (user.role && rolePermissions[user.role]) {
+          const userPermissions = rolePermissions[user.role];
+          permissionsCache[user.id] = userPermissions;
+          
+          // Check if user has any of the requested permissions
+          const hasAny = permissions.some(p => userPermissions.includes(p));
+          setHasAnyPermission(hasAny);
+        } else {
           setHasAnyPermission(false);
-          setIsLoading(false);
-          return;
         }
-        
-        const { data: permissionsData, error: permissionsError } = await supabase
-          .from('admin_role_permissions')
-          .select(`
-            admin_permissions (
-              code
-            )
-          `)
-          .eq('role_id', userData.role_id);
-        
-        if (permissionsError || !permissionsData) {
-          console.error('Error fetching permissions:', permissionsError);
-          setHasAnyPermission(false);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Extract permission codes
-        const userPermissions = permissionsData.map(p => p.admin_permissions.code) as Permission[];
-        
-        // Cache the permissions
-        permissionsCache[user.id] = userPermissions;
-        
-        // Check if user has any of the requested permissions
-        const hasAny = permissions.some(p => userPermissions.includes(p));
-        setHasAnyPermission(hasAny);
       } catch (error) {
         console.error('Error checking permissions:', error);
         setHasAnyPermission(false);

@@ -242,10 +242,16 @@ export default function UsersPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Manajemen Anggota</h2>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Anggota
-        </Button>
+        <PermissionGuard permission="edit_users">
+          <Button onClick={() => {
+            // Reset form and open dialog
+            setSelectedUser(null);
+            setEditDialogOpen(true);
+          }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Anggota
+          </Button>
+        </PermissionGuard>
       </div>
 
       <div className="flex flex-col md:flex-row items-center gap-4">
@@ -260,14 +266,20 @@ export default function UsersPage() {
           />
         </div>
         <div className="ml-auto"></div>
-        <Button variant="outline" size="icon" onClick={fetchAnggota}>
-          <RefreshCcw className="h-4 w-4" />
+        <Button variant="outline" size="icon" onClick={fetchAnggota} disabled={isLoading}>
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCcw className="h-4 w-4" />
+          )}
           <span className="sr-only">Refresh</span>
         </Button>
-        <Button variant="outline" size="icon" onClick={exportAnggotaData}>
-          <Download className="h-4 w-4" />
-          <span className="sr-only">Export</span>
-        </Button>
+        <PermissionGuard permission="generate_reports">
+          <Button variant="outline" size="icon" onClick={exportAnggotaData}>
+            <Download className="h-4 w-4" />
+            <span className="sr-only">Export</span>
+          </Button>
+        </PermissionGuard>
       </div>
 
 
@@ -301,16 +313,18 @@ export default function UsersPage() {
                   <TableCell>{member.nama}</TableCell>
                   <TableCell>{member.alamat || '-'}</TableCell>
                   <TableCell>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        setSelectedUser(member);
-                        setSavingsDialogOpen(true);
-                      }}
-                    >
-                      Lihat Detail Tabungan
-                    </Button>
+                    <PermissionGuard permission="view_transactions">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(member);
+                          setSavingsDialogOpen(true);
+                        }}
+                      >
+                        Lihat Detail Tabungan
+                      </Button>
+                    </PermissionGuard>
                   </TableCell>
                   <TableCell>
                     <Badge
