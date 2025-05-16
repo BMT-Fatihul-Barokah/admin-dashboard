@@ -45,6 +45,25 @@ try {
 export const supabase = supabaseClient;
 
 // Types based on the database schema
+export type Notification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  time: Date;
+  read: boolean;
+  action?: string | null;
+  action_link?: string | null;
+  anggota_id?: string | null;
+  pinjaman_id?: string | null;
+  transaksi_id?: string | null;
+  created_at: Date;
+  updated_at: Date;
+  anggota?: {
+    nama: string;
+  };
+}
+
 export type Anggota = {
   id: string;
   nama: string;
@@ -356,4 +375,104 @@ export async function getPinjamanByStatus(status: string): Promise<Pinjaman[]> {
   }
   
   return data || [];
+}
+
+export async function searchPinjamanByStatus(status: string): Promise<Pinjaman[]> {
+  const { data, error } = await supabase
+    .from('pinjaman')
+    .select(`
+      *,
+      anggota:anggota_id(nama)
+    `)
+    .eq('status', status)
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error searching pinjaman by status:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+// Notification functions
+export async function getAllNotifications(): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select(`
+      *,
+      anggota:anggota_id(nama)
+    `)
+    .order('time', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching notifications:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+export async function getUnreadNotifications(): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select(`
+      *,
+      anggota:anggota_id(nama)
+    `)
+    .eq('read', false)
+    .order('time', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching unread notifications:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+export async function getNotificationsByType(type: string): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select(`
+      *,
+      anggota:anggota_id(nama)
+    `)
+    .eq('type', type)
+    .order('time', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching notifications by type:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+export async function markNotificationAsRead(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true, updated_at: new Date() })
+    .eq('id', id);
+  
+  if (error) {
+    console.error('Error marking notification as read:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+export async function markAllNotificationsAsRead(): Promise<boolean> {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true, updated_at: new Date() })
+    .eq('read', false);
+  
+  if (error) {
+    console.error('Error marking all notifications as read:', error);
+    return false;
+  }
+  
+  return true;
 }
