@@ -16,23 +16,39 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, Plus, Edit, Trash2, ArrowLeft } from "lucide-react"
-import { supabase, Notification } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
+
+type Notifikasi = {
+  id: string;
+  anggota_id: string;
+  judul: string;
+  pesan: string;
+  jenis: string;
+  is_read: boolean;
+  data?: any;
+  created_at: Date;
+  updated_at: Date;
+  anggota?: {
+    nama: string;
+  };
+}
 import Link from "next/link"
 
 export default function ManageNotificationsPage() {
   const router = useRouter()
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notifications, setNotifications] = useState<Notifikasi[]>([])
+  const [notificationTypes, setNotificationTypes] = useState<{kode: string, nama: string, deskripsi: string}[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [currentNotification, setCurrentNotification] = useState<Notification | null>(null)
+  const [currentNotification, setCurrentNotification] = useState<Notifikasi | null>(null)
   const [formData, setFormData] = useState({
-    type: "system",
-    title: "",
-    message: "",
-    action: "",
-    action_link: "",
+    jenis: "info",
+    judul: "",
+    pesan: "",
+    anggota_id: "",
+    data: {}
   })
 
   // Format the date to a readable format
@@ -50,10 +66,23 @@ export default function ManageNotificationsPage() {
   const fetchNotifications = async () => {
     setLoading(true)
     try {
+      // Fetch notification types first
+      const { data: typesData, error: typesError } = await supabase
+        .from('jenis_notifikasi')
+        .select('kode, nama, deskripsi')
+        .order('nama')
+
+      if (typesError) throw typesError
+      setNotificationTypes(typesData || [])
+
+      // Then fetch notifications
       const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('time', { ascending: false })
+        .from('notifikasi')
+        .select(`
+          *,
+          anggota:anggota_id(nama)
+        `)
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       setNotifications(data || [])
@@ -72,17 +101,34 @@ export default function ManageNotificationsPage() {
   // Create a new notification
   const createNotification = async () => {
     try {
+      // Validate anggota_id if provided
+      if (formData.anggota_id) {
+        const { data: anggotaExists, error: anggotaError } = await supabase
+          .from('anggota')
+          .select('id')
+          .eq('id', formData.anggota_id)
+          .single()
+
+        if (anggotaError || !anggotaExists) {
+          toast({
+            title: "Error",
+            description: "ID Anggota tidak valid.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+
       const { data, error } = await supabase
-        .from('notifications')
+        .from('notifikasi')
         .insert([
           {
-            type: formData.type,
-            title: formData.title,
-            message: formData.message,
-            time: new Date(),
-            read: false,
-            action: formData.action || null,
-            action_link: formData.action_link || null,
+            anggota_id: formData.anggota_id || null,
+            judul: formData.judul,
+            pesan: formData.pesan,
+            jenis: formData.jenis,
+            is_read: false,
+            data: formData.data || {},
           }
         ])
         .select()
@@ -112,14 +158,32 @@ export default function ManageNotificationsPage() {
     if (!currentNotification) return
 
     try {
+      // Validate anggota_id if provided
+      if (formData.anggota_id) {
+        const { data: anggotaExists, error: anggotaError } = await supabase
+          .from('anggota')
+          .select('id')
+          .eq('id', formData.anggota_id)
+          .single()
+
+        if (anggotaError || !anggotaExists) {
+          toast({
+            title: "Error",
+            description: "ID Anggota tidak valid.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+
       const { error } = await supabase
-        .from('notifications')
+        .from('notifikasi')
         .update({
-          type: formData.type,
-          title: formData.title,
-          message: formData.message,
-          action: formData.action || null,
-          action_link: formData.action_link || null,
+          anggota_id: formData.anggota_id || null,
+          judul: formData.judul,
+          pesan: formData.pesan,
+          jenis: formData.jenis,
+          data: formData.data || {},
           updated_at: new Date()
         })
         .eq('id', currentNotification.id)
@@ -150,7 +214,7 @@ export default function ManageNotificationsPage() {
 
     try {
       const { error } = await supabase
-        .from('notifications')
+        .from('notifikasi')
         .delete()
         .eq('id', currentNotification.id)
 
@@ -174,20 +238,20 @@ export default function ManageNotificationsPage() {
   }
 
   // Handle edit button click
-  const handleEdit = (notification: Notification) => {
+  const handleEdit = (notification: Notifikasi) => {
     setCurrentNotification(notification)
     setFormData({
-      type: notification.type,
-      title: notification.title,
-      message: notification.message,
-      action: notification.action || "",
-      action_link: notification.action_link || "",
+      jenis: notification.jenis,
+      judul: notification.judul,
+      pesan: notification.pesan,
+      anggota_id: notification.anggota_id,
+      data: notification.data || {}
     })
     setIsEditing(true)
   }
 
   // Handle delete button click
-  const handleDelete = (notification: Notification) => {
+  const handleDelete = (notification: Notifikasi) => {
     setCurrentNotification(notification)
     setDeleteDialogOpen(true)
   }
@@ -195,32 +259,28 @@ export default function ManageNotificationsPage() {
   // Reset form
   const resetForm = () => {
     setFormData({
-      type: "system",
-      title: "",
-      message: "",
-      action: "",
-      action_link: "",
+      jenis: "info",
+      judul: "",
+      pesan: "",
+      anggota_id: "",
+      data: {}
     })
     setCurrentNotification(null)
   }
 
   // Get notification badge color
-  const getNotificationBadgeColor = (type: string) => {
-    switch (type) {
-      case "transaction":
+  const getNotificationBadgeColor = (jenis: string) => {
+    switch (jenis) {
+      case "transaksi":
         return "bg-blue-500 hover:bg-blue-600"
-      case "loan":
-        return "bg-green-500 hover:bg-green-600"
-      case "user":
+      case "pengumuman":
         return "bg-purple-500 hover:bg-purple-600"
-      case "system":
-        return "bg-gray-500 hover:bg-gray-600"
-      case "alert":
-        return "bg-orange-500 hover:bg-orange-600"
-      case "success":
+      case "info":
         return "bg-green-500 hover:bg-green-600"
-      case "error":
-        return "bg-red-500 hover:bg-red-600"
+      case "sistem":
+        return "bg-gray-500 hover:bg-gray-600"
+      case "jatuh_tempo":
+        return "bg-orange-500 hover:bg-orange-600"
       default:
         return "bg-blue-500 hover:bg-blue-600"
     }
@@ -277,7 +337,7 @@ export default function ManageNotificationsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Tipe</TableHead>
+                    <TableHead className="w-[100px]">Jenis</TableHead>
                     <TableHead className="w-[250px]">Judul</TableHead>
                     <TableHead>Pesan</TableHead>
                     <TableHead className="w-[180px]">Waktu</TableHead>
@@ -289,15 +349,15 @@ export default function ManageNotificationsPage() {
                   {notifications.map((notification) => (
                     <TableRow key={notification.id}>
                       <TableCell>
-                        <Badge variant="outline" className={`${getNotificationBadgeColor(notification.type)} text-white`}>
-                          {notification.type}
+                        <Badge variant="outline" className={`${getNotificationBadgeColor(notification.jenis)} text-white`}>
+                          {notification.jenis}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium">{notification.title}</TableCell>
-                      <TableCell className="max-w-[300px] truncate">{notification.message}</TableCell>
-                      <TableCell>{formatDate(new Date(notification.time))}</TableCell>
+                      <TableCell className="font-medium">{notification.judul}</TableCell>
+                      <TableCell className="max-w-[300px] truncate">{notification.pesan}</TableCell>
+                      <TableCell>{formatDate(new Date(notification.created_at))}</TableCell>
                       <TableCell>
-                        {notification.read ? (
+                        {notification.is_read ? (
                           <Badge variant="outline" className="bg-gray-200 text-gray-700">Dibaca</Badge>
                         ) : (
                           <Badge variant="outline" className="bg-blue-500 text-white">Belum Dibaca</Badge>
@@ -333,72 +393,78 @@ export default function ManageNotificationsPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="type" className="text-right">
-                Tipe
+              <Label htmlFor="jenis" className="text-right">
+                Jenis
               </Label>
               <Select 
-                value={formData.type} 
-                onValueChange={(value) => setFormData({...formData, type: value})}
+                value={formData.jenis} 
+                onValueChange={(value) => setFormData({...formData, jenis: value})}
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Pilih tipe notifikasi" />
+                  <SelectValue placeholder="Pilih jenis notifikasi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="system">Sistem</SelectItem>
-                  <SelectItem value="transaction">Transaksi</SelectItem>
-                  <SelectItem value="loan">Pinjaman</SelectItem>
-                  <SelectItem value="user">Pengguna</SelectItem>
-                  <SelectItem value="alert">Peringatan</SelectItem>
-                  <SelectItem value="success">Sukses</SelectItem>
-                  <SelectItem value="error">Error</SelectItem>
+                  {notificationTypes.map((type) => (
+                    <SelectItem key={type.kode} value={type.kode}>
+                      {type.nama}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
+              <Label htmlFor="judul" className="text-right">
                 Judul
               </Label>
               <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                id="judul"
+                value={formData.judul}
+                onChange={(e) => setFormData({...formData, judul: e.target.value})}
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="message" className="text-right">
+              <Label htmlFor="pesan" className="text-right">
                 Pesan
               </Label>
               <Textarea
-                id="message"
-                value={formData.message}
-                onChange={(e) => setFormData({...formData, message: e.target.value})}
+                id="pesan"
+                value={formData.pesan}
+                onChange={(e) => setFormData({...formData, pesan: e.target.value})}
                 className="col-span-3"
                 rows={4}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="action" className="text-right">
-                Aksi (Opsional)
+              <Label htmlFor="anggota_id" className="text-right">
+                ID Anggota (Opsional)
               </Label>
               <Input
-                id="action"
-                value={formData.action}
-                onChange={(e) => setFormData({...formData, action: e.target.value})}
+                id="anggota_id"
+                value={formData.anggota_id}
+                onChange={(e) => setFormData({...formData, anggota_id: e.target.value})}
                 className="col-span-3"
-                placeholder="Contoh: Lihat Detail"
+                placeholder="ID Anggota (kosongkan untuk notifikasi global)"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="action_link" className="text-right">
-                Link Aksi (Opsional)
+              <Label htmlFor="data" className="text-right">
+                Data JSON (Opsional)
               </Label>
-              <Input
-                id="action_link"
-                value={formData.action_link}
-                onChange={(e) => setFormData({...formData, action_link: e.target.value})}
-                className="col-span-3"
-                placeholder="Contoh: /transactions/123"
+              <Textarea
+                id="data"
+                value={formData.data ? JSON.stringify(formData.data, null, 2) : '{}'}
+                onChange={(e) => {
+                  try {
+                    const jsonData = JSON.parse(e.target.value);
+                    setFormData({...formData, data: jsonData});
+                  } catch (error) {
+                    // If invalid JSON, don't update the state
+                  }
+                }}
+                className="col-span-3 font-mono text-sm"
+                placeholder='{"key": "value"}'
+                rows={4}
               />
             </div>
           </div>
@@ -411,7 +477,7 @@ export default function ManageNotificationsPage() {
             </Button>
             <Button 
               onClick={createNotification}
-              disabled={!formData.title || !formData.message}
+              disabled={!formData.judul || !formData.pesan}
             >
               Simpan
             </Button>
@@ -430,72 +496,78 @@ export default function ManageNotificationsPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-type" className="text-right">
-                Tipe
+              <Label htmlFor="edit-jenis" className="text-right">
+                Jenis
               </Label>
               <Select 
-                value={formData.type} 
-                onValueChange={(value) => setFormData({...formData, type: value})}
+                value={formData.jenis} 
+                onValueChange={(value) => setFormData({...formData, jenis: value})}
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Pilih tipe notifikasi" />
+                  <SelectValue placeholder="Pilih jenis notifikasi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="system">Sistem</SelectItem>
-                  <SelectItem value="transaction">Transaksi</SelectItem>
-                  <SelectItem value="loan">Pinjaman</SelectItem>
-                  <SelectItem value="user">Pengguna</SelectItem>
-                  <SelectItem value="alert">Peringatan</SelectItem>
-                  <SelectItem value="success">Sukses</SelectItem>
-                  <SelectItem value="error">Error</SelectItem>
+                  {notificationTypes.map((type) => (
+                    <SelectItem key={type.kode} value={type.kode}>
+                      {type.nama}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-title" className="text-right">
+              <Label htmlFor="edit-judul" className="text-right">
                 Judul
               </Label>
               <Input
-                id="edit-title"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                id="edit-judul"
+                value={formData.judul}
+                onChange={(e) => setFormData({...formData, judul: e.target.value})}
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-message" className="text-right">
+              <Label htmlFor="edit-pesan" className="text-right">
                 Pesan
               </Label>
               <Textarea
-                id="edit-message"
-                value={formData.message}
-                onChange={(e) => setFormData({...formData, message: e.target.value})}
+                id="edit-pesan"
+                value={formData.pesan}
+                onChange={(e) => setFormData({...formData, pesan: e.target.value})}
                 className="col-span-3"
                 rows={4}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-action" className="text-right">
-                Aksi (Opsional)
+              <Label htmlFor="edit-anggota_id" className="text-right">
+                ID Anggota (Opsional)
               </Label>
               <Input
-                id="edit-action"
-                value={formData.action}
-                onChange={(e) => setFormData({...formData, action: e.target.value})}
+                id="edit-anggota_id"
+                value={formData.anggota_id}
+                onChange={(e) => setFormData({...formData, anggota_id: e.target.value})}
                 className="col-span-3"
-                placeholder="Contoh: Lihat Detail"
+                placeholder="ID Anggota (kosongkan untuk notifikasi global)"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-action_link" className="text-right">
-                Link Aksi (Opsional)
+              <Label htmlFor="edit-data" className="text-right">
+                Data JSON (Opsional)
               </Label>
-              <Input
-                id="edit-action_link"
-                value={formData.action_link}
-                onChange={(e) => setFormData({...formData, action_link: e.target.value})}
-                className="col-span-3"
-                placeholder="Contoh: /transactions/123"
+              <Textarea
+                id="edit-data"
+                value={formData.data ? JSON.stringify(formData.data, null, 2) : '{}'}
+                onChange={(e) => {
+                  try {
+                    const jsonData = JSON.parse(e.target.value);
+                    setFormData({...formData, data: jsonData});
+                  } catch (error) {
+                    // If invalid JSON, don't update the state
+                  }
+                }}
+                className="col-span-3 font-mono text-sm"
+                placeholder='{"key": "value"}'
+                rows={4}
               />
             </div>
           </div>
@@ -508,7 +580,7 @@ export default function ManageNotificationsPage() {
             </Button>
             <Button 
               onClick={updateNotification}
-              disabled={!formData.title || !formData.message}
+              disabled={!formData.judul || !formData.pesan}
             >
               Perbarui
             </Button>
