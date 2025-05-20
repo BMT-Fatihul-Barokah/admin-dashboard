@@ -153,6 +153,26 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
         }
       }
       
+      // Check if anggota_id is already linked to another account
+      if (values.anggota_id && values.anggota_id !== 'none' && values.anggota_id !== akun?.anggota_id) {
+        const { data: existingAccount, error: checkError } = await supabase
+          .from('akun')
+          .select('id')
+          .eq('anggota_id', values.anggota_id)
+          .maybeSingle()
+        
+        if (checkError) throw checkError
+        
+        if (existingAccount) {
+          form.setError('anggota_id', { 
+            type: 'manual', 
+            message: 'Anggota ini sudah terhubung dengan akun lain' 
+          })
+          setIsSubmitting(false)
+          return
+        }
+      }
+      
       // Prepare data for insert/update
       const akunData: any = {
         nomor_telepon: values.nomor_telepon,
@@ -181,7 +201,10 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
           .insert(akunData)
       }
       
-      if (result.error) throw result.error
+      if (result.error) {
+        console.error('Supabase error details:', result.error)
+        throw new Error(result.error.message || 'Terjadi kesalahan saat menyimpan akun')
+      }
       
       toast({
         title: "Berhasil",
@@ -194,9 +217,60 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
       onAkunUpdated()
     } catch (error: any) {
       console.error('Error saving akun:', error)
+      
+      // Determine the error message
+      let errorMessage = "Terjadi kesalahan yang tidak diketahui";
+      
+      // Check if it's a PostgreSQL error with a code
+      if (error.code) {
+        switch (error.code) {
+          case '23505':
+            // Check for specific unique constraint violations
+            if (error.message && error.message.includes('unique_anggota_id')) {
+              errorMessage = "Anggota ini sudah terhubung dengan akun lain";
+              form.setError('anggota_id', { 
+                type: 'manual', 
+                message: 'Anggota ini sudah terhubung dengan akun lain' 
+              });
+            } else if (error.message && error.message.includes('akun_nomor_telepon_key')) {
+              errorMessage = "Nomor telepon sudah terdaftar";
+              form.setError('nomor_telepon', { 
+                type: 'manual', 
+                message: 'Nomor telepon sudah terdaftar' 
+              });
+            } else {
+              errorMessage = "Data duplikat terdeteksi";
+            }
+            break;
+          case '23503':
+            errorMessage = "Anggota yang dipilih tidak valid";
+            break;
+          case '23502':
+            errorMessage = "Ada kolom yang tidak boleh kosong";
+            break;
+          default:
+            errorMessage = `Error database (${error.code})`;
+        }
+      } 
+      // Check for error message
+      else if (error.message && error.message !== '{}') {
+        errorMessage = error.message;
+      }
+      // If we still don't have a good error message, try to extract it from the error object
+      else if (typeof error === 'object') {
+        try {
+          const errorStr = JSON.stringify(error);
+          if (errorStr !== '{}') {
+            errorMessage = `Detail error: ${errorStr}`;
+          }
+        } catch (e) {
+          // If JSON stringify fails, just use the default message
+        }
+      }
+      
       toast({
         title: "Error",
-        description: `Gagal ${akun ? 'memperbarui' : 'membuat'} akun: ${error.message}`,
+        description: `Gagal ${akun ? 'memperbarui' : 'membuat'} akun: ${errorMessage}`,
         variant: "destructive"
       })
     } finally {
