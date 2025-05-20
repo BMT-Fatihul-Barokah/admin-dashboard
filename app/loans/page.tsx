@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, RefreshCcw, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getAllPinjaman, Pinjaman } from "@/lib/pinjaman"
+import { getAllAnggota, Anggota } from "@/lib/supabase"
 import { format, parseISO, differenceInMonths } from "date-fns"
 import { downloadCSV, formatDataForExport } from "@/utils/export-data"
 import { toast } from "sonner"
@@ -24,6 +25,7 @@ import { LoanDetailModal } from "./components/loan-detail-modal"
 import { PaymentScheduleModal } from "./components/payment-schedule-modal"
 import { RecordPaymentModal } from "./components/record-payment-modal"
 import { MarkProblematicModal } from "./components/mark-problematic-modal"
+import { CreateLoanModal } from "./components/create-loan-modal"
 
 export default function LoansPage() {
   const { hasPermission: canCreateLoans } = usePermission('approve_loans')
@@ -46,6 +48,10 @@ export default function LoansPage() {
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showProblematicModal, setShowProblematicModal] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  
+  // Members data for the create loan form
+  const [members, setMembers] = useState<Anggota[]>([])
 
   // Format date function
   const formatDate = (dateString: string) => {
@@ -221,7 +227,19 @@ export default function LoansPage() {
   // Load data on component mount
   useEffect(() => {
     fetchPinjaman()
+    fetchMembers()
   }, [])
+  
+  // Fetch members data
+  const fetchMembers = async () => {
+    try {
+      const data = await getAllAnggota()
+      setMembers(data.filter(member => member.is_active))
+    } catch (error) {
+      console.error('Error fetching members:', error)
+      toast.error('Gagal memuat data anggota')
+    }
+  }
   
   // Apply filters when filter values change
   useEffect(() => {
@@ -233,7 +251,7 @@ export default function LoansPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Manajemen Pinjaman</h2>
         {canCreateLoans && (
-          <Button>
+          <Button onClick={() => setShowCreateModal(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Pinjaman
           </Button>
@@ -428,6 +446,16 @@ export default function LoansPage() {
           toast.success("Pinjaman berhasil ditandai bermasalah");
           fetchPinjaman();
         }}
+      />
+
+      {/* Create Loan Modal */}
+      <CreateLoanModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onLoanCreated={() => {
+          fetchPinjaman();
+        }}
+        members={members}
       />
     </div>
   )

@@ -35,14 +35,21 @@ export default function NotificationSettingsPage() {
     setLoading(true)
     try {
       // Check if template columns exist in jenis_notifikasi table
-      const { data: columnsExist, error: columnsError } = await supabase.rpc(
-        'check_column_exists',
-        { table_name: 'jenis_notifikasi', column_name: 'template_judul' }
-      )
-      
-      // If template columns don't exist, add them
-      if (!columnsExist) {
-        await addTemplateColumnsToJenisNotifikasi()
+      try {
+        const { data: columnsExist, error: columnsError } = await supabase.rpc(
+          'check_column_exists',
+          { p_table_name: 'jenis_notifikasi', p_column_name: 'template_judul' }
+        )
+        
+        if (columnsError) throw columnsError
+        
+        // If template columns don't exist, add them
+        if (!columnsExist) {
+          await addTemplateColumnsToJenisNotifikasi()
+        }
+      } catch (err) {
+        console.error("Error checking column existence:", err)
+        // Continue anyway as we'll try to fetch all columns
       }
       
       // Fetch notification types
@@ -70,13 +77,15 @@ export default function NotificationSettingsPage() {
   const addTemplateColumnsToJenisNotifikasi = async () => {
     try {
       // Create a migration to add template columns
-      await supabase.rpc('execute_sql', {
+      const { error: sqlError } = await supabase.rpc('execute_sql', {
         sql: `
           ALTER TABLE jenis_notifikasi 
           ADD COLUMN IF NOT EXISTS template_judul TEXT,
           ADD COLUMN IF NOT EXISTS template_pesan TEXT;
         `
       })
+      
+      if (sqlError) throw sqlError
       
       // Update existing notification types with default templates
       await updateDefaultTemplates()
@@ -92,6 +101,7 @@ export default function NotificationSettingsPage() {
         description: "Gagal menambahkan kolom template ke tabel jenis_notifikasi.",
         variant: "destructive",
       })
+      // Even if adding columns fails, try to continue with fetching data
     }
   }
 
@@ -121,14 +131,29 @@ export default function NotificationSettingsPage() {
         }
       }
       
+      // Get all notification types first
+      const { data: existingTypes, error: fetchError } = await supabase
+        .from('jenis_notifikasi')
+        .select('kode')
+      
+      if (fetchError) throw fetchError
+      
+      // Only update types that exist in the database
+      const existingKodes = existingTypes?.map(type => type.kode) || []
+      
       // Update each notification type with its template
       for (const [kode, templates] of Object.entries(templateMap)) {
-        const { error } = await supabase
-          .from('jenis_notifikasi')
-          .update(templates)
-          .eq('kode', kode)
-        
-        if (error) throw error
+        if (existingKodes.includes(kode)) {
+          const { error } = await supabase
+            .from('jenis_notifikasi')
+            .update(templates)
+            .eq('kode', kode)
+          
+          if (error) {
+            console.error(`Error updating template for ${kode}:`, error)
+            continue // Continue with other templates even if one fails
+          }
+        }
       }
       
       toast({

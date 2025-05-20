@@ -270,8 +270,8 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
                 <FormItem>
                   <FormLabel>Anggota</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
-                    value={field.value || ""}
+                    onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                    value={field.value || "none"}
                     disabled={isSubmitting || isLoadingAnggota}
                   >
                     <FormControl>
@@ -280,7 +280,7 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Tidak terkait anggota</SelectItem>
+                      <SelectItem value="none">Tidak terkait anggota</SelectItem>
                       {anggotaList.map((anggota) => (
                         <SelectItem key={anggota.id} value={anggota.id}>
                           {anggota.nama} ({anggota.nomor_rekening})

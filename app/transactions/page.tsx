@@ -22,6 +22,7 @@ import { downloadCSV, formatDataForExport } from "@/utils/export-data"
 import { toast } from "sonner"
 import { TransactionDetailModal } from "./components/transaction-detail-modal"
 import { TransactionReceipt } from "./components/transaction-receipt"
+import { TransactionFormModal } from "./components/transaction-form-modal"
 
 // Define transaction type
 interface Transaksi {
@@ -56,6 +57,7 @@ export default function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaksi | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [showFormModal, setShowFormModal] = useState(false)
   
   // Component initialization
   
@@ -291,7 +293,7 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Manajemen Transaksi</h2>
         <PermissionGuard permission="create_transactions">
-          <Button>
+          <Button onClick={() => setShowFormModal(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Transaksi
           </Button>
@@ -480,6 +482,13 @@ export default function TransactionsPage() {
         isOpen={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
         transaction={selectedTransaction}
+      />
+
+      {/* Transaction Form Modal */}
+      <TransactionFormModal
+        isOpen={showFormModal}
+        onClose={() => setShowFormModal(false)}
+        onSuccess={fetchTransactions}
       />
     </div>
   )

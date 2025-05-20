@@ -1,0 +1,368 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
+import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
+
+// Define the form schema with Zod
+const formSchema = z.object({
+  anggota_id: z.string({
+    required_error: "Pilih anggota",
+  }),
+  tipe_transaksi: z.string({
+    required_error: "Pilih tipe transaksi",
+  }),
+  kategori: z.string({
+    required_error: "Pilih kategori",
+  }),
+  jumlah: z.coerce.number({
+    required_error: "Masukkan jumlah",
+    invalid_type_error: "Jumlah harus berupa angka",
+  }).positive("Jumlah harus lebih dari 0"),
+  deskripsi: z.string().optional(),
+  pinjaman_id: z.string().optional(),
+})
+
+// Define props for the component
+interface TransactionFormModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSuccess?: () => void
+}
+
+// Define anggota type
+interface Anggota {
+  id: string
+  nama: string
+  nomor_rekening: string
+}
+
+export function TransactionFormModal({ isOpen, onClose, onSuccess }: TransactionFormModalProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [anggotaList, setAnggotaList] = useState<Anggota[]>([])
+  const [pinjamanList, setPinjamanList] = useState<any[]>([])
+  const [isLoadingAnggota, setIsLoadingAnggota] = useState(false)
+  const [isLoadingPinjaman, setIsLoadingPinjaman] = useState(false)
+  
+  // Initialize form
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      tipe_transaksi: "",
+      kategori: "",
+      jumlah: undefined,
+      deskripsi: "",
+    },
+  })
+  
+  // Watch for changes to form values
+  const tipeTransaksi = form.watch("tipe_transaksi")
+  const selectedAnggotaId = form.watch("anggota_id")
+  
+  // Reset form when modal is opened/closed
+  useEffect(() => {
+    if (isOpen) {
+      form.reset()
+    }
+  }, [isOpen, form])
+  
+  // Fetch anggota list on component mount
+  useEffect(() => {
+    const fetchAnggota = async () => {
+      setIsLoadingAnggota(true)
+      try {
+        const response = await fetch('/api/anggota')
+        if (!response.ok) {
+          throw new Error('Failed to fetch anggota')
+        }
+        const data = await response.json()
+        setAnggotaList(data)
+      } catch (error) {
+        console.error('Error fetching anggota:', error)
+        toast.error('Gagal memuat data anggota')
+      } finally {
+        setIsLoadingAnggota(false)
+      }
+    }
+    
+    if (isOpen) {
+      fetchAnggota()
+    }
+  }, [isOpen])
+  
+  // Fetch pinjaman list when anggota is selected
+  useEffect(() => {
+    const fetchPinjaman = async () => {
+      if (!selectedAnggotaId) return
+      
+      setIsLoadingPinjaman(true)
+      try {
+        const response = await fetch(`/api/pinjaman?anggota_id=${selectedAnggotaId}&status=aktif`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch pinjaman')
+        }
+        const data = await response.json()
+        setPinjamanList(data)
+      } catch (error) {
+        console.error('Error fetching pinjaman:', error)
+        toast.error('Gagal memuat data pinjaman')
+      } finally {
+        setIsLoadingPinjaman(false)
+      }
+    }
+    
+    if (selectedAnggotaId && tipeTransaksi === "masuk" && form.getValues("kategori") === "pembayaran_pinjaman") {
+      fetchPinjaman()
+    }
+  }, [selectedAnggotaId, tipeTransaksi, form])
+  
+  // Handle form submission
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true)
+    try {
+      // Send data to API
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create transaction')
+      }
+      
+      // Show success message
+      toast.success('Transaksi berhasil dibuat')
+      
+      // Close modal and refresh data
+      onClose()
+      if (onSuccess) {
+        onSuccess()
+      }
+    } catch (error) {
+      console.error('Error creating transaction:', error)
+      toast.error(`Gagal membuat transaksi: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Tambah Transaksi Baru</DialogTitle>
+          <DialogDescription>
+            Isi form berikut untuk membuat transaksi baru.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Anggota Field */}
+            <FormField
+              control={form.control}
+              name="anggota_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Anggota</FormLabel>
+                  <Select 
+                    disabled={isLoadingAnggota} 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih anggota" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {anggotaList.map((anggota) => (
+                        <SelectItem key={anggota.id} value={anggota.id}>
+                          {anggota.nama} - {anggota.nomor_rekening}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Tipe Transaksi Field */}
+            <FormField
+              control={form.control}
+              name="tipe_transaksi"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipe Transaksi</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih tipe transaksi" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="masuk">Masuk</SelectItem>
+                      <SelectItem value="keluar">Keluar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Kategori Field */}
+            <FormField
+              control={form.control}
+              name="kategori"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kategori</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih kategori" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {tipeTransaksi === "masuk" ? (
+                        <>
+                          <SelectItem value="setoran">Setoran</SelectItem>
+                          <SelectItem value="pembayaran_pinjaman">Angsuran Pinjaman</SelectItem>
+                          <SelectItem value="bunga">Bunga</SelectItem>
+                          <SelectItem value="biaya_admin">Biaya Admin</SelectItem>
+                          <SelectItem value="lainnya">Lainnya</SelectItem>
+                        </>
+                      ) : tipeTransaksi === "keluar" ? (
+                        <>
+                          <SelectItem value="penarikan">Penarikan</SelectItem>
+                          <SelectItem value="pencairan_pinjaman">Pencairan Pinjaman</SelectItem>
+                          <SelectItem value="lainnya">Lainnya</SelectItem>
+                        </>
+                      ) : null}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Pinjaman Field - Only show for pembayaran_pinjaman */}
+            {form.watch("kategori") === "pembayaran_pinjaman" && (
+              <FormField
+                control={form.control}
+                name="pinjaman_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pinjaman</FormLabel>
+                    <Select 
+                      disabled={isLoadingPinjaman} 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih pinjaman" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {pinjamanList.map((pinjaman) => (
+                          <SelectItem key={pinjaman.id} value={pinjaman.id}>
+                            {pinjaman.jenis_pinjaman} - Rp {pinjaman.sisa_pembayaran.toLocaleString('id-ID')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            {/* Jumlah Field */}
+            <FormField
+              control={form.control}
+              name="jumlah"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Jumlah</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="Masukkan jumlah" 
+                      {...field} 
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? undefined : Number(e.target.value);
+                        field.onChange(value);
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Masukkan jumlah transaksi dalam Rupiah
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Deskripsi Field */}
+            <FormField
+              control={form.control}
+              name="deskripsi"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Deskripsi (Opsional)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Masukkan deskripsi transaksi" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Batal
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Simpan
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  )
+}

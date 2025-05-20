@@ -16,6 +16,14 @@ export type Pinjaman = {
   };
 }
 
+export type PinjamanInput = {
+  anggota_id: string;
+  jenis_pinjaman: string;
+  jumlah: number;
+  jatuh_tempo: string;
+  alasan?: string;
+}
+
 /**
  * Get all loans with member information
  */
@@ -86,4 +94,48 @@ export async function getPinjamanByStatus(status: string): Promise<Pinjaman[]> {
   }
   
   return data || [];
+}
+
+/**
+ * Create a new loan application
+ */
+export async function createPinjaman(pinjamanData: PinjamanInput): Promise<{ success: boolean; error?: any; data?: any }> {
+  try {
+    const now = new Date().toISOString();
+    
+    // Calculate loan details
+    const jumlah = Number(pinjamanData.jumlah);
+    // For simplicity, we're setting total_pembayaran and sisa_pembayaran to the same value as jumlah
+    // In a real application, you might calculate interest or other fees
+    const total_pembayaran = jumlah;
+    const sisa_pembayaran = jumlah;
+    
+    // Insert new loan with status 'diajukan' (applied)
+    const { data, error } = await supabase
+      .from('pinjaman')
+      .insert([
+        {
+          anggota_id: pinjamanData.anggota_id,
+          jenis_pinjaman: pinjamanData.jenis_pinjaman,
+          jumlah: jumlah,
+          jatuh_tempo: pinjamanData.jatuh_tempo,
+          status: 'diajukan',
+          total_pembayaran: total_pembayaran,
+          sisa_pembayaran: sisa_pembayaran,
+          created_at: now,
+          updated_at: now
+        }
+      ])
+      .select();
+    
+    if (error) {
+      console.error('Error creating pinjaman:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  } catch (e) {
+    console.error('Exception in createPinjaman:', e);
+    return { success: false, error: e };
+  }
 }
