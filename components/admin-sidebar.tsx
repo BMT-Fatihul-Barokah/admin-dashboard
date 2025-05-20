@@ -11,6 +11,7 @@ import {
 	LogOut,
 	Menu,
 	Settings,
+	Smartphone,
 	Users,
 	UserPlus,
 	Wallet,
@@ -45,6 +46,7 @@ import {
 const allNavigation = [
 	{ name: "Dashboard", href: "/", icon: Home, permission: "view_dashboard" as Permission },
 	{ name: "Manajemen User", href: "/users", icon: Users, permission: "view_users" as Permission },
+	{ name: "Manajemen Akun", href: "/akun", icon: Smartphone, permission: "view_users" as Permission },
 	{ name: "Transaksi", href: "/transactions", icon: CreditCard, permission: "view_transactions" as Permission },
 	{ name: "Pinjaman", href: "/loans", icon: Wallet, permission: "view_loans" as Permission },
 	{ name: "Persetujuan Nasabah", href: "/approvals", icon: UserPlus, permission: "view_approvals" as Permission },
