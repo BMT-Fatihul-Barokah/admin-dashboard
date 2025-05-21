@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getAllJenisTabungan, JenisTabungan } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -45,6 +46,7 @@ const formSchema = z.object({
   }).positive("Jumlah harus lebih dari 0"),
   deskripsi: z.string().optional(),
   pinjaman_id: z.string().optional(),
+  jenis_tabungan_id: z.string().optional(),
 })
 
 // Define props for the component
@@ -61,12 +63,17 @@ interface Anggota {
   nomor_rekening: string
 }
 
+// Using JenisTabungan type from supabase.ts
+
 export function TransactionFormModal({ isOpen, onClose, onSuccess }: TransactionFormModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([])
   const [pinjamanList, setPinjamanList] = useState<any[]>([])
+  const [jenisTabunganList, setJenisTabunganList] = useState<JenisTabungan[]>([])
+  const [userTabunganList, setUserTabunganList] = useState<{id: string, jenis_tabungan_id: string, jenis_tabungan_nama: string, saldo: number}[]>([])
   const [isLoadingAnggota, setIsLoadingAnggota] = useState(false)
   const [isLoadingPinjaman, setIsLoadingPinjaman] = useState(false)
+  const [isLoadingJenisTabungan, setIsLoadingJenisTabungan] = useState(false)
   
   // Initialize form
   const form = useForm<z.infer<typeof formSchema>>({
@@ -76,6 +83,8 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       kategori: "",
       jumlah: undefined,
       deskripsi: "",
+      jenis_tabungan_id: "",
+      pinjaman_id: "",
     },
   })
   
@@ -109,8 +118,24 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       }
     }
     
+    const fetchJenisTabungan = async () => {
+      setIsLoadingJenisTabungan(true)
+      try {
+        // Use the helper function directly instead of the API
+        const data = await getAllJenisTabungan()
+        console.log('Fetched jenis tabungan:', data)
+        setJenisTabunganList(data)
+      } catch (error) {
+        console.error('Error fetching jenis tabungan:', error)
+        toast.error('Gagal memuat data jenis tabungan')
+      } finally {
+        setIsLoadingJenisTabungan(false)
+      }
+    }
+    
     if (isOpen) {
       fetchAnggota()
+      fetchJenisTabungan()
     }
   }, [isOpen])
   
@@ -135,8 +160,31 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       }
     }
     
-    if (selectedAnggotaId && tipeTransaksi === "masuk" && form.getValues("kategori") === "pembayaran_pinjaman") {
-      fetchPinjaman()
+    const fetchUserTabungan = async () => {
+      if (!selectedAnggotaId) return
+      
+      try {
+        console.log('Fetching tabungan for anggota:', selectedAnggotaId)
+        const response = await fetch(`/api/tabungan?anggota_id=${selectedAnggotaId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch user tabungan')
+        }
+        const data = await response.json()
+        console.log('Received tabungan data:', data)
+        setUserTabunganList(data)
+      } catch (error) {
+        console.error('Error fetching user tabungan:', error)
+        toast.error('Gagal memuat data tabungan anggota')
+      }
+    }
+    
+    if (selectedAnggotaId) {
+      if (tipeTransaksi === "masuk" && form.getValues("kategori") === "pembayaran_pinjaman") {
+        fetchPinjaman()
+      }
+      
+      // Fetch user's tabungan whenever anggota is selected
+      fetchUserTabungan()
     }
   }, [selectedAnggotaId, tipeTransaksi, form])
   
@@ -258,6 +306,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                           <SelectItem value="setoran">Setoran</SelectItem>
                           <SelectItem value="pembayaran_pinjaman">Angsuran Pinjaman</SelectItem>
                           <SelectItem value="bunga">Bunga</SelectItem>
+                          <SelectItem value="pencairan_pinjaman">Pencairan Pinjaman</SelectItem>
                           <SelectItem value="biaya_admin">Biaya Admin</SelectItem>
                           <SelectItem value="lainnya">Lainnya</SelectItem>
                         </>
@@ -265,6 +314,8 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                         <>
                           <SelectItem value="penarikan">Penarikan</SelectItem>
                           <SelectItem value="pencairan_pinjaman">Pencairan Pinjaman</SelectItem>
+                          <SelectItem value="biaya_admin">Biaya Admin</SelectItem>
+                          <SelectItem value="pembayaran_pinjaman">Pembayaran Pinjaman</SelectItem>
                           <SelectItem value="lainnya">Lainnya</SelectItem>
                         </>
                       ) : null}
@@ -307,6 +358,56 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
               />
             )}
             
+            {/* Jenis Tabungan Field - Show for relevant categories */}
+            {(form.watch("kategori") === "setoran" || 
+              form.watch("kategori") === "penarikan") && (
+              <FormField
+                control={form.control}
+                name="jenis_tabungan_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jenis Tabungan</FormLabel>
+                    <Select 
+                      disabled={isLoadingJenisTabungan || userTabunganList.length === 0} 
+                      onValueChange={field.onChange} 
+                      value={field.value || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih jenis tabungan" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {userTabunganList.length > 0 ? (
+                          userTabunganList.map((tabungan) => {
+                            const jenisTabungan = jenisTabunganList.find(jt => jt.id === tabungan.jenis_tabungan_id);
+                            return (
+                              <SelectItem key={tabungan.id} value={tabungan.jenis_tabungan_id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{tabungan.jenis_tabungan_nama}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Saldo: Rp {Number(tabungan.saldo).toLocaleString('id-ID')}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            );
+                          })
+                        ) : (
+                          <div className="p-2 text-sm text-muted-foreground text-center">
+                            Anggota belum memiliki tabungan
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {form.watch("jenis_tabungan_id") && jenisTabunganList.find(jt => jt.id === form.watch("jenis_tabungan_id"))?.deskripsi}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
             {/* Jumlah Field */}
             <FormField
               control={form.control}
@@ -318,7 +419,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                     <Input 
                       type="number" 
                       placeholder="Masukkan jumlah" 
-                      {...field} 
+                      value={field.value || ""} 
                       onChange={(e) => {
                         const value = e.target.value === "" ? undefined : Number(e.target.value);
                         field.onChange(value);

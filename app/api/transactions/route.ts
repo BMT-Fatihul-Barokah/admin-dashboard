@@ -117,7 +117,8 @@ export async function POST(request: Request) {
         jumlah: body.jumlah,
         saldo_sebelum: currentBalance,
         saldo_sesudah: newBalance,
-        pinjaman_id: body.pinjaman_id || null
+        pinjaman_id: body.pinjaman_id || null,
+        tabungan_id: body.jenis_tabungan_id || null
       })
       .select()
       .single()

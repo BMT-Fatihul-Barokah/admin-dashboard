@@ -476,3 +476,33 @@ export async function markAllNotificationsAsRead(): Promise<boolean> {
   
   return true;
 }
+
+// Jenis Tabungan functions
+export type JenisTabungan = {
+  id: string;
+  kode: string;
+  nama: string;
+  deskripsi: string;
+  minimum_setoran: number;
+  biaya_admin: number;
+  bagi_hasil: number | null;
+  is_active: boolean;
+  is_required: boolean;
+  is_reguler: boolean;
+  display_order: number;
+}
+
+export async function getAllJenisTabungan(): Promise<JenisTabungan[]> {
+  const { data, error } = await supabase
+    .from('jenis_tabungan')
+    .select('*')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true });
+  
+  if (error) {
+    console.error('Error fetching jenis tabungan:', error);
+    return [];
+  }
+  
+  return data || [];
+}
