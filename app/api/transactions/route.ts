@@ -67,10 +67,18 @@ export async function POST(request: Request) {
       }
     }
     
-    // Get current balance for the anggota
+    // For setoran or penarikan, we need a tabungan_id
+    if ((body.kategori === 'setoran' || body.kategori === 'penarikan') && !body.jenis_tabungan_id) {
+      return NextResponse.json(
+        { error: 'Jenis tabungan harus dipilih untuk setoran atau penarikan' },
+        { status: 400 }
+      )
+    }
+    
+    // Get anggota to verify it exists
     const { data: anggotaData, error: anggotaError } = await supabase
       .from('anggota')
-      .select('saldo')
+      .select('id, nama')
       .eq('id', body.anggota_id)
       .single()
     
@@ -89,21 +97,61 @@ export async function POST(request: Request) {
       )
     }
     
-    const currentBalance = parseFloat(anggotaData.saldo)
-    let newBalance = currentBalance
+    let currentBalance = 0
+    let newBalance = 0
+    let tabungan_id = null
     
-    // Calculate new balance based on transaction type
-    if (body.tipe_transaksi === 'masuk') {
-      newBalance = currentBalance + parseFloat(body.jumlah)
-    } else if (body.tipe_transaksi === 'keluar') {
-      // Check if there's enough balance for withdrawal
-      if (body.kategori === 'penarikan' && currentBalance < parseFloat(body.jumlah)) {
+    // If this is a tabungan transaction (setoran or penarikan), get the tabungan balance
+    if (body.jenis_tabungan_id && (body.kategori === 'setoran' || body.kategori === 'penarikan')) {
+      // Find the tabungan record for this jenis_tabungan and anggota
+      const { data: tabunganData, error: tabunganError } = await supabase
+        .from('tabungan')
+        .select('id, saldo')
+        .eq('anggota_id', body.anggota_id)
+        .eq('jenis_tabungan_id', body.jenis_tabungan_id)
+        .eq('status', 'aktif')
+        .single()
+      
+      if (tabunganError) {
+        console.error('Error fetching tabungan:', tabunganError)
         return NextResponse.json(
-          { error: 'Saldo tidak mencukupi untuk melakukan penarikan' },
-          { status: 400 }
+          { error: `Failed to fetch tabungan: ${tabunganError.message}` },
+          { status: 500 }
         )
       }
-      newBalance = currentBalance - parseFloat(body.jumlah)
+      
+      if (!tabunganData) {
+        return NextResponse.json(
+          { error: 'Tabungan not found for this anggota and jenis tabungan' },
+          { status: 404 }
+        )
+      }
+      
+      currentBalance = parseFloat(tabunganData.saldo)
+      tabungan_id = tabunganData.id
+      
+      // Calculate new balance based on transaction type
+      if (body.tipe_transaksi === 'masuk') {
+        newBalance = currentBalance + parseFloat(body.jumlah)
+      } else if (body.tipe_transaksi === 'keluar') {
+        // Check if there's enough balance for withdrawal
+        if (currentBalance < parseFloat(body.jumlah)) {
+          return NextResponse.json(
+            { error: 'Saldo tidak mencukupi untuk melakukan penarikan' },
+            { status: 400 }
+          )
+        }
+        newBalance = currentBalance - parseFloat(body.jumlah)
+      }
+    } else if (body.pinjaman_id && body.kategori === 'pembayaran_pinjaman') {
+      // Handle loan payment logic here if needed
+      // For now, we'll just set the balances to 0 since they're not used for loan payments
+      currentBalance = 0
+      newBalance = 0
+    } else {
+      // For other transaction types, set balances to 0
+      currentBalance = 0
+      newBalance = 0
     }
     
     // Insert transaction
@@ -118,7 +166,7 @@ export async function POST(request: Request) {
         saldo_sebelum: currentBalance,
         saldo_sesudah: newBalance,
         pinjaman_id: body.pinjaman_id || null,
-        tabungan_id: body.jenis_tabungan_id || null
+        tabungan_id: tabungan_id || body.jenis_tabungan_id || null
       })
       .select()
       .single()
@@ -131,18 +179,23 @@ export async function POST(request: Request) {
       )
     }
     
-    // Update anggota balance
-    const { error: updateError } = await supabase
-      .from('anggota')
-      .update({ saldo: newBalance })
-      .eq('id', body.anggota_id)
-    
-    if (updateError) {
-      console.error('Error updating anggota balance:', updateError)
-      return NextResponse.json(
-        { error: `Transaction created but failed to update balance: ${updateError.message}` },
-        { status: 500 }
-      )
+    // If this is a tabungan transaction, update the tabungan balance
+    if (tabungan_id && (body.kategori === 'setoran' || body.kategori === 'penarikan')) {
+      const { error: updateError } = await supabase
+        .from('tabungan')
+        .update({ 
+          saldo: newBalance,
+          last_transaction_date: new Date().toISOString()
+        })
+        .eq('id', tabungan_id)
+      
+      if (updateError) {
+        console.error('Error updating tabungan balance:', updateError)
+        return NextResponse.json(
+          { error: `Transaction created but failed to update balance: ${updateError.message}` },
+          { status: 500 }
+        )
+      }
     }
     
     return NextResponse.json({ 
