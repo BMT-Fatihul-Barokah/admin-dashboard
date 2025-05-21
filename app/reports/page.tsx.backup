@@ -768,23 +768,27 @@ export default function ReportsPage() {
                     
                     <Button className="w-full" onClick={() => toast.success('Membuka halaman transaksi')}>
                       Lihat Semua Transaksi
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </TabsContent>
+    </div>
+  ) : (
+    <div className="p-4 text-center text-muted-foreground">
+      Tidak ada anggota baru pada periode ini
+    </div>
+  )}
+</CardContent>
+</Card>
+</div>
+)}
+</TabsContent>
 
-        <TabsContent value="loans" className="space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2">Memuat data...</span>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+<TabsContent value="loans" className="space-y-4">
+{isLoading ? (
+  <div className="flex items-center justify-center p-8">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <span className="ml-2">Memuat data...</span>
+  </div>
+) : (
+  <div className="space-y-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Pinjaman</CardTitle>
@@ -865,15 +869,15 @@ export default function ReportsPage() {
 )}
 </TabsContent>
 
-        <TabsContent value="transactions" className="space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2">Memuat data...</span>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+<TabsContent value="transactions" className="space-y-4">
+{isLoading ? (
+  <div className="flex items-center justify-center p-8">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <span className="ml-2">Memuat data...</span>
+  </div>
+) : (
+  <div className="space-y-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Transaksi</CardTitle>
@@ -949,16 +953,37 @@ export default function ReportsPage() {
       </CardContent>
     </Card>
   </div>
-            )}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+)}
+</TabsContent>
+</Tabs>
+</div>
+);
 
 const financialReports = [
-  {
-    id: "report-001",
-    name: "Laporan Keuangan Bulanan - April 2023",
+{
+  id: "report-001",
+  name: "Laporan Keuangan Bulanan - April 2023",
+  date: "30 Apr 2023",
+  format: "PDF",
+},
+{
+  id: "report-002",
+  name: "Laporan Keuangan Bulanan - Maret 2023",
+  date: "31 Mar 2023",
+  format: "PDF",
+},
+{
+  id: "report-003",
+  name: "Laporan Keuangan Kuartal 1 - 2023",
+  date: "31 Mar 2023",
+  format: "PDF",
+},
+{
+  id: "report-004",
+  name: "Laporan Keuangan Tahunan - 2022",
+  date: "31 Dec 2022",
+  format: "PDF",
+},
     date: "30 Apr 2023",
     format: "PDF",
   },
@@ -980,4 +1005,4 @@ const financialReports = [
     date: "31 Dec 2022",
     format: "PDF",
   },
-];
+]

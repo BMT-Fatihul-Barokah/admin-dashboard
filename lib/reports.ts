@@ -8,6 +8,8 @@ export interface FinancialSummary {
   totalExpense: number;
   netProfit: number;
   financialRatio: number;
+  profitMarginRatio: number;
+  operationalEfficiencyRatio: number;
   period: string;
 }
 
@@ -97,14 +99,64 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
     const totalExpense = expenseData.reduce((sum, item) => sum + Number(item.jumlah), 0);
     const netProfit = totalIncome - totalExpense;
     
-    // Calculate financial ratio (income to expense ratio)
-    const financialRatio = totalExpense > 0 ? (totalIncome / totalExpense) * 100 : 100;
+    // Menggunakan fungsi SQL untuk menghitung rasio keuangan
+    // Mengambil rasio dari database untuk memastikan konsistensi perhitungan
+    let financialRatio: number;
+    let profitMarginRatio: number;
+    let operationalEfficiencyRatio: number;
+    
+    // Hitung rasio keuangan (kesehatan keuangan)
+    const { data: ratioData, error: ratioError } = await supabase
+      .rpc('calculate_financial_ratio', {
+        income: totalIncome,
+        expense: totalExpense
+      });
+    
+    if (ratioError) {
+      console.error('Error calculating financial ratio:', ratioError);
+      // Fallback ke perhitungan lokal jika fungsi SQL gagal
+      financialRatio = totalExpense > 0 ? Math.min((totalIncome / totalExpense) * 100, 100) : 100;
+    } else {
+      financialRatio = Number(ratioData) || 0;
+    }
+    
+    // Hitung margin keuntungan
+    const { data: marginData, error: marginError } = await supabase
+      .rpc('calculate_profit_margin', {
+        income: totalIncome,
+        profit: netProfit
+      });
+    
+    if (marginError) {
+      console.error('Error calculating profit margin:', marginError);
+      // Fallback ke perhitungan lokal jika fungsi SQL gagal
+      profitMarginRatio = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+    } else {
+      profitMarginRatio = Number(marginData) || 0;
+    }
+    
+    // Hitung efisiensi operasional
+    const { data: efficiencyData, error: efficiencyError } = await supabase
+      .rpc('calculate_operational_efficiency', {
+        income: totalIncome,
+        expense: totalExpense
+      });
+    
+    if (efficiencyError) {
+      console.error('Error calculating operational efficiency:', efficiencyError);
+      // Fallback ke perhitungan lokal jika fungsi SQL gagal
+      operationalEfficiencyRatio = totalIncome > 0 ? Math.min((totalExpense / totalIncome) * 100, 100) : 0;
+    } else {
+      operationalEfficiencyRatio = Number(efficiencyData) || 0;
+    }
     
     return {
       totalIncome,
       totalExpense,
       netProfit,
       financialRatio,
+      profitMarginRatio,
+      operationalEfficiencyRatio,
       period: periodDisplay
     };
   } catch (error) {
@@ -115,6 +167,8 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
       totalExpense: 0,
       netProfit: 0,
       financialRatio: 0,
+      profitMarginRatio: 0,
+      operationalEfficiencyRatio: 0,
       period: periodDisplay
     };
   }
@@ -637,25 +691,25 @@ export async function getSavedReports(): Promise<SavedReport[]> {
       id: "report-001",
       name: `Laporan Keuangan Bulanan - ${format(currentDate, 'MMMM yyyy', { locale: id })}`,
       date: format(currentDate, 'dd MMM yyyy', { locale: id }),
-      format: "PDF"
+      format: "xlsx"
     },
     {
       id: "report-002",
       name: `Laporan Keuangan Bulanan - ${format(subMonths(currentDate, 1), 'MMMM yyyy', { locale: id })}`,
       date: format(endOfMonth(subMonths(currentDate, 1)), 'dd MMM yyyy', { locale: id }),
-      format: "PDF"
+      format: "xlsx"
     },
     {
       id: "report-003",
       name: `Laporan Keuangan Kuartal ${Math.ceil(currentDate.getMonth() / 3)} - ${currentDate.getFullYear()}`,
       date: format(endOfMonth(subMonths(currentDate, 1)), 'dd MMM yyyy', { locale: id }),
-      format: "PDF"
+      format: "xlsx"
     },
     {
       id: "report-004",
       name: `Laporan Keuangan Tahunan - ${currentDate.getFullYear() - 1}`,
       date: `31 Des ${currentDate.getFullYear() - 1}`,
-      format: "PDF"
+      format: "xlsx"
     }
   ];
 }

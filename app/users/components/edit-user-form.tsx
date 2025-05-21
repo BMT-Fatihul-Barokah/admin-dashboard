@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,18 +8,30 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createClient } from '@supabase/supabase-js'
 import { useToast } from "@/components/ui/use-toast"
-import { format, parseISO } from "date-fns"
+import { format } from "date-fns"
 
 // Create a direct Supabase client instance
 const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
+
+// Use anon key for all operations - RLS policies will handle permissions
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM'
+
+// Create a single Supabase client instance
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Helper function to generate a UUID
+function generateUUID() {
+  // This is a simple implementation that creates a random UUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 type Anggota = {
   id: string
   nama: string
   nomor_rekening: string
-  saldo: number
   alamat?: string
   kota?: string
   tempat_lahir?: string
@@ -43,10 +55,20 @@ interface EditUserFormProps {
 export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUserFormProps) {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState<Partial<Anggota>>({})
+  const [formData, setFormData] = useState<Partial<Anggota>>({
+    nama: '',
+    alamat: '',
+    kota: '',
+    tempat_lahir: '',
+    tanggal_lahir: '',
+    pekerjaan: '',
+    jenis_identitas: '',
+    nomor_identitas: '',
+    nomor_rekening: ''
+  })
 
   // Initialize form data when user changes or dialog opens
-  useState(() => {
+  useEffect(() => {
     if (user) {
       // Editing existing user
       setFormData({
@@ -59,9 +81,10 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
         pekerjaan: user.pekerjaan || '',
         jenis_identitas: user.jenis_identitas || '',
         nomor_identitas: user.nomor_identitas || '',
+        nomor_rekening: user.nomor_rekening
       })
     } else {
-      // Adding new user
+      // Adding new user - reset to defaults
       setFormData({
         nama: '',
         alamat: '',
@@ -71,12 +94,10 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
         pekerjaan: '',
         jenis_identitas: '',
         nomor_identitas: '',
-        nomor_rekening: '',
-        saldo: 0,
-        is_active: true
+        nomor_rekening: ''
       })
     }
-  })
+  }, [user, open]) // Dependencies to prevent infinite rendering
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -90,73 +111,294 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Validate form data before setting isSubmitting
+    // This prevents showing the loading state if validation fails immediately
+    const validationError = validateFormData(formData)
+    if (validationError) {
+      toast({
+        title: "Validasi Gagal",
+        description: validationError,
+        variant: "destructive"
+      })
+      return
+    }
+    
     setIsSubmitting(true)
     try {
       if (user) {
-        // Editing existing user
-        // Prepare data for update
-        const updateData = {
-          ...formData,
-          updated_at: new Date().toISOString()
-        }
-        
-        // Update anggota in database
-        const { error } = await supabase
-          .from('anggota')
-          .update(updateData)
-          .eq('id', user.id)
-        
-        if (error) throw error
-        
-        toast({
-          title: "Berhasil",
-          description: `Data anggota ${user.nama} telah diperbarui.`,
-        })
+        await updateExistingUser()
       } else {
-        // Adding new user
-        // Generate a unique account number
-        const timestamp = Date.now().toString().slice(-8);
-        const randomDigits = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        const accountNumber = `${timestamp}${randomDigits}`;
-        
-        // Prepare data for insert
-        const insertData = {
-          ...formData,
-          nomor_rekening: formData.nomor_rekening || accountNumber,
-          saldo: formData.saldo || 0,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-        
-        // Insert new anggota in database
-        const { error } = await supabase
-          .from('anggota')
-          .insert(insertData)
-        
-        if (error) throw error
-        
-        toast({
-          title: "Berhasil",
-          description: `Anggota baru telah ditambahkan.`,
-        })
+        await addNewUser()
       }
       
+      // After successful operation
       onUserUpdated()
       onOpenChange(false)
-    } catch (error) {
-      console.error('Error updating/adding user:', error)
-      toast({
-        title: "Error",
-        description: "Gagal memperbarui/menambahkan data anggota. Silakan coba lagi.",
-        variant: "destructive"
-      })
+    } catch (error: any) {
+      handleSubmissionError(error)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // No longer need this check since we handle both edit and add cases
+  // Validate form data and return error message if invalid
+  const validateFormData = (data: Partial<Anggota>): string | null => {
+    if (!data.nama || data.nama.trim() === '') {
+      return 'Nama anggota harus diisi'
+    }
+
+    if (!data.nomor_rekening || data.nomor_rekening.trim() === '') {
+      return 'Nomor rekening harus diisi'
+    }
+    
+    // Additional validations can be added here
+    return null
+  }
+
+  // Handle updating an existing user
+  const updateExistingUser = async () => {
+    try {
+      if (!user || !user.id) {
+        throw new Error('ID anggota tidak valid')
+      }
+      
+      // Format date properly for Supabase
+      let formattedDate = null
+      if (formData.tanggal_lahir) {
+        try {
+          // Ensure date is in YYYY-MM-DD format
+          formattedDate = typeof formData.tanggal_lahir === 'string' 
+            ? formData.tanggal_lahir.split('T')[0] 
+            : format(formData.tanggal_lahir, 'yyyy-MM-dd')
+        } catch (e) {
+          console.warn('Error formatting date:', e)
+          formattedDate = null
+        }
+      }
+      
+      const now = new Date().toISOString()
+      const updateData = {
+        nama: formData.nama?.trim() || '',
+        alamat: formData.alamat?.trim() || null,
+        kota: formData.kota?.trim() || null,
+        tempat_lahir: formData.tempat_lahir?.trim() || null,
+        tanggal_lahir: formattedDate,
+        pekerjaan: formData.pekerjaan?.trim() || null,
+        jenis_identitas: formData.jenis_identitas || null,
+        nomor_identitas: formData.nomor_identitas?.trim() || null,
+        updated_at: now
+      }
+      
+      console.log('Updating user with data:', JSON.stringify(updateData, null, 2))
+      
+      // Update anggota in database
+      const { data, error } = await supabase
+        .from('anggota')
+        .update(updateData)
+        .eq('id', user.id)
+        .select()
+      
+      if (error) {
+        console.error('Update error:', JSON.stringify(error, null, 2))
+        throw error
+      }
+      
+      if (!data || data.length === 0) {
+        // Try to verify if the update happened
+        const { data: checkData, error: checkError } = await supabase
+          .from('anggota')
+          .select()
+          .eq('id', user.id)
+          .single()
+        
+        if (checkError) {
+          console.error('Error checking updated data:', checkError)
+          throw new Error('Gagal memverifikasi data yang diperbarui')
+        }
+        
+        if (!checkData) {
+          throw new Error('Tidak ada data yang diperbarui')
+        }
+        
+        toast({
+          title: "Berhasil",
+          description: `Data anggota ${formData.nama} telah diperbarui.`,
+        })
+        
+        return checkData
+      }
+      
+      toast({
+        title: "Berhasil",
+        description: `Data anggota ${formData.nama} telah diperbarui.`,
+      })
+      
+      return data[0]
+    } catch (error) {
+      console.error('Error in updateExistingUser:', error)
+      throw error
+    }
+  }
+
+  // Handle adding a new user
+  const addNewUser = async () => {
+    try {
+      // Generate a unique account number if not provided
+      let accountNumber = formData.nomor_rekening?.trim()
+      if (!accountNumber) {
+        const now = new Date()
+        const year = now.getFullYear().toString().slice(-2)
+        const month = (now.getMonth() + 1).toString().padStart(2, '0')
+        const day = now.getDate().toString().padStart(2, '0')
+        const timestamp = Date.now().toString().slice(-6)
+        const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+        accountNumber = `${year}${month}${day}${timestamp}${randomDigits}`
+      }
+      
+      // Format date properly for Supabase
+      let formattedDate = null
+      if (formData.tanggal_lahir) {
+        try {
+          // Ensure date is in YYYY-MM-DD format
+          formattedDate = typeof formData.tanggal_lahir === 'string' 
+            ? formData.tanggal_lahir.split('T')[0] 
+            : format(formData.tanggal_lahir, 'yyyy-MM-dd')
+        } catch (e) {
+          console.warn('Error formatting date:', e)
+          formattedDate = null
+        }
+      }
+      
+      const now = new Date().toISOString()
+      
+      // Prepare data for insert - ensure all fields are properly formatted
+      const insertData = {
+        id: generateUUID(), // Generate a UUID for the new user
+        nama: formData.nama?.trim() || '',
+        nomor_rekening: accountNumber,
+        alamat: formData.alamat?.trim() || null,
+        kota: formData.kota?.trim() || null,
+        tempat_lahir: formData.tempat_lahir?.trim() || null,
+        tanggal_lahir: formattedDate,
+        pekerjaan: formData.pekerjaan?.trim() || null,
+        jenis_identitas: formData.jenis_identitas || null,
+        nomor_identitas: formData.nomor_identitas?.trim() || null,
+        created_at: now,
+        updated_at: now,
+        is_active: true
+      }
+      
+      // Log the exact data being sent to Supabase
+      console.log('Adding new user with data:', JSON.stringify(insertData, null, 2))
+      
+      // Try upsert instead of insert to handle potential conflicts
+      // Using client with anon key (RLS policies allow these operations)
+      const { data, error } = await supabase
+        .from('anggota')
+        .upsert(insertData, {
+          onConflict: 'nomor_rekening',
+          ignoreDuplicates: false
+        })
+        .select()
+      
+      if (error) {
+        console.error('Insert error:', JSON.stringify(error, null, 2))
+        throw error
+      }
+      
+      if (!data || data.length === 0) {
+        // Try to get the data that was just inserted
+        // Using client with anon key
+        const { data: checkData, error: checkError } = await supabase
+          .from('anggota')
+          .select()
+          .eq('nomor_rekening', accountNumber)
+          .single()
+        
+        if (checkError) {
+          console.error('Error checking inserted data:', checkError)
+          throw new Error('Gagal memverifikasi data yang ditambahkan')
+        }
+        
+        if (!checkData) {
+          throw new Error('Gagal menambahkan data baru')
+        }
+        
+        toast({
+          title: "Berhasil",
+          description: `Anggota baru telah ditambahkan.`,
+        })
+        
+        return checkData
+      }
+      
+      toast({
+        title: "Berhasil",
+        description: `Anggota baru telah ditambahkan.`,
+      })
+      
+      return data[0]
+    } catch (error) {
+      console.error('Error in addNewUser:', error)
+      throw error
+    }
+  }
+
+  // Handle submission errors
+  const handleSubmissionError = (error: any) => {
+    // Log the error with full details
+    console.error('Error updating/adding user:', typeof error === 'object' ? JSON.stringify(error, null, 2) : error)
+    console.error('Form data being submitted:', JSON.stringify(formData, null, 2))
+    
+    // Show detailed error message
+    let errorMessage = "Gagal memperbarui/menambahkan data anggota. "
+    
+    if (error instanceof Error) {
+      errorMessage += error.message
+    } else if (error && typeof error === 'object') {
+      // Extract error message from Supabase error format
+      if ('message' in error) {
+        errorMessage += error.message
+      } else if ('details' in error) {
+        errorMessage += error.details
+      } else if ('error' in error) {
+        errorMessage += error.error
+      } else if ('code' in error) {
+        // Handle specific error codes
+        if (error.code === '23505') {
+          errorMessage += 'Nomor rekening sudah digunakan. Silakan gunakan nomor rekening lain.'
+        } else {
+          errorMessage += `Kode error: ${error.code}`
+        }
+      } else if ('hint' in error) {
+        // Supabase sometimes provides hints
+        errorMessage += error.hint
+      } else {
+        // Try to stringify the error object
+        try {
+          const errorStr = JSON.stringify(error)
+          if (errorStr === '{}') {
+            // Empty error object - provide more helpful message
+            errorMessage += 'Terjadi kesalahan pada server. Silakan coba lagi nanti.'
+          } else {
+            errorMessage += errorStr
+          }
+        } catch (e) {
+          errorMessage += 'Error tidak dapat ditampilkan'
+        }
+      }
+    } else if (error === null || error === undefined) {
+      errorMessage += 'Terjadi kesalahan yang tidak diketahui. Silakan coba lagi nanti.'
+    } else {
+      errorMessage += String(error)
+    }
+    
+    toast({
+      title: "Error",
+      description: errorMessage,
+      variant: "destructive"
+    })
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -175,10 +417,10 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
                 <Input 
                   id="nomor_rekening"
                   name="nomor_rekening"
-                  value={user ? user.nomor_rekening : (formData.nomor_rekening || '')}
+                  value={formData.nomor_rekening || ''}
                   onChange={!user ? handleChange : undefined}
                   disabled={!!user}
-                  placeholder={user ? '' : 'Otomatis dibuat jika kosong'}
+                  placeholder={user ? '' : 'Wajib Diisi'}
                 />
               </div>
               <div className="space-y-2">
