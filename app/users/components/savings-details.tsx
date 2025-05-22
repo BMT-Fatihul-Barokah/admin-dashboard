@@ -167,7 +167,11 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
               <div className="mt-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Jenis Tabungan</span>
-                  <span className="text-sm font-medium">{account.jenis_tabungan_kode}</span>
+                  <span className="text-sm font-medium">{account.jenis_tabungan_kode} - {account.jenis_tabungan_nama}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Deskripsi</span>
+                  <span className="text-sm font-medium text-right max-w-[200px]">{account.jenis_tabungan_deskripsi}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Tanggal Buka</span>

@@ -374,6 +374,16 @@ export default function UsersPage() {
                           </DropdownMenuItem>
                         </PermissionGuard>
                         
+                        {/* View Savings Types - Only users with view_transactions permission */}
+                        <PermissionGuard permission="view_transactions">
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedUser(member)
+                            setSavingsDialogOpen(true)
+                          }}>
+                            Lihat Jenis Tabungan
+                          </DropdownMenuItem>
+                        </PermissionGuard>
+                        
                         {/* Only show separator if user has permission to activate/deactivate */}
                         <PermissionGuard permission="edit_users">
                           <DropdownMenuSeparator />
@@ -446,9 +456,9 @@ export default function UsersPage() {
       {selectedUser && (
         <Dialog open={savingsDialogOpen} onOpenChange={setSavingsDialogOpen}>
           <DialogHeader>
-            <DialogTitle>Detail Tabungan {selectedUser.nama}</DialogTitle>
+            <DialogTitle>Jenis Tabungan {selectedUser.nama}</DialogTitle>
             <DialogDescription>
-              Berikut adalah daftar tabungan yang dimiliki oleh anggota ini.
+              Berikut adalah daftar jenis tabungan yang dimiliki oleh anggota ini.
             </DialogDescription>
           </DialogHeader>
           <SavingsDetails userId={selectedUser.id} />
