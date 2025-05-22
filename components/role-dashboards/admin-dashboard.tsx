@@ -163,17 +163,6 @@ export function AdminDashboard() {
                   <p className="text-xs text-purple-100">{formatCurrency(dashboardData.activeLoans.amount)}</p>
                 </CardContent>
               </Card>
-              
-              <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pendaftaran Baru</CardTitle>
-                  <UserPlus className="h-4 w-4 text-white" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.pendingRegistrations}</div>
-                  <p className="text-xs text-amber-100">Menunggu persetujuan</p>
-                </CardContent>
-              </Card>
             </div>
           )}
           
@@ -244,12 +233,6 @@ export function AdminDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-2">
-                <Link href="/approvals">
-                  <Button className="w-full justify-start" variant="outline">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Persetujuan Nasabah
-                  </Button>
-                </Link>
                 <Link href="/loans">
                   <Button className="w-full justify-start" variant="outline">
                     <Wallet className="mr-2 h-4 w-4" />

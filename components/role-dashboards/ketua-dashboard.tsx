@@ -158,12 +158,12 @@ export function KetuaDashboard() {
               
               <Card className="bg-gradient-to-br from-teal-400 to-teal-500 text-white">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pendaftaran Baru</CardTitle>
-                  <UserPlus className="h-4 w-4 text-white" />
+                  <CardTitle className="text-sm font-medium">Total Anggota</CardTitle>
+                  <Users className="h-4 w-4 text-white" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.pendingRegistrations}</div>
-                  <p className="text-xs text-teal-100">Menunggu persetujuan</p>
+                  <div className="text-2xl font-bold">{dashboardData.totalMembers}</div>
+                  <p className="text-xs text-teal-100">Anggota terdaftar</p>
                 </CardContent>
               </Card>
             </div>
@@ -228,12 +228,6 @@ export function KetuaDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-2">
-                <Link href="/approvals">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Eye className="mr-2 h-4 w-4" />
-                    Lihat Persetujuan Nasabah
-                  </Button>
-                </Link>
                 <Link href="/loans">
                   <Button className="w-full justify-start" variant="outline">
                     <Eye className="mr-2 h-4 w-4" />
@@ -431,26 +425,6 @@ export function KetuaDashboard() {
                     </p>
                   </div>
                   <Button variant="outline" size="sm" className="border-amber-200 bg-amber-100 hover:bg-amber-200 text-amber-800">
-                    Lihat Detail
-                  </Button>
-                </div>
-                
-                <div className="flex items-start gap-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                  <div className="mt-0.5 rounded-full p-1 bg-blue-100">
-                    <AlertTriangle className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-medium text-blue-800">
-                      Persetujuan Nasabah Menunggu
-                    </h3>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Terdapat 15 pendaftaran nasabah baru yang menunggu persetujuan
-                    </p>
-                    <p className="mt-1 text-xs text-blue-600">
-                      5 jam yang lalu
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" className="border-blue-200 bg-blue-100 hover:bg-blue-200 text-blue-800">
                     Lihat Detail
                   </Button>
                 </div>

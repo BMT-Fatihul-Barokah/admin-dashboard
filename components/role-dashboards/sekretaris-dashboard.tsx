@@ -90,7 +90,6 @@ export function SekretarisDashboard() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Ikhtisar</TabsTrigger>
-          <TabsTrigger value="approvals">Persetujuan</TabsTrigger>
           <TabsTrigger value="members">Anggota</TabsTrigger>
           <TabsTrigger value="communications">Komunikasi</TabsTrigger>
         </TabsList>
@@ -105,12 +104,12 @@ export function SekretarisDashboard() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-white">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pendaftaran Baru</CardTitle>
-                  <UserPlus className="h-4 w-4 text-white" />
+                  <CardTitle className="text-sm font-medium">Aktivitas Terbaru</CardTitle>
+                  <Bell className="h-4 w-4 text-white" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.pendingRegistrations}</div>
-                  <p className="text-xs text-purple-100">Menunggu persetujuan</p>
+                  <div className="text-2xl font-bold">{dashboardData.recentActivities.length}</div>
+                  <p className="text-xs text-purple-100">Aktivitas dalam 7 hari terakhir</p>
                 </CardContent>
               </Card>
               
@@ -195,12 +194,6 @@ export function SekretarisDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-2">
-                <Link href="/approvals">
-                  <Button className="w-full justify-start" variant="outline">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Persetujuan Nasabah
-                  </Button>
-                </Link>
                 <Link href="/users">
                   <Button className="w-full justify-start" variant="outline">
                     <Users className="mr-2 h-4 w-4" />
@@ -226,65 +219,7 @@ export function SekretarisDashboard() {
           </div>
         </TabsContent>
         
-        <TabsContent value="approvals" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Persetujuan Nasabah</CardTitle>
-              <CardDescription>
-                Kelola persetujuan pendaftaran nasabah baru
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Menunggu Persetujuan (15)</h3>
-                  <Link href="/approvals">
-                    <Button>
-                      Lihat Semua
-                    </Button>
-                  </Link>
-                </div>
-                
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-start gap-4 rounded-lg border p-4">
-                      <div className="flex-1">
-                        <div className="flex justify-between">
-                          <h4 className="text-sm font-medium">{`Nasabah ${i}`}</h4>
-                          <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">Menunggu</span>
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">No. Identitas:</p>
-                            <p className="font-medium">{`ID-${1000 + i}`}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">No. Telepon:</p>
-                            <p className="font-medium">{`+628123456${i}`}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Tanggal Daftar:</p>
-                            <p className="font-medium">{`${i} Mei 2025`}</p>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex gap-2 justify-end">
-                          <Button variant="outline" size="sm">
-                            <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                            Tolak
-                          </Button>
-                          <Button size="sm" className="bg-green-500 hover:bg-green-600">
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Setujui
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
         
         <TabsContent value="members" className="space-y-4">
           <Card>

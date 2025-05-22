@@ -49,7 +49,6 @@ const allNavigation = [
 	{ name: "Manajemen Akun", href: "/akun", icon: Smartphone, permission: "view_users" as Permission },
 	{ name: "Transaksi", href: "/transactions", icon: CreditCard, permission: "view_transactions" as Permission },
 	{ name: "Pinjaman", href: "/loans", icon: Wallet, permission: "view_loans" as Permission },
-	{ name: "Persetujuan Nasabah", href: "/approvals", icon: UserPlus, permission: "view_approvals" as Permission },
 	{ name: "Laporan", href: "/reports", icon: FileText, permission: "view_reports" as Permission },
 	{ name: "Analitik", href: "/analytics", icon: BarChart3, permission: "view_analytics" as Permission },
 	{ name: "Notifikasi", href: "/notifications", icon: Bell, permission: "view_notifications" as Permission },

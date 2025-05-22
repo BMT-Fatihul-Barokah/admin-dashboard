@@ -150,7 +150,6 @@ export function getAuthorizedNavigation(role: AdminRole) {
       "Manajemen User", 
       "Transaksi", 
       "Pinjaman", 
-      "Persetujuan Nasabah", 
       "Laporan", 
       "Analitik", 
       "Notifikasi"
@@ -159,7 +158,6 @@ export function getAuthorizedNavigation(role: AdminRole) {
       "Manajemen User", 
       "Transaksi", 
       "Pinjaman", 
-      "Persetujuan Nasabah", 
       "Laporan", 
       "Analitik", 
       "Notifikasi", 
@@ -167,7 +165,6 @@ export function getAuthorizedNavigation(role: AdminRole) {
     ],
     sekretaris: [
       "Manajemen User", 
-      "Persetujuan Nasabah", 
       "Notifikasi"
     ],
     bendahara: [
