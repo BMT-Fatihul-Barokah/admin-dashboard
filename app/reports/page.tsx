@@ -93,56 +93,39 @@ export default function ReportsPage() {
   // Handle downloading a saved report
   const handleDownloadSavedReport = async (report: SavedReport) => {
     try {
-      setIsDownloading(report.id);
-      console.log('Downloading report:', report);
+      setIsDownloading(report.id)
+      console.log('Downloading report:', report)
       
       // Extract period from report name (e.g., "Laporan Keuangan Bulanan - April 2023")
-      let period = '';
-      let reportType = 'financial';
+      let period = ''
+      let reportType = 'financial'
       
       // Parse the date from the report
-      const reportDate = new Date();
       if (report.date) {
-        const dateParts = report.date.split(' ');
-        if (dateParts.length >= 3) {
-          const day = parseInt(dateParts[0]);
-          const monthMap: {[key: string]: number} = {
-            'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'Mei': 4, 'Jun': 5,
-            'Jul': 6, 'Agu': 7, 'Sep': 8, 'Okt': 9, 'Nov': 10, 'Des': 11
-          };
-          const month = monthMap[dateParts[1]] || 0;
-          const year = parseInt(dateParts[2]);
-          reportDate.setFullYear(year, month, day);
+        const dateParts = report.date.split(' ')
+        if (dateParts.length >= 2) {
+          const month = dateParts[0]
+          const year = dateParts[dateParts.length - 1]
+          period = `${year}-${month}`
         }
       }
       
-      // Format the period based on the report date
-      period = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}`;
-      
       // Determine report type from name
-      if (report.name.includes('Keuangan')) {
-        reportType = 'financial';
-      } else if (report.name.includes('Anggota')) {
-        reportType = 'members';
-      } else if (report.name.includes('Pinjaman')) {
-        reportType = 'loans';
-      } else if (report.name.includes('Transaksi')) {
-        reportType = 'transactions';
+      if (report.name.toLowerCase().includes('anggota')) {
+        reportType = 'members'
+      } else if (report.name.toLowerCase().includes('pinjaman')) {
+        reportType = 'loans'
+      } else if (report.name.toLowerCase().includes('transaksi')) {
+        reportType = 'transactions'
       }
       
-      console.log('Exporting report with parameters:', { reportType, period, format: report.format.toLowerCase() });
-      
-      // Use the same export functionality as the main export button
-      // This ensures we're using a method that's known to work
-      const formattedPeriod = period;
-      
       // Get the Supabase URL and access token
-      const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co';
-      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
+      const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        toast.error('Sesi login tidak valid. Silakan login kembali.');
-        return;
+        toast.error('Sesi login tidak valid. Silakan login kembali.')
+        return
       }
       
       // Direct fetch approach to get the file as an array buffer
@@ -156,77 +139,67 @@ export default function ReportsPage() {
           },
           body: JSON.stringify({
             reportType,
-            period: formattedPeriod,
-            format: 'xlsx' // Always use xlsx format for consistency
+            period,
+            format: report.format.toLowerCase()
           })
         }
-      );
-      
-      console.log('Response status:', response.status);
+      )
       
       // Check if the response is successful
       if (!response.ok) {
-        let errorText = '';
-        try {
-          errorText = await response.text();
-        } catch (e) {
-          errorText = 'Could not read error response';
-        }
-        console.error('Edge function error:', errorText);
-        throw new Error(`Server responded with ${response.status}: ${errorText}`);
+        const errorText = await response.text()
+        console.error('Edge function error:', errorText)
+        throw new Error(`Server responded with ${response.status}: ${errorText}`)
       }
       
       // Get the array buffer from the response
-      const functionData = await response.arrayBuffer();
-      console.log('Received data of size:', functionData.byteLength);
-      
-      if (functionData.byteLength === 0) {
-        throw new Error('Received empty response from server');
-      }
+      const functionData = await response.arrayBuffer()
       
       // Create a Blob from the response data
       const blob = new Blob([functionData], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
+        type: report.format.toLowerCase() === 'pdf' 
+          ? 'application/pdf' 
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      })
       
       // Create a download link and trigger the download
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${report.name.replace(/ /g, '_')}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = report.name.replace(/ /g, '_') + '.' + report.format.toLowerCase()
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
       
-      toast.success('Laporan berhasil diunduh');
+      toast.success('Laporan berhasil diunduh')
     } catch (error) {
-      console.error('Error downloading saved report:', error);
-      toast.error('Gagal mengunduh laporan: ' + (error instanceof Error ? error.message : String(error)));
+      console.error('Error downloading report:', error)
+      toast.error('Gagal mengunduh laporan')
     } finally {
-      setIsDownloading(null);
+      setIsDownloading(null)
     }
-  };
+  }
   
   // Handle export report
   const handleExportReport = async () => {
     try {
-      setIsLoading(true);
+      setIsLoading(true)
       
       // Format period for the API
-      const formattedPeriod = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      const formattedPeriod = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
       
       // Determine report type based on active tab
-      const activeTab = document.querySelector('[role="tabpanel"]:not([hidden])')?.id || 'financial';
-      const reportType = activeTab.replace('-tab', '');
+      const activeTab = document.querySelector('[role="tabpanel"]:not([hidden])')?.id || 'financial'
+      const reportType = activeTab.replace('-tab', '')
       
       // Get the Supabase URL and access token
-      const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co';
-      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
+      const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        toast.error('Sesi login tidak valid. Silakan login kembali.');
-        return;
+        toast.error('Sesi login tidak valid. Silakan login kembali.')
+        return
       }
       
       // Direct fetch approach to get the file as an array buffer
@@ -244,39 +217,39 @@ export default function ReportsPage() {
             format: 'xlsx'
           })
         }
-      );
+      )
       
       // Check if the response is successful
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Edge function error:', errorText);
-        throw new Error(`Server responded with ${response.status}: ${errorText}`);
+        const errorText = await response.text()
+        console.error('Edge function error:', errorText)
+        throw new Error(`Server responded with ${response.status}: ${errorText}`)
       }
       
       // Get the array buffer from the response
-      const functionData = await response.arrayBuffer();
+      const functionData = await response.arrayBuffer()
       
       // Create a Blob from the response data
       const blob = new Blob([functionData], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
+      })
       
       // Create a download link and trigger the download
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Laporan_${reportType}_${formattedPeriod}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Laporan_${reportType}_${formattedPeriod}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
       
-      toast.success('Laporan berhasil diekspor');
+      toast.success('Laporan berhasil diekspor')
     } catch (error) {
-      console.error('Error exporting report:', error);
-      toast.error('Gagal mengekspor laporan');
+      console.error('Error exporting report:', error)
+      toast.error('Gagal mengekspor laporan')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
   
@@ -408,113 +381,116 @@ export default function ReportsPage() {
               </div>
               
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-              <Card className="col-span-4">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Tren Keuangan</CardTitle>
-                    <CardDescription>Perbandingan pendapatan dan pengeluaran</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Select value={periodType} onValueChange={handlePeriodChange}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Pilih Periode" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="weekly">Mingguan</SelectItem>
-                        <SelectItem value="monthly">Bulanan</SelectItem>
-                        <SelectItem value="quarterly">Kuartalan</SelectItem>
-                        <SelectItem value="yearly">Tahunan</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {user?.role !== 'ketua' && (
-                      <Button variant="outline" size="icon" onClick={handleExportReport}>
-                        <Download className="h-4 w-4" />
+                <Card className="col-span-4">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Tren Keuangan</CardTitle>
+                      <CardDescription>Perbandingan pendapatan dan pengeluaran</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Select value={periodType} onValueChange={handlePeriodChange}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Pilih Periode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekly">Mingguan</SelectItem>
+                          <SelectItem value="monthly">Bulanan</SelectItem>
+                          <SelectItem value="quarterly">Kuartalan</SelectItem>
+                          <SelectItem value="yearly">Tahunan</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {user?.role !== 'ketua' && (
+                        <Button variant="outline" size="icon" onClick={handleExportReport}>
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <FinancialTrendsChart data={financialTrends} />
+                  </CardContent>
+                </Card>
+                <Card className="col-span-3">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Distribusi Transaksi</CardTitle>
+                      <CardDescription>Berdasarkan kategori</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant={chartType === 'pie' ? 'default' : 'outline'} 
+                        size="icon"
+                        onClick={() => setChartType('pie')}
+                      >
+                        <PieChart className="h-4 w-4" />
                       </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <FinancialTrendsChart data={financialTrends} />
-                </CardContent>
-              </Card>
-              <Card className="col-span-3">
+                      <Button 
+                        variant={chartType === 'bar' ? 'default' : 'outline'} 
+                        size="icon"
+                        onClick={() => setChartType('bar')}
+                      >
+                        <BarChart className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <TransactionDistributionChart 
+                      data={transactionDistribution} 
+                      chartType={chartType} 
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {!isLoading && (
+            <div className="grid gap-4 grid-cols-1">
+              <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle>Distribusi Transaksi</CardTitle>
-                    <CardDescription>Berdasarkan kategori</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant={chartType === 'pie' ? 'default' : 'outline'} 
-                      size="icon"
-                      onClick={() => setChartType('pie')}
-                    >
-                      <PieChart className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant={chartType === 'bar' ? 'default' : 'outline'} 
-                      size="icon"
-                      onClick={() => setChartType('bar')}
-                    >
-                      <BarChart className="h-4 w-4" />
-                    </Button>
+                    <CardTitle>Laporan Keuangan Terunduh</CardTitle>
+                    <CardDescription>Laporan yang telah diunduh sebelumnya</CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <TransactionDistributionChart 
-                    data={transactionDistribution} 
-                    chartType={chartType} 
-                  />
+                  <div className="space-y-4">
+                    {savedReports.map((report) => (
+                      <div key={report.id} className="flex items-center justify-between border-b pb-4">
+                        <div className="flex items-center gap-4">
+                          <FileText className="h-8 w-8 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{report.name}</p>
+                            <p className="text-sm text-muted-foreground">{report.date}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => toast.success('Laporan dibagikan')}>
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => toast.success('Laporan dicetak')}>
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDownloadSavedReport(report)}
+                            disabled={isLoading}
+                          >
+                            {isDownloading === report.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </div>
           )}
-
-          <div className="grid gap-4 grid-cols-1">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Laporan Keuangan Terunduh</CardTitle>
-                  <CardDescription>Laporan yang telah diunduh sebelumnya</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {savedReports.map((report) => (
-                    <div key={report.id} className="flex items-center justify-between border-b pb-4">
-                      <div className="flex items-center gap-4">
-                        <FileText className="h-8 w-8 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{report.name}</p>
-                          <p className="text-sm text-muted-foreground">{report.date}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => toast.success('Laporan dibagikan')}>
-                          <Share2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => toast.success('Laporan dicetak')}>
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDownloadSavedReport(report)}
-                          disabled={isLoading}
-                        >
-                          {isDownloading === report.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Download className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
 
         <TabsContent value="members" className="space-y-4">
@@ -775,187 +751,12 @@ export default function ReportsPage() {
             </div>
           )}
         </TabsContent>
-
-        <TabsContent value="loans" className="space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2">Memuat data...</span>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Pinjaman</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{loanStats?.totalLoans || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {loanStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pinjaman Aktif</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{loanStats?.activeLoans || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {loanStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pinjaman Lunas</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{loanStats?.completedLoans || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {loanStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Nilai Pinjaman</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(loanStats?.totalAmount || 0)}</div>
-          <p className="text-xs text-muted-foreground">Periode: {loanStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-    </div>
-    
-    <Card>
-      <CardHeader>
-        <CardTitle>Status Pinjaman</CardTitle>
-        <CardDescription>Ringkasan status pinjaman</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg border p-4 text-center">
-              <p className="text-sm font-medium text-muted-foreground">Aktif</p>
-              <p className="text-2xl font-bold">{loanStats?.activeLoans || 0}</p>
-            </div>
-            <div className="rounded-lg border p-4 text-center">
-              <p className="text-sm font-medium text-muted-foreground">Lunas</p>
-              <p className="text-2xl font-bold">{loanStats?.completedLoans || 0}</p>
-            </div>
-            <div className="rounded-lg border p-4 text-center">
-              <p className="text-sm font-medium text-muted-foreground">Bermasalah</p>
-              <p className="text-2xl font-bold text-destructive">{loanStats?.problematicLoans || 0}</p>
-            </div>
-          </div>
-          
-          <Button 
-            className="w-full" 
-            onClick={() => {
-              toast.success('Membuka halaman pinjaman')
-              router.push('/loans')
-            }}
-          >
-            Lihat Semua Pinjaman
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-)}
-</TabsContent>
-
-        <TabsContent value="transactions" className="space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2">Memuat data...</span>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Transaksi</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalTransactions || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Setoran</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalDeposits || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Penarikan</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalWithdrawals || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pencairan Pinjaman</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalLoanDisbursements || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pembayaran Pinjaman</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalLoanPayments || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-    </div>
-    
-    <Card>
-      <CardHeader>
-        <CardTitle>Ringkasan Transaksi</CardTitle>
-        <CardDescription>Statistik transaksi periode {transactionStats?.period || 'saat ini'}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="rounded-md border p-4">
-            <h3 className="text-lg font-medium mb-2">Statistik Transaksi</h3>
-            <p>Total transaksi dalam periode ini: <strong>{transactionStats?.totalTransactions || 0}</strong></p>
-            <p>Transaksi setoran: <strong>{transactionStats?.totalDeposits || 0}</strong></p>
-            <p>Transaksi penarikan: <strong>{transactionStats?.totalWithdrawals || 0}</strong></p>
-            <p>Transaksi pencairan pinjaman: <strong>{transactionStats?.totalLoanDisbursements || 0}</strong></p>
-            <p>Transaksi pembayaran pinjaman: <strong>{transactionStats?.totalLoanPayments || 0}</strong></p>
-          </div>
-          
-          <Button className="w-full" onClick={() => toast.success('Membuka halaman transaksi')}>
-            Lihat Semua Transaksi
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-            )}
-        </TabsContent>
       </Tabs>
     </div>
-  );
+  )
+}
 
-const financialReports = [
+export const financialReports = [
   {
     id: "report-001",
     name: "Laporan Keuangan Bulanan - April 2023",

@@ -470,7 +470,8 @@ export default function ReportsPage() {
             </div>
           )}
 
-          <div className="grid gap-4 grid-cols-1">
+          {!isLoading && (
+            <div className="grid gap-4 grid-cols-1">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -515,6 +516,7 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="members" className="space-y-4">
@@ -768,222 +770,108 @@ export default function ReportsPage() {
                     
                     <Button className="w-full" onClick={() => toast.success('Membuka halaman transaksi')}>
                       Lihat Semua Transaksi
-    </div>
-  ) : (
-    <div className="p-4 text-center text-muted-foreground">
-      Tidak ada anggota baru pada periode ini
-    </div>
-  )}
-</CardContent>
-</Card>
-</div>
-)}
-</TabsContent>
-
-<TabsContent value="loans" className="space-y-4">
-{isLoading ? (
-  <div className="flex items-center justify-center p-8">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    <span className="ml-2">Memuat data...</span>
-  </div>
-) : (
-  <div className="space-y-4">
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Pinjaman</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{loanStats?.totalLoans || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {loanStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pinjaman Aktif</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{loanStats?.activeLoans || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {loanStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pinjaman Lunas</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{loanStats?.completedLoans || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {loanStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Nilai Pinjaman</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(loanStats?.totalAmount || 0)}</div>
-          <p className="text-xs text-muted-foreground">Periode: {loanStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-    </div>
-    
-    <Card>
-      <CardHeader>
-        <CardTitle>Status Pinjaman</CardTitle>
-        <CardDescription>Ringkasan status pinjaman</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg border p-4 text-center">
-              <p className="text-sm font-medium text-muted-foreground">Aktif</p>
-              <p className="text-2xl font-bold">{loanStats?.activeLoans || 0}</p>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-            <div className="rounded-lg border p-4 text-center">
-              <p className="text-sm font-medium text-muted-foreground">Lunas</p>
-              <p className="text-2xl font-bold">{loanStats?.completedLoans || 0}</p>
-            </div>
-            <div className="rounded-lg border p-4 text-center">
-              <p className="text-sm font-medium text-muted-foreground">Bermasalah</p>
-              <p className="text-2xl font-bold text-destructive">{loanStats?.problematicLoans || 0}</p>
-            </div>
-          </div>
-          
-          <Button 
-            className="w-full" 
-            onClick={() => {
-              toast.success('Membuka halaman pinjaman')
-              router.push('/loans')
-            }}
-          >
-            Lihat Semua Pinjaman
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-)}
-</TabsContent>
+          )}
+        </TabsContent>
 
-<TabsContent value="transactions" className="space-y-4">
-{isLoading ? (
-  <div className="flex items-center justify-center p-8">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    <span className="ml-2">Memuat data...</span>
-  </div>
-) : (
-  <div className="space-y-4">
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Transaksi</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalTransactions || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Setoran</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalDeposits || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Penarikan</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalWithdrawals || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pencairan Pinjaman</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalLoanDisbursements || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pembayaran Pinjaman</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{transactionStats?.totalLoanPayments || 0}</div>
-          <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
-        </CardContent>
-      </Card>
+        <TabsContent value="transactions" className="space-y-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Memuat data...</span>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Transaksi</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{transactionStats?.totalTransactions || 0}</div>
+                    <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Setoran</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{transactionStats?.totalDeposits || 0}</div>
+                    <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Penarikan</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{transactionStats?.totalWithdrawals || 0}</div>
+                    <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pencairan Pinjaman</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{transactionStats?.totalLoanDisbursements || 0}</div>
+                    <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pembayaran Pinjaman</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{transactionStats?.totalLoanPayments || 0}</div>
+                    <p className="text-xs text-muted-foreground">Periode: {transactionStats?.period || '-'}</p>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ringkasan Transaksi</CardTitle>
+                  <CardDescription>Statistik transaksi periode {transactionStats?.period || 'saat ini'}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="rounded-md border p-4">
+                      <h3 className="text-lg font-medium mb-2">Statistik Transaksi</h3>
+                      <p>Total transaksi dalam periode ini: <strong>{transactionStats?.totalTransactions || 0}</strong></p>
+                      <p>Transaksi setoran: <strong>{transactionStats?.totalDeposits || 0}</strong></p>
+                      <p>Transaksi penarikan: <strong>{transactionStats?.totalWithdrawals || 0}</strong></p>
+                      <p>Transaksi pencairan pinjaman: <strong>{transactionStats?.totalLoanDisbursements || 0}</strong></p>
+                      <p>Transaksi pembayaran pinjaman: <strong>{transactionStats?.totalLoanPayments || 0}</strong></p>
+                    </div>
+                    
+                    <Button className="w-full" onClick={() => toast.success('Membuka halaman transaksi')}>
+                      Lihat Semua Transaksi
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
-    
-    <Card>
-      <CardHeader>
-        <CardTitle>Ringkasan Transaksi</CardTitle>
-        <CardDescription>Statistik transaksi periode {transactionStats?.period || 'saat ini'}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="rounded-md border p-4">
-            <h3 className="text-lg font-medium mb-2">Statistik Transaksi</h3>
-            <p>Total transaksi dalam periode ini: <strong>{transactionStats?.totalTransactions || 0}</strong></p>
-            <p>Transaksi setoran: <strong>{transactionStats?.totalDeposits || 0}</strong></p>
-            <p>Transaksi penarikan: <strong>{transactionStats?.totalWithdrawals || 0}</strong></p>
-            <p>Transaksi pencairan pinjaman: <strong>{transactionStats?.totalLoanDisbursements || 0}</strong></p>
-            <p>Transaksi pembayaran pinjaman: <strong>{transactionStats?.totalLoanPayments || 0}</strong></p>
-          </div>
-          
-          <Button className="w-full" onClick={() => toast.success('Membuka halaman transaksi')}>
-            Lihat Semua Transaksi
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-)}
-</TabsContent>
-</Tabs>
-</div>
-);
+  )
 
-const financialReports = [
-{
-  id: "report-001",
-  name: "Laporan Keuangan Bulanan - April 2023",
-  date: "30 Apr 2023",
-  format: "PDF",
-},
-{
-  id: "report-002",
-  name: "Laporan Keuangan Bulanan - Maret 2023",
-  date: "31 Mar 2023",
-  format: "PDF",
-},
-{
-  id: "report-003",
-  name: "Laporan Keuangan Kuartal 1 - 2023",
-  date: "31 Mar 2023",
-  format: "PDF",
-},
-{
-  id: "report-004",
-  name: "Laporan Keuangan Tahunan - 2022",
-  date: "31 Dec 2022",
-  format: "PDF",
-},
+export const financialReports = [
+  {
+    id: "report-001",
+    name: "Laporan Keuangan Bulanan - April 2023",
     date: "30 Apr 2023",
     format: "PDF",
   },
@@ -1005,4 +893,4 @@ const financialReports = [
     date: "31 Dec 2022",
     format: "PDF",
   },
-]
+];
