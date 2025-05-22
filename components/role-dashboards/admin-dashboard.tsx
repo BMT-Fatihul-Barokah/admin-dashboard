@@ -130,86 +130,96 @@ export function AdminDashboard() {
               <span className="ml-2">Memuat data...</span>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="grid gap-5 md:grid-cols-3 lg:grid-cols-3">
+              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-5 px-6">
                   <CardTitle className="text-sm font-medium">Total Nasabah</CardTitle>
-                  <Users className="h-4 w-4 text-white" />
+                  <div className="p-1.5 bg-blue-400 bg-opacity-30 rounded-full">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.totalMembers}</div>
-                  <p className="text-xs text-blue-100">Anggota aktif</p>
+                <CardContent className="px-6 pb-5">
+                  <div className="text-3xl font-bold">{dashboardData.totalMembers}</div>
+                  <p className="text-xs text-blue-100 mt-1">Anggota aktif</p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-5 px-6">
                   <CardTitle className="text-sm font-medium">Transaksi Bulan Ini</CardTitle>
-                  <CreditCard className="h-4 w-4 text-white" />
+                  <div className="p-1.5 bg-green-400 bg-opacity-30 rounded-full">
+                    <CreditCard className="h-5 w-5 text-white" />
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(dashboardData.currentMonthTransactions)}</div>
-                  <p className="text-xs text-green-100">Total nilai transaksi</p>
+                <CardContent className="px-6 pb-5">
+                  <div className="text-3xl font-bold">{formatCurrency(dashboardData.currentMonthTransactions)}</div>
+                  <p className="text-xs text-green-100 mt-1">Total nilai transaksi</p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-5 px-6">
                   <CardTitle className="text-sm font-medium">Pinjaman Aktif</CardTitle>
-                  <Wallet className="h-4 w-4 text-white" />
+                  <div className="p-1.5 bg-purple-400 bg-opacity-30 rounded-full">
+                    <Wallet className="h-5 w-5 text-white" />
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.activeLoans.count}</div>
-                  <p className="text-xs text-purple-100">{formatCurrency(dashboardData.activeLoans.amount)}</p>
+                <CardContent className="px-6 pb-5">
+                  <div className="text-3xl font-bold">{dashboardData.activeLoans.count}</div>
+                  <p className="text-xs text-purple-100 mt-1">{formatCurrency(dashboardData.activeLoans.amount)}</p>
                 </CardContent>
               </Card>
             </div>
           )}
           
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>Aktivitas Terbaru</CardTitle>
+          <div className="grid gap-6 md:grid-cols-7 lg:grid-cols-7 mt-6">
+            <Card className="col-span-4 shadow-md hover:shadow-lg transition-shadow duration-200 border-0 rounded-xl overflow-hidden">
+              <CardHeader className="pb-3 px-6 pt-5 bg-gray-50">
+                <CardTitle className="text-lg font-semibold">Aktivitas Terbaru</CardTitle>
                 <CardDescription>
                   Aktivitas sistem terbaru
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-5">
                 {isLoading ? (
                   <div className="flex justify-center items-center h-40">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : dashboardData.recentActivities.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="h-[320px] overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-300 scrollbar-track-transparent">
                     {dashboardData.recentActivities.map((activity: Activity) => {
                       // Determine color and action based on activity type
                       let color = "bg-sky-500";
                       let actionLink = "#";
+                      let bgColor = "bg-sky-50";
                       
                       if (activity.type === "transaction") {
                         color = "bg-green-500";
+                        bgColor = "bg-green-50";
                         actionLink = `/transactions?id=${activity.id}`;
                       } else if (activity.type === "registration") {
                         color = "bg-amber-500";
+                        bgColor = "bg-amber-50";
                         actionLink = `/approvals?id=${activity.id}`;
                       } else if (activity.type === "loan") {
                         color = "bg-purple-500";
+                        bgColor = "bg-purple-50";
                         actionLink = `/loans?id=${activity.id}`;
                       }
                       
                       return (
-                        <div key={activity.id} className="flex items-center">
-                          <div className={`mr-2 h-2 w-2 rounded-full ${color}`} />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium leading-none">
+                        <div key={activity.id} className={`flex items-center p-3 rounded-lg ${bgColor} hover:bg-opacity-70 transition-colors duration-200`}>
+                          <div className={`mr-3 h-3 w-3 rounded-full ${color}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium leading-none truncate">
                               {activity.description}
                             </p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs text-muted-foreground mt-1.5">
                               {formatRelativeTime(activity.created_at)}
                             </p>
                           </div>
                           <Link href={actionLink}>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" className="ml-2 flex-shrink-0 hover:bg-white hover:bg-opacity-50">
                               Lihat
                             </Button>
                           </Link>
@@ -225,38 +235,56 @@ export function AdminDashboard() {
               </CardContent>
             </Card>
             
-            <Card className="col-span-3">
-              <CardHeader>
-                <CardTitle>Aksi Cepat</CardTitle>
+            <Card className="col-span-3 shadow-md hover:shadow-lg transition-shadow duration-200 border-0 rounded-xl overflow-hidden">
+              <CardHeader className="pb-3 px-6 pt-5 bg-gray-50">
+                <CardTitle className="text-lg font-semibold">Aksi Cepat</CardTitle>
                 <CardDescription>
                   Akses cepat ke fitur utama
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-2">
-                <Link href="/loans">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Wallet className="mr-2 h-4 w-4" />
-                    Kelola Pinjaman
-                  </Button>
-                </Link>
-                <Link href="/transactions">
-                  <Button className="w-full justify-start" variant="outline">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Transaksi Baru
-                  </Button>
-                </Link>
-                <Link href="/reports">
-                  <Button className="w-full justify-start" variant="outline">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Buat Laporan
-                  </Button>
-                </Link>
-                <Link href="/import">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Import Data
-                  </Button>
-                </Link>
+              <CardContent className="p-5">
+                <div className="grid grid-cols-1 gap-4">
+                  <Link href="/loans" className="w-full">
+                    <Button className="w-full justify-start h-14 rounded-xl" variant="outline">
+                      <div className="bg-purple-100 p-2 rounded-lg mr-4">
+                        <Wallet className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <div className="text-left">
+                        <span className="font-medium">Kelola Pinjaman</span>
+                      </div>
+                    </Button>
+                  </Link>
+                  <Link href="/transactions" className="w-full">
+                    <Button className="w-full justify-start h-14 rounded-xl" variant="outline">
+                      <div className="bg-green-100 p-2 rounded-lg mr-4">
+                        <CreditCard className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div className="text-left">
+                        <span className="font-medium">Transaksi Baru</span>
+                      </div>
+                    </Button>
+                  </Link>
+                  <Link href="/reports" className="w-full">
+                    <Button className="w-full justify-start h-14 rounded-xl" variant="outline">
+                      <div className="bg-blue-100 p-2 rounded-lg mr-4">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div className="text-left">
+                        <span className="font-medium">Buat Laporan</span>
+                      </div>
+                    </Button>
+                  </Link>
+                  <Link href="/import" className="w-full">
+                    <Button className="w-full justify-start h-14 rounded-xl" variant="outline">
+                      <div className="bg-amber-100 p-2 rounded-lg mr-4">
+                        <Plus className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div className="text-left">
+                        <span className="font-medium">Import Data</span>
+                      </div>
+                    </Button>
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           </div>
