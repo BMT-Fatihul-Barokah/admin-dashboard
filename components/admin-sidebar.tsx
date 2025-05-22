@@ -10,7 +10,6 @@ import {
 	Home,
 	LogOut,
 	Menu,
-	Settings,
 	Smartphone,
 	Users,
 	UserPlus,
@@ -53,10 +52,6 @@ const allNavigation = [
 	{ name: "Analitik", href: "/analytics", icon: BarChart3, permission: "view_analytics" as Permission },
 	{ name: "Notifikasi", href: "/notifications", icon: Bell, permission: "view_notifications" as Permission },
 	{ name: "Import Data", href: "/import", icon: Upload, permission: "import_data" as Permission },
-];
-
-const bottomNavigation = [
-	{ name: "Pengaturan", href: "/settings", icon: Settings, permission: "view_dashboard" as Permission }, // Everyone with dashboard access can see settings
 ];
 
 
@@ -203,13 +198,6 @@ export function AdminSidebar() {
 						</nav>
 					</div>
 					<div className="border-t p-2 mt-auto"> {/* Added mt-auto to ensure it stays at the bottom */}
-						<nav>
-							{bottomNavigation.map((item) => (
-								<PermissionGuard key={item.name} permission={item.permission}>
-									<NavItem item={item} />
-								</PermissionGuard>
-							))}
-						</nav>
 						<div className="mt-4 px-2">
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
@@ -245,10 +233,7 @@ export function AdminSidebar() {
 										Akun Saya
 									</DropdownMenuLabel>
 									<DropdownMenuSeparator />
-									<DropdownMenuItem>
-										<Settings className="mr-2 h-4 w-4" />
-										<span>Profil</span>
-									</DropdownMenuItem>
+
 									<DropdownMenuItem onClick={() => logoutAdmin()}>
 										<LogOut className="mr-2 h-4 w-4" />
 										<span>Keluar</span>
