@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Database, RefreshCw } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { parseExcelFile, importAnggotaData, getImportHistory, recordImportHistory, AnggotaExcelRow, formatDate, excelDateToJSDate } from "@/lib/excel-import"
+import { parseExcelFile, parseTransactionExcelFile, importAnggotaData, importTransactionData, getImportHistory, recordImportHistory, AnggotaExcelRow, TransaksiExcelRow, formatDate, excelDateToJSDate } from "@/lib/excel-import"
 
 type ImportResult = {
   success: boolean;
@@ -33,7 +33,7 @@ type ImportHistory = {
 export default function ImportPage() {
   const [activeTab, setActiveTab] = useState("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewData, setPreviewData] = useState<AnggotaExcelRow[] | null>(null);
+  const [previewData, setPreviewData] = useState<AnggotaExcelRow[] | TransaksiExcelRow[] | null>(null);
   const [importStatus, setImportStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
   const [progress, setProgress] = useState(0);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -69,7 +69,13 @@ export default function ImportPage() {
         throw new Error("Ukuran file terlalu besar. Maksimal 10MB");
       }
 
-      const excelData = await parseExcelFile(file);
+      let excelData;
+      if (importType === 'transaksi') {
+        excelData = await parseTransactionExcelFile(file);
+      } else {
+        excelData = await parseExcelFile(file);
+      }
+      
       if (excelData.length === 0) {
         throw new Error("File Excel kosong atau tidak memiliki data yang valid");
       }
@@ -94,35 +100,34 @@ export default function ImportPage() {
     setError(null);
 
     let progressInterval: NodeJS.Timeout | undefined;
-
     try {
-      const totalItems = previewData.length;
-      const progressStep = 100 / totalItems;
-      let currentProgress = 0;
-
-      progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 95) {
-            return prev;
-          }
-          return Math.min(prev + 1, 95);
-        });
-      }, 100);
-
       let result;
-      if (importType === "anggota") {
-        result = await importAnggotaData(previewData);
+
+      if (!selectedFile) {
+        setError('Tidak ada file yang dipilih');
+        setImportStatus('error');
+        return;
+      }
+      
+      if (importType === 'anggota') {
+        const data = await parseExcelFile(selectedFile);
+        result = await importAnggotaData(data, setProgress);
+      } else if (importType === 'transaksi') {
+        const data = await parseTransactionExcelFile(selectedFile);
+        console.log('Parsed transaction data:', data);
+        
+        if (confirm('Apakah Anda yakin ingin mengimpor transaksi harian ini? Semua transaksi akan diberi tanggal hari ini.')) {
+          result = await importTransactionData(data, setProgress);
+        } else {
+          setImportStatus("idle");
+          return;
+        }
       } else {
-        throw new Error("Tipe import tidak didukung");
+        setError('Tipe import tidak valid');
+        return;
       }
 
-      if (progressInterval) {
-        clearInterval(progressInterval);
-        progressInterval = undefined;
-      }
-      setProgress(100);
-
-      setImportResult(result);
+      setError(result.message);
 
       if (result.success) {
         setImportStatus("success");
@@ -135,7 +140,6 @@ export default function ImportPage() {
         );
       } else {
         setImportStatus("error");
-        setError(result.message);
 
         await recordImportHistory(
           `Data ${importType.charAt(0).toUpperCase() + importType.slice(1)}`,
@@ -268,6 +272,16 @@ export default function ImportPage() {
                   <p className="text-sm text-muted-foreground">
                     Tipe Data Terpilih: <span className="font-medium">{importType.charAt(0).toUpperCase() + importType.slice(1)}</span>
                   </p>
+                  {importType === "transaksi" && (
+                    <Alert className="mt-4 bg-blue-50 border-blue-200">
+                      <AlertCircle className="h-4 w-4 text-blue-500" />
+                      <AlertTitle>Import Transaksi Harian</AlertTitle>
+                      <AlertDescription>
+                        <p>Transaksi yang diimpor akan diproses sebagai transaksi hari ini ({new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}).</p>
+                        <p className="mt-1">Pastikan file Excel berisi data transaksi dari sistem utama yang diekspor pada hari ini.</p>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -308,34 +322,89 @@ export default function ImportPage() {
               </div>
 
               <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>No.</TableHead>
-                      <TableHead>Nama Anggota</TableHead>
-                      <TableHead>No. Rekening</TableHead>
-                      <TableHead>Saldo</TableHead>
-                      <TableHead>Alamat</TableHead>
-                      <TableHead>Kota</TableHead>
-                      <TableHead>Tanggal Lahir</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {previewData?.map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{row["NO."]}</TableCell>
-                        <TableCell>{row["Nama Anggota"]}</TableCell>
-                        <TableCell>{row["No. Rekening"]}</TableCell>
-                        <TableCell>Rp {row["Saldo"].toLocaleString("id-ID")}</TableCell>
-                        <TableCell>{row["Alamat"]}</TableCell>
-                        <TableCell>{row["Kota"]}</TableCell>
-                        <TableCell>
-                          {formatDate(excelDateToJSDate(row["Tanggal Lahir"]))}
-                        </TableCell>
+                {importType === 'anggota' ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>No.</TableHead>
+                        <TableHead>Nama Anggota</TableHead>
+                        <TableHead>No. Rekening</TableHead>
+                        <TableHead>Saldo</TableHead>
+                        <TableHead>Alamat</TableHead>
+                        <TableHead>Kota</TableHead>
+                        <TableHead>Tanggal Lahir</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {(previewData as AnggotaExcelRow[])?.map((row, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{row["NO."] || '-'}</TableCell>
+                          <TableCell>{row["Nama Anggota"] || '-'}</TableCell>
+                          <TableCell>{row["No. Rekening"] || '-'}</TableCell>
+                          <TableCell>
+                            {row["Saldo"] !== undefined && row["Saldo"] !== null
+                              ? `Rp ${Number(row["Saldo"]).toLocaleString("id-ID")}`
+                              : '-'}
+                          </TableCell>
+                          <TableCell>{row["Alamat"] || '-'}</TableCell>
+                          <TableCell>{row["Kota"] || '-'}</TableCell>
+                          <TableCell>
+                            {row["Tanggal Lahir"] !== undefined && row["Tanggal Lahir"] !== null
+                              ? formatDate(excelDateToJSDate(row["Tanggal Lahir"]))
+                              : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : importType === 'transaksi' ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nama Anggota</TableHead>
+                        <TableHead>Jenis Transaksi</TableHead>
+                        <TableHead>Kategori</TableHead>
+                        <TableHead>Jumlah</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead>Deskripsi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(previewData as TransaksiExcelRow[])?.map((row, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{row["Nama Anggota"] || '-'}</TableCell>
+                          <TableCell>
+                            {row["Jenis Transaksi"] ? (
+                              <Badge variant={row["Jenis Transaksi"].toString().toLowerCase() === 'masuk' ? 'secondary' : 'destructive'}>
+                                {row["Jenis Transaksi"]}
+                              </Badge>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell>{row["Kategori"] || '-'}</TableCell>
+                          <TableCell>
+                            {row["Jumlah"] !== undefined && row["Jumlah"] !== null
+                              ? (typeof row["Jumlah"] === 'number'
+                                ? `Rp ${row["Jumlah"].toLocaleString("id-ID")}` 
+                                : row["Jumlah"].toString())
+                              : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {row["Tanggal"] !== undefined && row["Tanggal"] !== null
+                              ? (typeof row["Tanggal"] === 'number'
+                                ? formatDate(excelDateToJSDate(row["Tanggal"]))
+                                : row["Tanggal"].toString())
+                              : '-'}
+                          </TableCell>
+                          <TableCell>{row["Deskripsi"] || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="p-4 text-center text-muted-foreground">
+                    Pilih jenis data untuk melihat preview
+                  </div>
+                )}
               </div>
 
               {importStatus === "processing" && (

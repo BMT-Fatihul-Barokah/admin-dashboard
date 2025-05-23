@@ -18,7 +18,7 @@ import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, Slid
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
-import { downloadCSV, formatDataForExport } from "@/utils/export-data"
+import { downloadExcel, formatDataForExport } from "@/utils/export-data"
 import { toast } from "sonner"
 import { TransactionDetailModal } from "./components/transaction-detail-modal"
 import { TransactionReceipt } from "./components/transaction-receipt"
@@ -248,16 +248,15 @@ export default function TransactionsPage() {
     applyFilters()
   }, [transactions, searchQuery, typeFilter, categoryFilter, dateStart, dateEnd, amountMin, amountMax])
   
-  // Export transactions to CSV
+  // Export transactions to Excel
   const exportTransactions = (): void => {
     if (filteredTransactions.length === 0) {
       toast.error('Tidak ada data untuk diekspor')
       return
     }
     
-    // Define field mapping for export
+    // Define field mapping for export (removed ID Transaksi)
     const fieldMap = {
-      reference_number: 'ID Transaksi',
       'anggota.nama': 'Nama Anggota',
       tipe_transaksi: 'Jenis Transaksi',
       kategori: 'Kategori',
@@ -270,16 +269,16 @@ export default function TransactionsPage() {
       filteredTransactions,
       fieldMap,
       {
-        'ID Transaksi': (value: string | undefined, row: Transaksi) => value || row.id.substring(0, 8),
         'Nama Anggota': (value: any, row: Transaksi) => row.anggota?.nama || 'Anggota',
-        'Jumlah': (value: number) => formatCurrency(value),
+        // Export Jumlah as a number, not as formatted currency
+        'Jumlah': (value: number) => Number(value),
         'Tanggal': (value: string) => formatDate(value)
       }
     )
     
-    // Download as CSV
-    downloadCSV(exportData, `transaksi-${new Date().toISOString().split('T')[0]}`)
-    toast.success('Data transaksi berhasil diekspor')
+    // Download as Excel
+    downloadExcel(exportData, `transaksi-${new Date().toISOString().split('T')[0]}`)
+    toast.success('Data transaksi berhasil diekspor ke Excel')
   }
   
   // Load data on component mount
