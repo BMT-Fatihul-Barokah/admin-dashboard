@@ -4,12 +4,13 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X } from "lucide-react"
+import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, ArrowRight, Calendar, Clock, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 type Notifikasi = {
   id: string;
@@ -33,6 +34,8 @@ export default function NotificationsPage() {
   const [systemNotifications, setSystemNotifications] = useState<Notifikasi[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
+  const [selectedNotification, setSelectedNotification] = useState<Notifikasi | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
   
   // Format the date to a readable format
   const formatDate = (date: Date) => {
@@ -51,6 +54,29 @@ export default function NotificationsPage() {
       return `${diffHours} jam yang lalu`
     } else {
       return `${diffDays} hari yang lalu`
+    }
+  }
+  
+  // Format the date to a full readable format
+  const formatFullDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+  
+  // Open notification detail
+  const openNotificationDetail = (notification: Notifikasi) => {
+    setSelectedNotification(notification)
+    setDetailOpen(true)
+    
+    // Mark as read if unread
+    if (!notification.is_read) {
+      handleMarkAsRead(notification.id)
     }
   }
   
@@ -179,6 +205,70 @@ export default function NotificationsPage() {
   }, [])
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      {/* Notification Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        {selectedNotification && (
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`rounded-full p-2 ${getNotificationIconBg(selectedNotification.jenis)}`}>
+                  {getNotificationIcon(selectedNotification.jenis)}
+                </div>
+                <DialogTitle>{selectedNotification.judul}</DialogTitle>
+              </div>
+              <DialogDescription className="flex items-center gap-2">
+                <Clock className="h-3.5 w-3.5" />
+                {formatFullDate(new Date(selectedNotification.created_at))}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="p-1">
+              <div className="bg-slate-50 p-4 rounded-lg mb-4">
+                <p className="text-sm">{selectedNotification.pesan}</p>
+              </div>
+              
+              {selectedNotification.anggota && (
+                <div className="flex items-center gap-2 mb-4">
+                  <User className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm text-slate-700">Terkait dengan: {selectedNotification.anggota.nama}</span>
+                </div>
+              )}
+              
+              {selectedNotification.data && (
+                <div className="border rounded-lg p-4 mb-4">
+                  <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+                    <Info className="h-4 w-4" />
+                    Informasi Tambahan
+                  </h4>
+                  <pre className="text-xs bg-slate-50 p-2 rounded overflow-auto">
+                    {JSON.stringify(selectedNotification.data, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter className="flex justify-between items-center">
+              <div className="flex items-center gap-1">
+                <Badge className={selectedNotification.is_read ? 'bg-slate-100 text-slate-800' : 'bg-blue-100 text-blue-800'}>
+                  {selectedNotification.is_read ? 'Sudah Dibaca' : 'Belum Dibaca'}
+                </Badge>
+                <Badge className="bg-slate-100 text-slate-800">
+                  {selectedNotification.jenis.charAt(0).toUpperCase() + selectedNotification.jenis.slice(1)}
+                </Badge>
+              </div>
+              <div className="flex gap-2">
+                {selectedNotification.data?.action && (
+                  <Button variant="outline">
+                    {selectedNotification.data.action}
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                )}
+                <Button onClick={() => setDetailOpen(false)}>Tutup</Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Notifikasi</h2>
         <div className="flex items-center gap-2">
@@ -235,7 +325,11 @@ export default function NotificationsPage() {
                 </div>
               ) : (
                 notifications.map((notification) => (
-                  <div key={notification.id} className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0">
+                  <div 
+                    key={notification.id} 
+                    className={`flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors ${!notification.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'} cursor-pointer`}
+                    onClick={() => openNotificationDetail(notification)}
+                  >
                     <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis)}`}>
                       {getNotificationIcon(notification.jenis)}
                     </div>
@@ -252,15 +346,37 @@ export default function NotificationsPage() {
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">{notification.pesan}</p>
-                      {notification.data?.action && (
-                        <Button 
-                          variant="link" 
-                          className="h-auto p-0 text-sm"
-                          onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
-                        >
-                          {notification.data.action}
-                        </Button>
-                      )}
+                      <div className="flex justify-between items-center mt-2 pt-1">
+                        <div>
+                          {notification.data?.action && (
+                            <Button 
+                              variant="link" 
+                              className="h-auto p-0 text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent triggering the parent onClick
+                                !notification.is_read && handleMarkAsRead(notification.id);
+                              }}
+                            >
+                              {notification.data.action}
+                              <ArrowRight className="ml-1 h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        {!notification.is_read && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent triggering the parent onClick
+                              handleMarkAsRead(notification.id);
+                            }}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                            Tandai Dibaca
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -330,7 +446,11 @@ export default function NotificationsPage() {
                 </div>
               ) : (
                 unreadNotifications.map((notification) => (
-                  <div key={notification.id} className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0">
+                  <div 
+                    key={notification.id} 
+                    className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"
+                    onClick={() => openNotificationDetail(notification)}
+                  >
                     <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis)}`}>
                       {getNotificationIcon(notification.jenis)}
                     </div>
@@ -345,15 +465,35 @@ export default function NotificationsPage() {
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">{notification.pesan}</p>
-                      {notification.data?.action && (
+                      <div className="flex justify-between items-center mt-2 pt-1">
+                        <div>
+                          {notification.data?.action && (
+                            <Button 
+                              variant="link" 
+                              className="h-auto p-0 text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent triggering the parent onClick
+                                handleMarkAsRead(notification.id);
+                              }}
+                            >
+                              {notification.data.action}
+                              <ArrowRight className="ml-1 h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                         <Button 
-                          variant="link" 
-                          className="h-auto p-0 text-sm"
-                          onClick={() => handleMarkAsRead(notification.id)}
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering the parent onClick
+                            handleMarkAsRead(notification.id);
+                          }}
                         >
-                          {notification.data.action}
+                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                          Tandai Dibaca
                         </Button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -404,7 +544,11 @@ export default function NotificationsPage() {
                 </div>
               ) : (
                 transactionNotifications.map((notification) => (
-                  <div key={notification.id} className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0">
+                  <div 
+                    key={notification.id} 
+                    className={`flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors ${!notification.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'} cursor-pointer`}
+                    onClick={() => openNotificationDetail(notification)}
+                  >
                     <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis)}`}>
                       {getNotificationIcon(notification.jenis)}
                     </div>
@@ -421,15 +565,37 @@ export default function NotificationsPage() {
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">{notification.pesan}</p>
-                      {notification.data?.action && (
-                        <Button 
-                          variant="link" 
-                          className="h-auto p-0 text-sm"
-                          onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
-                        >
-                          {notification.data.action}
-                        </Button>
-                      )}
+                      <div className="flex justify-between items-center mt-2 pt-1">
+                        <div>
+                          {notification.data?.action && (
+                            <Button 
+                              variant="link" 
+                              className="h-auto p-0 text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent triggering the parent onClick
+                                !notification.is_read && handleMarkAsRead(notification.id);
+                              }}
+                            >
+                              {notification.data.action}
+                              <ArrowRight className="ml-1 h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        {!notification.is_read && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent triggering the parent onClick
+                              handleMarkAsRead(notification.id);
+                            }}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                            Tandai Dibaca
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -468,7 +634,11 @@ export default function NotificationsPage() {
                 </div>
               ) : (
                 systemNotifications.map((notification) => (
-                  <div key={notification.id} className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0">
+                  <div 
+                    key={notification.id} 
+                    className={`flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors ${!notification.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'} cursor-pointer`}
+                    onClick={() => openNotificationDetail(notification)}
+                  >
                     <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis)}`}>
                       {getNotificationIcon(notification.jenis)}
                     </div>
@@ -485,15 +655,37 @@ export default function NotificationsPage() {
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">{notification.pesan}</p>
-                      {notification.data?.action && (
-                        <Button 
-                          variant="link" 
-                          className="h-auto p-0 text-sm"
-                          onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
-                        >
-                          {notification.data.action}
-                        </Button>
-                      )}
+                      <div className="flex justify-between items-center mt-2 pt-1">
+                        <div>
+                          {notification.data?.action && (
+                            <Button 
+                              variant="link" 
+                              className="h-auto p-0 text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent triggering the parent onClick
+                                !notification.is_read && handleMarkAsRead(notification.id);
+                              }}
+                            >
+                              {notification.data.action}
+                              <ArrowRight className="ml-1 h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        {!notification.is_read && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent triggering the parent onClick
+                              handleMarkAsRead(notification.id);
+                            }}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                            Tandai Dibaca
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))

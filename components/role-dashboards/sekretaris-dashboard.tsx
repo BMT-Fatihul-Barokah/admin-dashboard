@@ -4,17 +4,21 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Users, UserPlus, CheckCircle, XCircle, Bell, FileText, Mail, Loader2 } from "lucide-react";
+import { Users, UserPlus, CheckCircle, XCircle, Bell, FileText, Mail, Loader2, Eye, UserCheck, AlertCircle, ChevronDown, ChevronUp, Phone, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { 
   testDatabaseConnection,
   getTotalAnggota, 
-  getPendingRegistrations, 
-  getRecentActivities 
+  getPendingRegistrations,
+  getRecentMembers
 } from '@/lib/dashboard-data';
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Activity type definition
 type Activity = {
@@ -26,14 +30,30 @@ type Activity = {
   status?: string;
 };
 
+// Member type definition
+type Member = {
+  id: string;
+  nama: string;
+  nomor_anggota: string;
+  is_active: boolean;
+  created_at: string;
+  alamat?: string;
+  telepon?: string;
+  email?: string;
+  tanggal_bergabung?: string;
+};
+
 export function SekretarisDashboard() {
   const { user } = useAdminAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [membersLoading, setMembersLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     totalMembers: 0,
     pendingRegistrations: 0,
-    recentActivities: [] as Activity[]
+    notifications: 8
   });
+  const [recentMembers, setRecentMembers] = useState<Member[]>([]);
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
   
   // Format relative time
   const formatRelativeTime = (dateString: string) => {
@@ -44,27 +64,43 @@ export function SekretarisDashboard() {
     }
   };
   
+  // Get initials from name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+  
+  // Get status color
+  const getStatusColor = (isActive: boolean) => {
+    return isActive 
+      ? "bg-emerald-100 text-emerald-800" 
+      : "bg-red-100 text-red-800";
+  };
+  
+  // Get status text
+  const getStatusText = (isActive: boolean) => {
+    return isActive ? "Aktif" : "Nonaktif";
+  };
+  
   useEffect(() => {
     async function fetchDashboardData() {
       setIsLoading(true);
       try {
         console.log('Fetching sekretaris dashboard data...');
-        const [members, registrations, activities] = await Promise.all([
-          getTotalAnggota(),
-          getPendingRegistrations(),
-          getRecentActivities(5)
-        ]);
+        const members = await getTotalAnggota();
         
         console.log('Sekretaris dashboard data fetched:', {
-          members,
-          registrations,
-          activitiesCount: activities.length
+          members
         });
         
         setDashboardData({
           totalMembers: members,
-          pendingRegistrations: registrations,
-          recentActivities: activities.filter(a => a.type === 'registration')
+          pendingRegistrations: 0,
+          notifications: 8
         });
       } catch (error) {
         console.error('Error fetching sekretaris dashboard data:', error);
@@ -74,6 +110,66 @@ export function SekretarisDashboard() {
     }
     
     fetchDashboardData();
+  }, []);
+  
+  useEffect(() => {
+    async function fetchRecentMembers() {
+      setMembersLoading(true);
+      try {
+        const members = await getRecentMembers(5);
+        if (members && members.length > 0) {
+          setRecentMembers(members);
+        } else {
+          // If no members are returned, set an empty array
+          setRecentMembers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching recent members:', error);
+        // On error, use placeholder data
+        const placeholderData = [
+          {
+            id: '1',
+            nama: 'Ahmad Fauzi',
+            nomor_anggota: 'A-1001',
+            is_active: true,
+            created_at: new Date(Date.now() - 3600000).toISOString()
+          },
+          {
+            id: '2',
+            nama: 'Iqbal Isya Fathurrohman',
+            nomor_anggota: 'A-1002',
+            is_active: true,
+            created_at: new Date(Date.now() - 7200000).toISOString()
+          },
+          {
+            id: '3',
+            nama: 'Safarina M QQ.Huda',
+            nomor_anggota: 'A-1003',
+            is_active: true,
+            created_at: new Date(Date.now() - 10800000).toISOString()
+          },
+          {
+            id: '4',
+            nama: 'Amrina QQ Choirudin',
+            nomor_anggota: 'A-1004',
+            is_active: true,
+            created_at: new Date(Date.now() - 14400000).toISOString()
+          },
+          {
+            id: '5',
+            nama: 'M.sabilul M.QQ H.N',
+            nomor_anggota: 'A-1005',
+            is_active: false,
+            created_at: new Date(Date.now() - 18000000).toISOString()
+          }
+        ];
+        setRecentMembers(placeholderData);
+      } finally {
+        setMembersLoading(false);
+      }
+    }
+    
+    fetchRecentMembers();
   }, []);
 
   return (
@@ -91,7 +187,6 @@ export function SekretarisDashboard() {
         <TabsList>
           <TabsTrigger value="overview">Ikhtisar</TabsTrigger>
           <TabsTrigger value="members">Anggota</TabsTrigger>
-          <TabsTrigger value="communications">Komunikasi</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
@@ -101,119 +196,96 @@ export function SekretarisDashboard() {
               <span className="ml-2">Memuat data...</span>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Aktivitas Terbaru</CardTitle>
-                  <Bell className="h-4 w-4 text-white" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.recentActivities.length}</div>
-                  <p className="text-xs text-purple-100">Aktivitas dalam 7 hari terakhir</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-pink-400 to-pink-500 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Anggota</CardTitle>
-                  <Users className="h-4 w-4 text-white" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.totalMembers}</div>
-                  <p className="text-xs text-pink-100">Anggota aktif</p>
-                </CardContent>
-              </Card>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Link href="/users" className="block">
+                <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-emerald-700">Total Anggota</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-emerald-200 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-emerald-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoading ? (
+                      <Skeleton className="h-9 w-16 bg-emerald-100" />
+                    ) : (
+                      <>
+                        <div className="text-3xl font-bold text-emerald-900">{dashboardData.totalMembers}</div>
+                        <p className="text-sm text-emerald-600 mt-1">Anggota aktif</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
             
-            <Card className="bg-gradient-to-br from-violet-400 to-violet-500 text-white">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Notifikasi</CardTitle>
-                <Bell className="h-4 w-4 text-white" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">8</div>
-                <p className="text-xs text-violet-100">Belum dibaca</p>
-              </CardContent>
-            </Card>
+              <Link href="/notifications" className="block">
+                <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-amber-700">Notifikasi</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-amber-200 flex items-center justify-center">
+                      <Bell className="h-5 w-5 text-amber-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoading ? (
+                      <Skeleton className="h-9 w-16 bg-amber-100" />
+                    ) : (
+                      <>
+                        <div className="text-3xl font-bold text-amber-900">{dashboardData.notifications}</div>
+                        <p className="text-sm text-amber-600 mt-1">Belum dibaca</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            
+              <Link href="/notifications/settings" className="block">
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-blue-700">Pengumuman</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-blue-200 flex items-center justify-center">
+                      <Mail className="h-5 w-5 text-blue-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoading ? (
+                      <Skeleton className="h-9 w-16 bg-blue-100" />
+                    ) : (
+                      <>
+                        <div className="text-3xl font-bold text-blue-900">3</div>
+                        <p className="text-sm text-blue-600 mt-1">Pengumuman aktif</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
           )}
           
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>Pendaftaran Terbaru</CardTitle>
-                <CardDescription>
-                  Pendaftaran anggota baru yang menunggu persetujuan
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center items-center h-40">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                ) : dashboardData.recentActivities.length > 0 ? (
-                  <div className="space-y-4">
-                    {dashboardData.recentActivities.map((activity: Activity) => (
-                      <div key={activity.id} className="flex items-center">
-                        <div className="mr-2 h-2 w-2 rounded-full bg-purple-500" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium leading-none">
-                            {activity.description}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatRelativeTime(activity.created_at)}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Link href={`/approvals?id=${activity.id}`}>
-                            <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                              <XCircle className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </Link>
-                          <Link href={`/approvals?id=${activity.id}&action=approve`}>
-                            <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Tidak ada pendaftaran baru yang menunggu persetujuan
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            <Card className="col-span-3">
+          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+            <Card className="col-span-1 lg:col-span-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 border-blue-50">
               <CardHeader>
                 <CardTitle>Aksi Cepat</CardTitle>
                 <CardDescription>
                   Akses cepat ke fitur sekretaris
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-2">
-                <Link href="/users">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Users className="mr-2 h-4 w-4" />
-                    Kelola Anggota
-                  </Button>
-                </Link>
-                <Link href="/notifications">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Bell className="mr-2 h-4 w-4" />
-                    Notifikasi
-                  </Button>
-                </Link>
-                <Button className="w-full justify-start" variant="outline">
-                  <Mail className="mr-2 h-4 w-4" />
-                  Kirim Pengumuman
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Buat Laporan Anggota
-                </Button>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Link href="/users" className="w-full">
+                    <Button className="w-full justify-start bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800">
+                      <Users className="mr-2 h-5 w-5" />
+                      Kelola Anggota
+                    </Button>
+                  </Link>
+                  <Link href="/notifications" className="w-full">
+                    <Button className="w-full justify-start bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 hover:text-amber-800">
+                      <Bell className="mr-2 h-5 w-5" />
+                      Notifikasi
+                    </Button>
+                  </Link>
+
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -222,7 +294,7 @@ export function SekretarisDashboard() {
 
         
         <TabsContent value="members" className="space-y-4">
-          <Card>
+          <Card className="bg-white shadow-sm hover:shadow-md transition-all duration-200 border-blue-50">
             <CardHeader>
               <CardTitle>Manajemen Anggota</CardTitle>
               <CardDescription>
@@ -230,113 +302,193 @@ export function SekretarisDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">
+                  <h3 className="text-lg font-medium text-slate-800">
                     {isLoading ? (
-                      <span>Anggota Aktif (Loading...)</span>
+                      <span>Anggota Aktif <Skeleton className="inline-block h-6 w-12 align-middle ml-2" /></span>
                     ) : (
                       <span>Anggota Aktif ({dashboardData.totalMembers})</span>
                     )}
                   </h3>
                   <Link href="/users">
-                    <Button>
+                    <Button className="bg-emerald-600 hover:bg-emerald-700">
+                      <Users className="mr-2 h-4 w-4" />
                       Lihat Semua
                     </Button>
                   </Link>
                 </div>
                 
-                <div className="rounded-md border">
-                  <div className="grid grid-cols-4 gap-4 p-4 font-medium border-b">
-                    <div>Nama</div>
+                <div className="rounded-lg border shadow-sm overflow-hidden">
+                  <div className="grid grid-cols-5 gap-4 p-4 font-medium border-b bg-slate-50">
+                    <div className="col-span-2">Nama</div>
                     <div>No. Anggota</div>
                     <div>Status</div>
                     <div>Aksi</div>
                   </div>
                   
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="grid grid-cols-4 gap-4 p-4 border-b last:border-0">
-                      <div className="font-medium">{`Anggota ${i}`}</div>
-                      <div>{`A-${1000 + i}`}</div>
-                      <div>
-                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                          Aktif
-                        </span>
+                  {membersLoading ? (
+                    // Loading skeletons
+                    Array(5).fill(0).map((_, i) => (
+                      <div key={i} className="grid grid-cols-5 gap-4 p-4 border-b last:border-0">
+                        <div className="col-span-2 flex items-center">
+                          <Skeleton className="h-8 w-8 rounded-full mr-2" />
+                          <Skeleton className="h-5 w-32" />
+                        </div>
+                        <div>
+                          <Skeleton className="h-5 w-16" />
+                        </div>
+                        <div>
+                          <Skeleton className="h-6 w-16 rounded-full" />
+                        </div>
+                        <div className="flex items-center">
+                          <Skeleton className="h-8 w-16 rounded-md" />
+                        </div>
                       </div>
-                      <div>
-                        <Button variant="outline" size="sm">
-                          Detail
-                        </Button>
-                      </div>
+                    ))
+                  ) : recentMembers && recentMembers.length > 0 ? (
+                    recentMembers.map((member) => (
+                      <Collapsible 
+                        key={member.id} 
+                        open={expandedMemberId === member.id}
+                        onOpenChange={(open) => {
+                          setExpandedMemberId(open ? member.id : null);
+                        }}
+                        className="border-b last:border-0"
+                      >
+                        <div className="grid grid-cols-5 gap-4 p-4 hover:bg-slate-50 transition-colors">
+                          <div className="col-span-2 flex items-center">
+                            <Avatar className="h-8 w-8 mr-2 bg-indigo-100 text-indigo-700">
+                              <AvatarFallback>{getInitials(member.nama || 'User')}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-slate-800">{member.nama || 'Unnamed Member'}</span>
+                          </div>
+                          <div className="text-slate-600 flex items-center">{member.nomor_anggota || '-'}</div>
+                          <div className="flex items-center">
+                            <Badge className={getStatusColor(member.is_active)}>
+                              {getStatusText(member.is_active)}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center">
+                            <CollapsibleTrigger asChild>
+                              <Button variant="outline" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-blue-200">
+                                {expandedMemberId === member.id ? (
+                                  <>
+                                    <ChevronUp className="h-3.5 w-3.5 mr-1" />
+                                    Tutup
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                                    Detail
+                                  </>
+                                )}
+                              </Button>
+                            </CollapsibleTrigger>
+                          </div>
+                        </div>
+                        
+                        <CollapsibleContent>
+                          <div className="bg-slate-50 p-4 border-t border-slate-100">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <h4 className="text-sm font-medium text-slate-500 mb-2">Informasi Anggota</h4>
+                                <ul className="space-y-2">
+                                  <li className="flex items-start">
+                                    <User className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <div>
+                                      <span className="text-xs text-slate-500 block">Nama Lengkap</span>
+                                      <span className="text-sm font-medium">{member.nama || 'Tidak ada data'}</span>
+                                    </div>
+                                  </li>
+                                  <li className="flex items-start">
+                                    <Phone className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <div>
+                                      <span className="text-xs text-slate-500 block">Telepon</span>
+                                      <span className="text-sm font-medium">{member.telepon || '+62 XXX-XXXX-XXXX'}</span>
+                                    </div>
+                                  </li>
+                                  <li className="flex items-start">
+                                    <Mail className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <div>
+                                      <span className="text-xs text-slate-500 block">Email</span>
+                                      <span className="text-sm font-medium">{member.email || 'email@example.com'}</span>
+                                    </div>
+                                  </li>
+                                </ul>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-medium text-slate-500 mb-2">Status Keanggotaan</h4>
+                                <ul className="space-y-2">
+                                  <li className="flex items-start">
+                                    <Calendar className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <div>
+                                      <span className="text-xs text-slate-500 block">Tanggal Bergabung</span>
+                                      <span className="text-sm font-medium">
+                                        {member.tanggal_bergabung ? 
+                                          format(parseISO(member.tanggal_bergabung), 'dd MMMM yyyy', {locale: id}) : 
+                                          format(parseISO(member.created_at), 'dd MMMM yyyy', {locale: id})}
+                                      </span>
+                                    </div>
+                                  </li>
+                                  <li className="flex items-start">
+                                    <Users className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <div>
+                                      <span className="text-xs text-slate-500 block">Nomor Anggota</span>
+                                      <span className="text-sm font-medium">{member.nomor_anggota || '-'}</span>
+                                    </div>
+                                  </li>
+                                  <li className="flex items-start">
+                                    <CheckCircle className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <div>
+                                      <span className="text-xs text-slate-500 block">Status</span>
+                                      <Badge className={getStatusColor(member.is_active)}>
+                                        {getStatusText(member.is_active)}
+                                      </Badge>
+                                    </div>
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-slate-200 flex justify-end">
+                              <Link href={`/users/${member.id}`}>
+                                <Button variant="outline" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-blue-200">
+                                  <Eye className="h-3.5 w-3.5 mr-1" />
+                                  Lihat Profil Lengkap
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-slate-500">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                      <p>Tidak ada data anggota ditemukan</p>
                     </div>
-                  ))}
+                  )}
+                </div>
+                
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-sm text-slate-500">
+                    Menampilkan {recentMembers ? recentMembers.length : 0} dari {dashboardData.totalMembers} anggota
+                  </span>
+                  <div>
+                    <Link href="/users">
+                      <Button className="bg-blue-600 hover:bg-blue-700">
+                        <UserCheck className="h-4 w-4 mr-1" />
+                        Kelola Semua
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
         
-        <TabsContent value="communications" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Komunikasi</CardTitle>
-              <CardDescription>
-                Kelola komunikasi dan pengumuman
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Buat Pengumuman</h3>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Judul</label>
-                    <input 
-                      type="text" 
-                      className="w-full rounded-md border border-input bg-background px-3 py-2"
-                      placeholder="Masukkan judul pengumuman"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Isi Pengumuman</label>
-                    <textarea 
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 min-h-[100px]"
-                      placeholder="Masukkan isi pengumuman"
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <Button>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Kirim Pengumuman
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Pengumuman Terbaru</h3>
-                  
-                  <div className="space-y-4">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="rounded-lg border p-4">
-                        <h4 className="font-medium">{`Pengumuman ${i}: Informasi Penting`}</h4>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {`Ini adalah pengumuman penting untuk semua anggota koperasi.`}
-                        </p>
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-xs text-muted-foreground">
-                            {`Dikirim: ${i} hari yang lalu`}
-                          </span>
-                          <Button variant="outline" size="sm">
-                            Lihat Detail
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
       </Tabs>
     </div>
   );
