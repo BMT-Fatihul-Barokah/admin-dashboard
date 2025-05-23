@@ -295,50 +295,41 @@ export default function ReportsPage() {
               <span className="ml-2">Memuat data...</span>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-100 shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Pemasukan</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{financialSummary ? formatCurrency(financialSummary.totalIncome) : 'Rp 0'}</div>
-                  <p className="text-xs text-muted-foreground">Periode: {financialSummary?.period || '-'}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Pengeluaran</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{financialSummary ? formatCurrency(financialSummary.totalExpense) : 'Rp 0'}</div>
-                  <p className="text-xs text-muted-foreground">Periode: {financialSummary?.period || '-'}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Laba Bersih</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{financialSummary ? formatCurrency(financialSummary.netProfit) : 'Rp 0'}</div>
-                  <p className="text-xs text-muted-foreground">Periode: {financialSummary?.period || '-'}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Kesehatan Keuangan</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{financialSummary ? financialSummary.financialRatio.toFixed(1) + '%' : '0%'}</div>
-                  <p className="text-xs text-muted-foreground">Pendapatan vs Pengeluaran</p>
-                  <div className="mt-2 text-xs">
-                    <span className={`inline-block px-2 py-1 rounded-md ${financialSummary && financialSummary.financialRatio >= 90 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {financialSummary && financialSummary.financialRatio >= 90 ? 'Sehat' : 'Perlu Perhatian'}
-                    </span>
+                  <CardTitle className="text-sm font-medium text-blue-700">Total Pemasukan</CardTitle>
+                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-blue-600" />
                   </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-900">{financialSummary ? formatCurrency(financialSummary.totalIncome) : 'Rp 0'}</div>
+                  <p className="text-xs text-blue-500">Periode: {financialSummary?.period || '-'}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-red-50 to-white border-red-100 shadow-sm hover:shadow-md transition-all duration-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-red-700">Total Pengeluaran</CardTitle>
+                  <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-red-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-900">{financialSummary ? formatCurrency(financialSummary.totalExpense) : 'Rp 0'}</div>
+                  <p className="text-xs text-red-500">Periode: {financialSummary?.period || '-'}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-green-50 to-white border-green-100 shadow-sm hover:shadow-md transition-all duration-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-green-700">Laba Bersih</CardTitle>
+                  <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-green-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-900">{financialSummary ? formatCurrency(financialSummary.netProfit) : 'Rp 0'}</div>
+                  <p className="text-xs text-green-500">Periode: {financialSummary?.period || '-'}</p>
                 </CardContent>
               </Card>
             </div>
@@ -346,42 +337,8 @@ export default function ReportsPage() {
 
           {!isLoading && (
             <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Margin Keuntungan</CardTitle>
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{financialSummary ? financialSummary.profitMarginRatio.toFixed(1) + '%' : '0%'}</div>
-                    <p className="text-xs text-muted-foreground">Persentase keuntungan dari pendapatan</p>
-                    <div className="mt-2 text-xs">
-                      <span className={`inline-block px-2 py-1 rounded-md ${financialSummary && financialSummary.profitMarginRatio >= 15 ? 'bg-green-100 text-green-800' : financialSummary && financialSummary.profitMarginRatio >= 5 ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {financialSummary && financialSummary.profitMarginRatio >= 15 ? 'Sangat Baik' : financialSummary && financialSummary.profitMarginRatio >= 5 ? 'Baik' : 'Perlu Ditingkatkan'}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Efisiensi Operasional</CardTitle>
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{financialSummary ? financialSummary.operationalEfficiencyRatio.toFixed(1) + '%' : '0%'}</div>
-                    <p className="text-xs text-muted-foreground">Biaya operasional dari pendapatan</p>
-                    <div className="mt-2 text-xs">
-                      <span className={`inline-block px-2 py-1 rounded-md ${financialSummary && financialSummary.operationalEfficiencyRatio <= 80 ? 'bg-green-100 text-green-800' : financialSummary && financialSummary.operationalEfficiencyRatio <= 90 ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {financialSummary && financialSummary.operationalEfficiencyRatio <= 80 ? 'Sangat Efisien' : financialSummary && financialSummary.operationalEfficiencyRatio <= 90 ? 'Efisien' : 'Perlu Efisiensi'}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="col-span-4 bg-white shadow-sm hover:shadow-md transition-all duration-200 border-blue-50">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                       <CardTitle>Tren Keuangan</CardTitle>
@@ -410,7 +367,7 @@ export default function ReportsPage() {
                     <FinancialTrendsChart data={financialTrends} />
                   </CardContent>
                 </Card>
-                <Card className="col-span-3">
+                <Card className="col-span-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 border-blue-50">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                       <CardTitle>Distribusi Transaksi</CardTitle>
