@@ -5,6 +5,7 @@ import { TransactionDistribution } from '@/lib/reports'
 import { PieChart, BarChart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useTheme } from 'next-themes'
 
 interface TransactionDistributionChartProps {
   data: TransactionDistribution[]
@@ -21,6 +22,7 @@ export function TransactionDistributionChart({
   const chartInstance = useRef<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [chartReady, setChartReady] = useState(false)
+  const { resolvedTheme } = useTheme()
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -77,6 +79,9 @@ export function TransactionDistributionChart({
     if (!chartReady || !chartRef.current || data.length === 0) return
     setError(null)
     
+    // Get colors based on theme
+    const isDarkMode = resolvedTheme === 'dark'
+    
     const createChart = async () => {
       try {
         // Clean up existing chart
@@ -121,7 +126,8 @@ export function TransactionDistributionChart({
                 labels: {
                   padding: 20,
                   usePointStyle: true,
-                  pointStyle: 'circle'
+                  pointStyle: 'circle',
+                  color: isDarkMode ? '#e2e8f0' : '#0f172a'
                 }
               },
               tooltip: {
@@ -171,9 +177,21 @@ export function TransactionDistributionChart({
               y: {
                 beginAtZero: true,
                 ticks: {
+                  color: isDarkMode ? '#94a3b8' : '#64748b',
                   callback: (value) => {
                     return formatCurrency(value as number)
                   }
+                },
+                grid: {
+                  color: isDarkMode ? 'rgba(148, 163, 184, 0.1)' : 'rgba(203, 213, 225, 0.5)'
+                }
+              },
+              x: {
+                ticks: {
+                  color: isDarkMode ? '#94a3b8' : '#64748b'
+                },
+                grid: {
+                  color: isDarkMode ? 'rgba(148, 163, 184, 0.1)' : 'rgba(203, 213, 225, 0.5)'
                 }
               }
             }
@@ -194,7 +212,7 @@ export function TransactionDistributionChart({
     return () => {
       clearTimeout(timer)
     }
-  }, [data, chartType, chartReady])
+  }, [data, chartType, chartReady, resolvedTheme])
 
   // If no data, show placeholder
   if (data.length === 0) {

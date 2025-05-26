@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Users, UserPlus, CheckCircle, XCircle, Bell, FileText, Mail, Loader2, Eye, UserCheck, AlertCircle, ChevronDown, ChevronUp, Phone, Calendar, User } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { 
@@ -77,8 +78,8 @@ export function SekretarisDashboard() {
   // Get status color
   const getStatusColor = (isActive: boolean) => {
     return isActive 
-      ? "bg-emerald-100 text-emerald-800" 
-      : "bg-red-100 text-red-800";
+      ? "bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200" 
+      : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
   };
   
   // Get status text
@@ -177,7 +178,8 @@ export function SekretarisDashboard() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard Sekretaris</h2>
         <div className="flex items-center space-x-2">
-          <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+          <ThemeToggle />
+          <div className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-sm font-medium">
             Sekretaris
           </div>
         </div>
@@ -198,11 +200,11 @@ export function SekretarisDashboard() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               <Link href="/users" className="block">
-                <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
+                <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-emerald-700">Total Anggota</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-emerald-200 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-emerald-600" />
+                    <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Total Anggota</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-emerald-200 dark:bg-emerald-800 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -210,8 +212,8 @@ export function SekretarisDashboard() {
                       <Skeleton className="h-9 w-16 bg-emerald-100" />
                     ) : (
                       <>
-                        <div className="text-3xl font-bold text-emerald-900">{dashboardData.totalMembers}</div>
-                        <p className="text-sm text-emerald-600 mt-1">Anggota aktif</p>
+                        <div className="text-3xl font-bold text-emerald-900 dark:text-emerald-100">{dashboardData.totalMembers}</div>
+                        <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">Anggota aktif</p>
                       </>
                     )}
                   </CardContent>
@@ -219,11 +221,11 @@ export function SekretarisDashboard() {
               </Link>
             
               <Link href="/notifications" className="block">
-                <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
+                <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-amber-700">Notifikasi</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-amber-200 flex items-center justify-center">
-                      <Bell className="h-5 w-5 text-amber-600" />
+                    <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-300">Notifikasi</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center">
+                      <Bell className="h-5 w-5 text-amber-600 dark:text-amber-300" />
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -231,8 +233,8 @@ export function SekretarisDashboard() {
                       <Skeleton className="h-9 w-16 bg-amber-100" />
                     ) : (
                       <>
-                        <div className="text-3xl font-bold text-amber-900">{dashboardData.notifications}</div>
-                        <p className="text-sm text-amber-600 mt-1">Belum dibaca</p>
+                        <div className="text-3xl font-bold text-amber-900 dark:text-amber-100">{dashboardData.notifications}</div>
+                        <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">Belum dibaca</p>
                       </>
                     )}
                   </CardContent>
@@ -240,11 +242,11 @@ export function SekretarisDashboard() {
               </Link>
             
               <Link href="/notifications/settings" className="block">
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-2px]">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-blue-700">Pengumuman</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-blue-200 flex items-center justify-center">
-                      <Mail className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">Pengumuman</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center">
+                      <Mail className="h-5 w-5 text-blue-600 dark:text-blue-300" />
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -252,8 +254,8 @@ export function SekretarisDashboard() {
                       <Skeleton className="h-9 w-16 bg-blue-100" />
                     ) : (
                       <>
-                        <div className="text-3xl font-bold text-blue-900">3</div>
-                        <p className="text-sm text-blue-600 mt-1">Pengumuman aktif</p>
+                        <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">3</div>
+                        <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">Pengumuman aktif</p>
                       </>
                     )}
                   </CardContent>
@@ -263,7 +265,7 @@ export function SekretarisDashboard() {
           )}
           
           <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
-            <Card className="col-span-1 lg:col-span-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 border-blue-50">
+            <Card className="col-span-1 lg:col-span-3 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-200 border-blue-50 dark:border-blue-900">
               <CardHeader>
                 <CardTitle>Aksi Cepat</CardTitle>
                 <CardDescription>
@@ -273,13 +275,13 @@ export function SekretarisDashboard() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <Link href="/users" className="w-full">
-                    <Button className="w-full justify-start bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800">
+                    <Button className="w-full justify-start bg-emerald-50 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-800 hover:text-emerald-800 dark:hover:text-emerald-200">
                       <Users className="mr-2 h-5 w-5" />
                       Kelola Anggota
                     </Button>
                   </Link>
                   <Link href="/notifications" className="w-full">
-                    <Button className="w-full justify-start bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 hover:text-amber-800">
+                    <Button className="w-full justify-start bg-amber-50 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-800 hover:text-amber-800 dark:hover:text-amber-200">
                       <Bell className="mr-2 h-5 w-5" />
                       Notifikasi
                     </Button>
@@ -294,7 +296,7 @@ export function SekretarisDashboard() {
 
         
         <TabsContent value="members" className="space-y-4">
-          <Card className="bg-white shadow-sm hover:shadow-md transition-all duration-200 border-blue-50">
+          <Card className="bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-200 border-blue-50 dark:border-blue-900">
             <CardHeader>
               <CardTitle>Manajemen Anggota</CardTitle>
               <CardDescription>
@@ -304,7 +306,7 @@ export function SekretarisDashboard() {
             <CardContent>
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium text-slate-800">
+                  <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">
                     {isLoading ? (
                       <span>Anggota Aktif <Skeleton className="inline-block h-6 w-12 align-middle ml-2" /></span>
                     ) : (
@@ -320,7 +322,7 @@ export function SekretarisDashboard() {
                 </div>
                 
                 <div className="rounded-lg border shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-5 gap-4 p-4 font-medium border-b bg-slate-50">
+                  <div className="grid grid-cols-5 gap-4 p-4 font-medium border-b bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
                     <div className="col-span-2">Nama</div>
                     <div>No. Anggota</div>
                     <div>Status</div>
@@ -358,12 +360,12 @@ export function SekretarisDashboard() {
                       >
                         <div className="grid grid-cols-5 gap-4 p-4 hover:bg-slate-50 transition-colors">
                           <div className="col-span-2 flex items-center">
-                            <Avatar className="h-8 w-8 mr-2 bg-indigo-100 text-indigo-700">
+                            <Avatar className="h-8 w-8 mr-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
                               <AvatarFallback>{getInitials(member.nama || 'User')}</AvatarFallback>
                             </Avatar>
-                            <span className="font-medium text-slate-800">{member.nama || 'Unnamed Member'}</span>
+                            <span className="font-medium text-slate-800 dark:text-slate-200">{member.nama || 'Unnamed Member'}</span>
                           </div>
-                          <div className="text-slate-600 flex items-center">{member.nomor_anggota || '-'}</div>
+                          <div className="text-slate-600 dark:text-slate-400 flex items-center">{member.nomor_anggota || '-'}</div>
                           <div className="flex items-center">
                             <Badge className={getStatusColor(member.is_active)}>
                               {getStatusText(member.is_active)}
@@ -389,42 +391,42 @@ export function SekretarisDashboard() {
                         </div>
                         
                         <CollapsibleContent>
-                          <div className="bg-slate-50 p-4 border-t border-slate-100">
+                          <div className="bg-slate-50 dark:bg-slate-800 p-4 border-t border-slate-100 dark:border-slate-700">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <h4 className="text-sm font-medium text-slate-500 mb-2">Informasi Anggota</h4>
+                                <h4 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Informasi Anggota</h4>
                                 <ul className="space-y-2">
                                   <li className="flex items-start">
-                                    <User className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <User className="h-4 w-4 mr-2 text-slate-400 dark:text-slate-500 mt-0.5" />
                                     <div>
-                                      <span className="text-xs text-slate-500 block">Nama Lengkap</span>
-                                      <span className="text-sm font-medium">{member.nama || 'Tidak ada data'}</span>
+                                      <span className="text-xs text-slate-500 dark:text-slate-400 block">Nama Lengkap</span>
+                                      <span className="text-sm font-medium dark:text-slate-300">{member.nama || 'Tidak ada data'}</span>
                                     </div>
                                   </li>
                                   <li className="flex items-start">
-                                    <Phone className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <Phone className="h-4 w-4 mr-2 text-slate-400 dark:text-slate-500 mt-0.5" />
                                     <div>
-                                      <span className="text-xs text-slate-500 block">Telepon</span>
-                                      <span className="text-sm font-medium">{member.telepon || '+62 XXX-XXXX-XXXX'}</span>
+                                      <span className="text-xs text-slate-500 dark:text-slate-400 block">Telepon</span>
+                                      <span className="text-sm font-medium dark:text-slate-300">{member.telepon || '+62 XXX-XXXX-XXXX'}</span>
                                     </div>
                                   </li>
                                   <li className="flex items-start">
-                                    <Mail className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <Mail className="h-4 w-4 mr-2 text-slate-400 dark:text-slate-500 mt-0.5" />
                                     <div>
-                                      <span className="text-xs text-slate-500 block">Email</span>
-                                      <span className="text-sm font-medium">{member.email || 'email@example.com'}</span>
+                                      <span className="text-xs text-slate-500 dark:text-slate-400 block">Email</span>
+                                      <span className="text-sm font-medium dark:text-slate-300">{member.email || 'email@example.com'}</span>
                                     </div>
                                   </li>
                                 </ul>
                               </div>
                               <div>
-                                <h4 className="text-sm font-medium text-slate-500 mb-2">Status Keanggotaan</h4>
+                                <h4 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Status Keanggotaan</h4>
                                 <ul className="space-y-2">
                                   <li className="flex items-start">
-                                    <Calendar className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <Calendar className="h-4 w-4 mr-2 text-slate-400 dark:text-slate-500 mt-0.5" />
                                     <div>
-                                      <span className="text-xs text-slate-500 block">Tanggal Bergabung</span>
-                                      <span className="text-sm font-medium">
+                                      <span className="text-xs text-slate-500 dark:text-slate-400 block">Tanggal Bergabung</span>
+                                      <span className="text-sm font-medium dark:text-slate-300">
                                         {member.tanggal_bergabung ? 
                                           format(parseISO(member.tanggal_bergabung), 'dd MMMM yyyy', {locale: id}) : 
                                           format(parseISO(member.created_at), 'dd MMMM yyyy', {locale: id})}
@@ -432,16 +434,16 @@ export function SekretarisDashboard() {
                                     </div>
                                   </li>
                                   <li className="flex items-start">
-                                    <Users className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <Users className="h-4 w-4 mr-2 text-slate-400 dark:text-slate-500 mt-0.5" />
                                     <div>
-                                      <span className="text-xs text-slate-500 block">Nomor Anggota</span>
-                                      <span className="text-sm font-medium">{member.nomor_anggota || '-'}</span>
+                                      <span className="text-xs text-slate-500 dark:text-slate-400 block">Nomor Anggota</span>
+                                      <span className="text-sm font-medium dark:text-slate-300">{member.nomor_anggota || '-'}</span>
                                     </div>
                                   </li>
                                   <li className="flex items-start">
-                                    <CheckCircle className="h-4 w-4 mr-2 text-slate-400 mt-0.5" />
+                                    <CheckCircle className="h-4 w-4 mr-2 text-slate-400 dark:text-slate-500 mt-0.5" />
                                     <div>
-                                      <span className="text-xs text-slate-500 block">Status</span>
+                                      <span className="text-xs text-slate-500 dark:text-slate-400 block">Status</span>
                                       <Badge className={getStatusColor(member.is_active)}>
                                         {getStatusText(member.is_active)}
                                       </Badge>
@@ -450,9 +452,9 @@ export function SekretarisDashboard() {
                                 </ul>
                               </div>
                             </div>
-                            <div className="mt-4 pt-3 border-t border-slate-200 flex justify-end">
+                            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end">
                               <Link href={`/users/${member.id}`}>
-                                <Button variant="outline" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-blue-200">
+                                <Button variant="outline" size="sm" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900 border-blue-200 dark:border-blue-800">
                                   <Eye className="h-3.5 w-3.5 mr-1" />
                                   Lihat Profil Lengkap
                                 </Button>
@@ -463,20 +465,20 @@ export function SekretarisDashboard() {
                       </Collapsible>
                     ))
                   ) : (
-                    <div className="p-8 text-center text-slate-500">
-                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                    <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-400 dark:text-slate-500" />
                       <p>Tidak ada data anggota ditemukan</p>
                     </div>
                   )}
                 </div>
                 
                 <div className="flex justify-between items-center pt-2">
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
                     Menampilkan {recentMembers ? recentMembers.length : 0} dari {dashboardData.totalMembers} anggota
                   </span>
                   <div>
                     <Link href="/users">
-                      <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Button className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">
                         <UserCheck className="h-4 w-4 mr-1" />
                         Kelola Semua
                       </Button>

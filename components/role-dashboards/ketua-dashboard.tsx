@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { BarChart3, Users, CreditCard, Wallet, UserPlus, FileText, Eye, AlertTriangle, Loader2 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { 
@@ -101,7 +102,8 @@ export function KetuaDashboard() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard Ketua</h2>
         <div className="flex items-center space-x-2">
-          <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+          <ThemeToggle variant="ghost" size="sm" />
+          <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium">
             Mode Pengawasan
           </div>
         </div>

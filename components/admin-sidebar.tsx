@@ -16,6 +16,7 @@ import {
 	Wallet,
 	Upload,
 } from "lucide-react";
+import { ThemeToggle } from "./theme-toggle";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAdminAuth } from "@/lib/admin-auth-context";
@@ -232,6 +233,14 @@ export function AdminSidebar() {
 									<DropdownMenuLabel>
 										Akun Saya
 									</DropdownMenuLabel>
+									<DropdownMenuSeparator />
+
+									<DropdownMenuItem asChild className="cursor-default">
+										<div className="flex justify-between items-center w-full">
+											<span>Tema</span>
+											<ThemeToggle />
+										</div>
+									</DropdownMenuItem>
 									<DropdownMenuSeparator />
 
 									<DropdownMenuItem onClick={() => logoutAdmin()}>

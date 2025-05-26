@@ -582,40 +582,40 @@ export default function ReportsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-100 shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-950 dark:to-gray-900 border-blue-100 dark:border-blue-900 shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-blue-700">Total Pemasukan</CardTitle>
-                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-blue-600" />
+                  <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Pemasukan</CardTitle>
+                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-900">{financialSummary ? formatCurrency(financialSummary.totalIncome) : 'Rp 0'}</div>
-                  <p className="text-xs text-blue-500">Periode: {financialSummary?.period || '-'}</p>
+                  <div className="text-2xl font-bold text-blue-900 dark:text-blue-200">{financialSummary ? formatCurrency(financialSummary.totalIncome) : 'Rp 0'}</div>
+                  <p className="text-xs text-blue-500 dark:text-blue-400">Periode: {financialSummary?.period || '-'}</p>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-red-50 to-white border-red-100 shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="bg-gradient-to-br from-red-50 to-white dark:from-red-950 dark:to-gray-900 border-red-100 dark:border-red-900 shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-red-700">Total Pengeluaran</CardTitle>
-                  <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-red-600" />
+                  <CardTitle className="text-sm font-medium text-red-700 dark:text-red-300">Total Pengeluaran</CardTitle>
+                  <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-red-600 dark:text-red-300" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-900">{financialSummary ? formatCurrency(financialSummary.totalExpense) : 'Rp 0'}</div>
-                  <p className="text-xs text-red-500">Periode: {financialSummary?.period || '-'}</p>
+                  <div className="text-2xl font-bold text-red-900 dark:text-red-200">{financialSummary ? formatCurrency(financialSummary.totalExpense) : 'Rp 0'}</div>
+                  <p className="text-xs text-red-500 dark:text-red-400">Periode: {financialSummary?.period || '-'}</p>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-green-50 to-white border-green-100 shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="bg-gradient-to-br from-green-50 to-white dark:from-green-950 dark:to-gray-900 border-green-100 dark:border-green-900 shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-green-700">Laba Bersih</CardTitle>
-                  <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">Laba Bersih</CardTitle>
+                  <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-green-600 dark:text-green-300" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-900">{financialSummary ? formatCurrency(financialSummary.netProfit) : 'Rp 0'}</div>
-                  <p className="text-xs text-green-500">Periode: {financialSummary?.period || '-'}</p>
+                  <div className="text-2xl font-bold text-green-900 dark:text-green-200">{financialSummary ? formatCurrency(financialSummary.netProfit) : 'Rp 0'}</div>
+                  <p className="text-xs text-green-500 dark:text-green-400">Periode: {financialSummary?.period || '-'}</p>
                 </CardContent>
               </Card>
             </div>
@@ -624,7 +624,7 @@ export default function ReportsPage() {
           {!isLoading && (
             <div className="space-y-4">
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4 bg-white shadow-sm hover:shadow-md transition-all duration-200 border-blue-50">
+                <Card className="col-span-4 bg-white dark:bg-gray-900 shadow-sm hover:shadow-md transition-all duration-200 border-blue-50 dark:border-blue-900">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                       <CardTitle>Tren Keuangan</CardTitle>
@@ -653,7 +653,7 @@ export default function ReportsPage() {
                     <FinancialTrendsChart data={financialTrends} />
                   </CardContent>
                 </Card>
-                <Card className="col-span-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 border-blue-50">
+                <Card className="col-span-3 bg-white dark:bg-gray-900 shadow-sm hover:shadow-md transition-all duration-200 border-blue-50 dark:border-blue-900">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                       <CardTitle>Distribusi Transaksi</CardTitle>

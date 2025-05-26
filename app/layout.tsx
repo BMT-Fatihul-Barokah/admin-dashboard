@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { Toaster } from "@/components/ui/toaster"
 import { AdminAuthProvider } from "@/lib/admin-auth-context"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -32,7 +33,9 @@ export default function RootLayout({
               <div className="sticky top-0 h-screen">
                 <AdminSidebar />
               </div>
-              <main className="flex-1 overflow-y-auto transition-all duration-200">{children}</main>
+              <main className="flex-1 overflow-y-auto transition-all duration-200">
+                {children}
+              </main>
             </div>
             <Toaster />
           </AdminAuthProvider>

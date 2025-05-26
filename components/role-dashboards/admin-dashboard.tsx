@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { BarChart3, Users, CreditCard, Wallet, UserPlus, FileText, Plus, Loader2, UserCog } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { testDatabaseConnection, getTotalAnggota, getPendingRegistrations, getTotalActivePinjaman, getCurrentMonthTransactions, getRecentActivities, calculatePercentageChange } from "@/lib/dashboard-data";
@@ -106,6 +107,7 @@ export function AdminDashboard() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard Admin</h2>
         <div className="flex items-center space-x-2">
+          <ThemeToggle variant="ghost" size="sm" />
           <Link href="/role-management">
             <Button>
               <UserCog className="mr-2 h-4 w-4" />
@@ -131,7 +133,7 @@ export function AdminDashboard() {
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-3 lg:grid-cols-3">
-              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white dark:from-blue-600 dark:to-blue-800 shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-5 px-6">
                   <CardTitle className="text-sm font-medium">Total Nasabah</CardTitle>
                   <div className="p-1.5 bg-blue-400 bg-opacity-30 rounded-full">
@@ -144,7 +146,7 @@ export function AdminDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white dark:from-green-600 dark:to-green-800 shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-5 px-6">
                   <CardTitle className="text-sm font-medium">Transaksi Bulan Ini</CardTitle>
                   <div className="p-1.5 bg-green-400 bg-opacity-30 rounded-full">
@@ -157,7 +159,7 @@ export function AdminDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white dark:from-purple-600 dark:to-purple-800 shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-5 px-6">
                   <CardTitle className="text-sm font-medium">Pinjaman Aktif</CardTitle>
                   <div className="p-1.5 bg-purple-400 bg-opacity-30 rounded-full">
@@ -174,7 +176,7 @@ export function AdminDashboard() {
           
           <div className="grid gap-6 md:grid-cols-7 lg:grid-cols-7 mt-6">
             <Card className="col-span-4 shadow-md hover:shadow-lg transition-shadow duration-200 border-0 rounded-xl overflow-hidden">
-              <CardHeader className="pb-3 px-6 pt-5 bg-gray-50">
+              <CardHeader className="pb-3 px-6 pt-5 bg-gray-50 dark:bg-gray-800">
                 <CardTitle className="text-lg font-semibold">Aktivitas Terbaru</CardTitle>
                 <CardDescription>
                   Aktivitas sistem terbaru
@@ -208,7 +210,7 @@ export function AdminDashboard() {
                       }
                       
                       return (
-                        <div key={activity.id} className={`flex items-center p-3 rounded-lg ${bgColor} hover:bg-opacity-70 transition-colors duration-200`}>
+                        <div key={activity.id} className={`flex items-center p-3 rounded-lg ${bgColor} dark:bg-opacity-20 hover:bg-opacity-70 transition-colors duration-200`}>
                           <div className={`mr-3 h-3 w-3 rounded-full ${color}`} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium leading-none truncate">
@@ -219,7 +221,7 @@ export function AdminDashboard() {
                             </p>
                           </div>
                           <Link href={actionLink}>
-                            <Button variant="ghost" size="sm" className="ml-2 flex-shrink-0 hover:bg-white hover:bg-opacity-50">
+                            <Button variant="ghost" size="sm" className="ml-2 flex-shrink-0 hover:bg-white dark:hover:bg-gray-700 hover:bg-opacity-50">
                               Lihat
                             </Button>
                           </Link>
@@ -236,7 +238,7 @@ export function AdminDashboard() {
             </Card>
             
             <Card className="col-span-3 shadow-md hover:shadow-lg transition-shadow duration-200 border-0 rounded-xl overflow-hidden">
-              <CardHeader className="pb-3 px-6 pt-5 bg-gray-50">
+              <CardHeader className="pb-3 px-6 pt-5 bg-gray-50 dark:bg-gray-800">
                 <CardTitle className="text-lg font-semibold">Aksi Cepat</CardTitle>
                 <CardDescription>
                   Akses cepat ke fitur utama
@@ -246,11 +248,11 @@ export function AdminDashboard() {
                 <div className="grid grid-cols-1 gap-4">
                   <Link href="/loans" className="w-full no-underline">
                     <Button 
-                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-purple-100 hover:border-purple-300 hover:bg-purple-50" 
+                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-purple-100 dark:border-purple-900 hover:border-purple-300 dark:hover:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/30" 
                       variant="outline"
                     >
-                      <div className="bg-purple-100 p-2 rounded-lg mr-4">
-                        <Wallet className="h-5 w-5 text-purple-600" />
+                      <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded-lg mr-4">
+                        <Wallet className="h-5 w-5 text-purple-600 dark:text-purple-300" />
                       </div>
                       <div className="text-left">
                         <span className="font-medium">Kelola Pinjaman</span>
@@ -259,11 +261,11 @@ export function AdminDashboard() {
                   </Link>
                   <Link href="/transactions" className="w-full no-underline">
                     <Button 
-                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-green-100 hover:border-green-300 hover:bg-green-50" 
+                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-green-100 dark:border-green-900 hover:border-green-300 dark:hover:border-green-700 hover:bg-green-50 dark:hover:bg-green-900/30" 
                       variant="outline"
                     >
-                      <div className="bg-green-100 p-2 rounded-lg mr-4">
-                        <CreditCard className="h-5 w-5 text-green-600" />
+                      <div className="bg-green-100 dark:bg-green-900 p-2 rounded-lg mr-4">
+                        <CreditCard className="h-5 w-5 text-green-600 dark:text-green-300" />
                       </div>
                       <div className="text-left">
                         <span className="font-medium">Transaksi Baru</span>
@@ -272,11 +274,11 @@ export function AdminDashboard() {
                   </Link>
                   <Link href="/reports" className="w-full no-underline">
                     <Button 
-                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-blue-100 hover:border-blue-300 hover:bg-blue-50" 
+                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-blue-100 dark:border-blue-900 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30" 
                       variant="outline"
                     >
-                      <div className="bg-blue-100 p-2 rounded-lg mr-4">
-                        <FileText className="h-5 w-5 text-blue-600" />
+                      <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-lg mr-4">
+                        <FileText className="h-5 w-5 text-blue-600 dark:text-blue-300" />
                       </div>
                       <div className="text-left">
                         <span className="font-medium">Buat Laporan</span>
@@ -285,11 +287,11 @@ export function AdminDashboard() {
                   </Link>
                   <Link href="/import" className="w-full no-underline">
                     <Button 
-                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-amber-100 hover:border-amber-300 hover:bg-amber-50" 
+                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-amber-100 dark:border-amber-900 hover:border-amber-300 dark:hover:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/30" 
                       variant="outline"
                     >
-                      <div className="bg-amber-100 p-2 rounded-lg mr-4">
-                        <Plus className="h-5 w-5 text-amber-600" />
+                      <div className="bg-amber-100 dark:bg-amber-900 p-2 rounded-lg mr-4">
+                        <Plus className="h-5 w-5 text-amber-600 dark:text-amber-300" />
                       </div>
                       <div className="text-left">
                         <span className="font-medium">Import Data</span>
@@ -354,11 +356,11 @@ export function AdminDashboard() {
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div key={i} className="flex items-start gap-4 rounded-lg border p-4">
-                    <div className={`mt-0.5 rounded-full p-1 ${i % 2 === 0 ? 'bg-blue-100' : 'bg-amber-100'}`}>
+                    <div className={`mt-0.5 rounded-full p-1 ${i % 2 === 0 ? 'bg-blue-100 dark:bg-blue-900' : 'bg-amber-100 dark:bg-amber-900'}`}>
                       {i % 2 === 0 ? (
-                        <CreditCard className={`h-4 w-4 ${i % 2 === 0 ? 'text-blue-600' : 'text-amber-600'}`} />
+                        <CreditCard className={`h-4 w-4 ${i % 2 === 0 ? 'text-blue-600 dark:text-blue-300' : 'text-amber-600 dark:text-amber-300'}`} />
                       ) : (
-                        <UserPlus className={`h-4 w-4 ${i % 2 === 0 ? 'text-blue-600' : 'text-amber-600'}`} />
+                        <UserPlus className={`h-4 w-4 ${i % 2 === 0 ? 'text-blue-600 dark:text-blue-300' : 'text-amber-600 dark:text-amber-300'}`} />
                       )}
                     </div>
                     <div className="flex-1">

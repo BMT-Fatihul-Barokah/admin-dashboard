@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { BarChart3, CreditCard, Wallet, FileText, Bell, DollarSign, Calculator, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { 
@@ -160,8 +161,9 @@ export function BendaraDashboard() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard Bendahara</h2>
         <div className="flex items-center space-x-2">
-          <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-            Bendahara
+          <ThemeToggle variant="ghost" size="sm" />
+          <div className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full text-sm font-medium">
+            Mode Keuangan
           </div>
         </div>
       </div>

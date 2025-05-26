@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { FinancialTrend } from '@/lib/reports'
+import { useTheme } from 'next-themes'
 
 // Use dynamic import for Chart.js
 const FinancialChart = () => {
@@ -28,6 +29,7 @@ export function FinancialTrendsChart({ data }: FinancialTrendsChartProps) {
   const chartInstance = useRef<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [chartReady, setChartReady] = useState(false)
+  const { resolvedTheme } = useTheme()
   
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -64,6 +66,9 @@ export function FinancialTrendsChart({ data }: FinancialTrendsChartProps) {
     if (!chartReady || !chartRef.current || data.length === 0) return
     setError(null)
     
+    // Get colors based on theme
+    const isDarkMode = resolvedTheme === 'dark'
+    
     const createChart = async () => {
       try {
         // Clean up existing chart
@@ -95,8 +100,8 @@ export function FinancialTrendsChart({ data }: FinancialTrendsChartProps) {
             {
               label: 'Pendapatan',
               data: incomeData,
-              borderColor: '#4CAF50',
-              backgroundColor: 'rgba(76, 175, 80, 0.1)',
+              borderColor: isDarkMode ? '#81c784' : '#4CAF50',
+              backgroundColor: isDarkMode ? 'rgba(129, 199, 132, 0.2)' : 'rgba(76, 175, 80, 0.1)',
               borderWidth: 2,
               fill: true,
               tension: 0.2
@@ -104,8 +109,8 @@ export function FinancialTrendsChart({ data }: FinancialTrendsChartProps) {
             {
               label: 'Pengeluaran',
               data: expenseData,
-              borderColor: '#F44336',
-              backgroundColor: 'rgba(244, 67, 54, 0.1)',
+              borderColor: isDarkMode ? '#e57373' : '#F44336',
+              backgroundColor: isDarkMode ? 'rgba(229, 115, 115, 0.2)' : 'rgba(244, 67, 54, 0.1)',
               borderWidth: 2,
               fill: true,
               tension: 0.2
@@ -120,7 +125,8 @@ export function FinancialTrendsChart({ data }: FinancialTrendsChartProps) {
               position: 'top',
               labels: {
                 usePointStyle: true,
-                pointStyle: 'circle'
+                pointStyle: 'circle',
+                color: isDarkMode ? '#e2e8f0' : '#0f172a'
               }
             },
             tooltip: {
@@ -136,9 +142,21 @@ export function FinancialTrendsChart({ data }: FinancialTrendsChartProps) {
             y: {
               beginAtZero: true,
               ticks: {
+                color: isDarkMode ? '#94a3b8' : '#64748b',
                 callback: (value) => {
                   return formatCurrency(value as number)
                 }
+              },
+              grid: {
+                color: isDarkMode ? 'rgba(148, 163, 184, 0.1)' : 'rgba(203, 213, 225, 0.5)'
+              }
+            },
+            x: {
+              ticks: {
+                color: isDarkMode ? '#94a3b8' : '#64748b'
+              },
+              grid: {
+                color: isDarkMode ? 'rgba(148, 163, 184, 0.1)' : 'rgba(203, 213, 225, 0.5)'
               }
             }
           }
@@ -158,7 +176,7 @@ export function FinancialTrendsChart({ data }: FinancialTrendsChartProps) {
     return () => {
       clearTimeout(timer)
     }
-  }, [data, chartReady])
+  }, [data, chartReady, resolvedTheme])
 
   // If no data, show placeholder
   if (data.length === 0) {
