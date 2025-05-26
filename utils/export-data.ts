@@ -159,6 +159,56 @@ export function downloadExcel<T extends Record<string, any>>(
 }
 
 /**
+ * Export report data to Excel with multiple sheets
+ * @param sheets Object with sheet names as keys and data arrays as values
+ * @param filename Filename for the downloaded file (without extension)
+ */
+export function exportReportToExcel(
+  sheets: Record<string, any[]>,
+  filename: string
+): void {
+  if (!sheets || Object.keys(sheets).length === 0) {
+    console.warn('No data to export');
+    return;
+  }
+  
+  // Import XLSX dynamically to avoid SSR issues
+  import('xlsx').then(XLSX => {
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Process each sheet
+    Object.entries(sheets).forEach(([sheetName, data]) => {
+      if (!data || data.length === 0) {
+        // Add empty sheet with message
+        const emptyData = [{ 'Informasi': 'Tidak ada data untuk ditampilkan' }];
+        const ws = XLSX.utils.json_to_sheet(emptyData);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        return;
+      }
+      
+      // Create worksheet from data
+      const ws = XLSX.utils.json_to_sheet(data);
+      
+      // Set column widths based on content
+      const headers = Object.keys(data[0]);
+      const colWidths = headers.map(header => ({
+        wch: Math.max(header.length, 15) // Min width of 15 characters
+      }));
+      ws['!cols'] = colWidths;
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+    
+    // Write file directly (browser-only method)
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+  }).catch(error => {
+    console.error('Error generating Excel report:', error);
+  });
+}
+
+/**
  * Helper function to escape XML special characters
  */
 function escapeXml(unsafe: string): string {

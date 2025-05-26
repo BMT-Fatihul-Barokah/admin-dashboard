@@ -244,8 +244,11 @@ export function AdminDashboard() {
               </CardHeader>
               <CardContent className="p-5">
                 <div className="grid grid-cols-1 gap-4">
-                  <Link href="/loans" className="w-full">
-                    <Button className="w-full justify-start h-14 rounded-xl" variant="outline">
+                  <Link href="/loans" className="w-full no-underline">
+                    <Button 
+                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-purple-100 hover:border-purple-300 hover:bg-purple-50" 
+                      variant="outline"
+                    >
                       <div className="bg-purple-100 p-2 rounded-lg mr-4">
                         <Wallet className="h-5 w-5 text-purple-600" />
                       </div>
@@ -254,8 +257,11 @@ export function AdminDashboard() {
                       </div>
                     </Button>
                   </Link>
-                  <Link href="/transactions" className="w-full">
-                    <Button className="w-full justify-start h-14 rounded-xl" variant="outline">
+                  <Link href="/transactions" className="w-full no-underline">
+                    <Button 
+                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-green-100 hover:border-green-300 hover:bg-green-50" 
+                      variant="outline"
+                    >
                       <div className="bg-green-100 p-2 rounded-lg mr-4">
                         <CreditCard className="h-5 w-5 text-green-600" />
                       </div>
@@ -264,8 +270,11 @@ export function AdminDashboard() {
                       </div>
                     </Button>
                   </Link>
-                  <Link href="/reports" className="w-full">
-                    <Button className="w-full justify-start h-14 rounded-xl" variant="outline">
+                  <Link href="/reports" className="w-full no-underline">
+                    <Button 
+                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-blue-100 hover:border-blue-300 hover:bg-blue-50" 
+                      variant="outline"
+                    >
                       <div className="bg-blue-100 p-2 rounded-lg mr-4">
                         <FileText className="h-5 w-5 text-blue-600" />
                       </div>
@@ -274,8 +283,11 @@ export function AdminDashboard() {
                       </div>
                     </Button>
                   </Link>
-                  <Link href="/import" className="w-full">
-                    <Button className="w-full justify-start h-14 rounded-xl" variant="outline">
+                  <Link href="/import" className="w-full no-underline">
+                    <Button 
+                      className="w-full justify-start h-14 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-amber-100 hover:border-amber-300 hover:bg-amber-50" 
+                      variant="outline"
+                    >
                       <div className="bg-amber-100 p-2 rounded-lg mr-4">
                         <Plus className="h-5 w-5 text-amber-600" />
                       </div>
