@@ -363,7 +363,7 @@ export default function LoansPage() {
                             setSelectedLoan(loan);
                             setShowPaymentModal(true);
                           }}
-                          disabled={loan.status === 'lunas' || loan.status === 'ditolak'}
+                          disabled={loan.status === 'lunas'}
                         >
                           Catat Pembayaran
                         </DropdownMenuItem>
@@ -374,7 +374,7 @@ export default function LoansPage() {
                             setSelectedLoan(loan);
                             setShowProblematicModal(true);
                           }}
-                          disabled={loan.status === 'lunas' || loan.status === 'ditolak'}
+                          disabled={loan.status === 'lunas'}
                         >
                           Tandai Bermasalah
                         </DropdownMenuItem>

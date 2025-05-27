@@ -305,16 +305,11 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                         <>
                           <SelectItem value="setoran">Setoran</SelectItem>
                           <SelectItem value="pembayaran_pinjaman">Angsuran Pinjaman</SelectItem>
-                          <SelectItem value="bunga">Bunga</SelectItem>
-                          <SelectItem value="pencairan_pinjaman">Pencairan Pinjaman</SelectItem>
-                          <SelectItem value="biaya_admin">Biaya Admin</SelectItem>
                           <SelectItem value="lainnya">Lainnya</SelectItem>
                         </>
                       ) : tipeTransaksi === "keluar" ? (
                         <>
                           <SelectItem value="penarikan">Penarikan</SelectItem>
-                          <SelectItem value="pencairan_pinjaman">Pencairan Pinjaman</SelectItem>
-                          <SelectItem value="biaya_admin">Biaya Admin</SelectItem>
                           <SelectItem value="pembayaran_pinjaman">Pembayaran Pinjaman</SelectItem>
                           <SelectItem value="lainnya">Lainnya</SelectItem>
                         </>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, ReactNode } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -203,6 +203,24 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
       
       if (result.error) {
         console.error('Supabase error details:', result.error)
+        
+        // Check for duplicate phone number error
+        if (result.error.code === '23505' && result.error.message.includes('akun_nomor_telepon_key')) {
+          form.setError('nomor_telepon', { 
+            type: 'manual', 
+            message: 'Nomor telepon sudah terdaftar' 
+          })
+          
+          toast({
+            title: "Nomor Telepon Duplikat",
+            description: "Nomor telepon ini sudah digunakan oleh akun lain",
+            variant: "destructive",
+            duration: 5000
+          })
+          setIsSubmitting(false)
+          return
+        }
+        
         throw new Error(result.error.message || 'Terjadi kesalahan saat menyimpan akun')
       }
       
@@ -252,16 +270,33 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
             errorMessage = `Error database (${error.code})`;
         }
       } 
-      // Check for error message
-      else if (error.message && error.message !== '{}') {
-        errorMessage = error.message;
+      // Check for duplicate phone number in error message
+      else if (error.message) {
+        if (error.message.includes('duplicate key') && error.message.includes('akun_nomor_telepon_key')) {
+          errorMessage = "Nomor telepon sudah digunakan oleh akun lain";
+          form.setError('nomor_telepon', { 
+            type: 'manual', 
+            message: 'Nomor telepon sudah terdaftar' 
+          });
+        } else if (error.message !== '{}') {
+          errorMessage = error.message;
+        }
       }
       // If we still don't have a good error message, try to extract it from the error object
       else if (typeof error === 'object') {
         try {
           const errorStr = JSON.stringify(error);
           if (errorStr !== '{}') {
-            errorMessage = `Detail error: ${errorStr}`;
+            // Check for duplicate phone number in the stringified error
+            if (errorStr.includes('akun_nomor_telepon_key')) {
+              errorMessage = "Nomor telepon sudah digunakan oleh akun lain";
+              form.setError('nomor_telepon', { 
+                type: 'manual', 
+                message: 'Nomor telepon sudah terdaftar' 
+              });
+            } else {
+              errorMessage = `Detail error: ${errorStr}`;
+            }
           }
         } catch (e) {
           // If JSON stringify fails, just use the default message
@@ -271,7 +306,15 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
       toast({
         title: "Error",
         description: `Gagal ${akun ? 'memperbarui' : 'membuat'} akun: ${errorMessage}`,
-        variant: "destructive"
+        variant: "destructive",
+        duration: 5000,
+        action: errorMessage.includes("Nomor telepon") ? (
+          <div className="flex items-center justify-center bg-red-100 dark:bg-red-900 p-2 rounded-md mt-2">
+            <span className="text-red-600 dark:text-red-300 text-sm font-medium">
+              Gunakan nomor telepon yang berbeda
+            </span>
+          </div>
+        ) : undefined
       })
     } finally {
       setIsSubmitting(false)

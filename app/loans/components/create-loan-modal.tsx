@@ -105,17 +105,24 @@ export function CreateLoanModal({
 
     setIsSubmitting(true)
     try {
-      const result = await createPinjaman(formData)
+      // Ensure jumlah is a number
+      const cleanedData = {
+        ...formData,
+        jumlah: Number(formData.jumlah)
+      }
+      
+      // Create the loan
+      const result = await createPinjaman(cleanedData)
       
       if (result.success) {
-        toast.success("Pengajuan pinjaman berhasil dibuat")
+        toast.success("Pinjaman baru berhasil dibuat")
         onLoanCreated()
         onClose()
       } else {
-        toast.error(`Gagal membuat pengajuan pinjaman: ${result.error?.message || "Terjadi kesalahan"}`)
+        toast.error(result.error?.message || "Gagal membuat pinjaman")
       }
     } catch (error: any) {
-      toast.error(`Error: ${error.message || "Terjadi kesalahan"}`)
+      toast.error("Terjadi kesalahan: " + (error?.message || "Unknown error"))
     } finally {
       setIsSubmitting(false)
     }
@@ -125,9 +132,9 @@ export function CreateLoanModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Tambah Pengajuan Pinjaman</DialogTitle>
+          <DialogTitle>Tambah Pinjaman Baru</DialogTitle>
           <DialogDescription>
-            Isi formulir berikut untuk mengajukan pinjaman baru.
+            Isi formulir berikut untuk membuat pinjaman baru.
           </DialogDescription>
         </DialogHeader>
         
@@ -237,9 +244,13 @@ export function CreateLoanModal({
           <Button variant="outline" onClick={onClose}>
             Batal
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button 
+            type="button"
+            onClick={() => handleSubmit()} 
+            disabled={isSubmitting}
+          >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Ajukan Pinjaman
+            Buat Pinjaman
           </Button>
         </DialogFooter>
       </DialogContent>

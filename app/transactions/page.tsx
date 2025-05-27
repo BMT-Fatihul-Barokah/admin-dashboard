@@ -53,6 +53,11 @@ export default function TransactionsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(20)
+  const [totalPages, setTotalPages] = useState(1)
+  
   // Modal states
   const [selectedTransaction, setSelectedTransaction] = useState<Transaksi | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -159,6 +164,17 @@ export default function TransactionsPage() {
   const [amountMin, setAmountMin] = useState('')
   const [amountMax, setAmountMax] = useState('')
 
+  // Calculate total pages based on filtered data
+  const calculatePagination = (data: Transaksi[]) => {
+    const total = Math.ceil(data.length / itemsPerPage)
+    setTotalPages(total > 0 ? total : 1)
+    
+    // Reset to first page if current page is out of bounds
+    if (currentPage > total && total > 0) {
+      setCurrentPage(1)
+    }
+  }
+  
   // Apply all filters
   const applyFilters = () => {
     if (!transactions.length) return
@@ -229,6 +245,7 @@ export default function TransactionsPage() {
     }
     
     setFilteredTransactions(filtered)
+    calculatePagination(filtered)
   }
   
   // Reset all filters
@@ -247,6 +264,11 @@ export default function TransactionsPage() {
   useEffect(() => {
     applyFilters()
   }, [transactions, searchQuery, typeFilter, categoryFilter, dateStart, dateEnd, amountMin, amountMax])
+  
+  // Handle pagination changes
+  useEffect(() => {
+    calculatePagination(filteredTransactions)
+  }, [filteredTransactions, itemsPerPage])
   
   // Export transactions to Excel
   const exportTransactions = (): void => {
@@ -287,6 +309,68 @@ export default function TransactionsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Get current page data
+  const getCurrentPageData = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return filteredTransactions.slice(startIndex, endIndex)
+  }
+  
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return
+    setCurrentPage(page)
+  }
+  
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = []
+    const maxVisiblePages = 5
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages is less than max visible pages
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Always show first page
+      pages.push(1)
+      
+      // Calculate start and end of visible pages
+      let start = Math.max(2, currentPage - 1)
+      let end = Math.min(totalPages - 1, currentPage + 1)
+      
+      // Adjust if we're near the start or end
+      if (currentPage <= 2) {
+        end = 4
+      } else if (currentPage >= totalPages - 1) {
+        start = totalPages - 3
+      }
+      
+      // Add ellipsis if needed
+      if (start > 2) {
+        pages.push(-1) // -1 represents ellipsis
+      }
+      
+      // Add middle pages
+      for (let i = start; i <= end; i++) {
+        pages.push(i)
+      }
+      
+      // Add ellipsis if needed
+      if (end < totalPages - 1) {
+        pages.push(-2) // -2 represents ellipsis
+      }
+      
+      // Always show last page
+      if (totalPages > 1) {
+        pages.push(totalPages)
+      }
+    }
+    
+    return pages
+  }
+  
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
@@ -330,9 +414,6 @@ export default function TransactionsPage() {
               <SelectItem value="setoran">Setoran</SelectItem>
               <SelectItem value="penarikan">Penarikan</SelectItem>
               <SelectItem value="pembayaran_pinjaman">Angsuran</SelectItem>
-              <SelectItem value="pencairan_pinjaman">Pinjaman</SelectItem>
-              <SelectItem value="biaya_admin">Biaya Admin</SelectItem>
-              <SelectItem value="bunga">Bunga</SelectItem>
               <SelectItem value="lainnya">Lainnya</SelectItem>
             </SelectContent>
           </Select>
@@ -382,7 +463,7 @@ export default function TransactionsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTransactions.map((transaction) => (
+              {getCurrentPageData().map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell className="font-medium">
                     {transaction.reference_number || transaction.id.substring(0, 8)}
@@ -446,19 +527,56 @@ export default function TransactionsPage() {
       )}
 
       {!isLoading && filteredTransactions.length > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Menampilkan {filteredTransactions.length} transaksi
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-muted-foreground">
+              Menampilkan {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredTransactions.length)} dari {filteredTransactions.length} transaksi
+            </div>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Per halaman" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 per halaman</SelectItem>
+                <SelectItem value="20">20 per halaman</SelectItem>
+                <SelectItem value="50">50 per halaman</SelectItem>
+                <SelectItem value="100">100 per halaman</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="icon">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">Halaman sebelumnya</span>
             </Button>
-            <Button variant="outline" size="sm" className="h-8 w-8">
-              1
-            </Button>
-            <Button variant="outline" size="icon">
+            
+            {getPageNumbers().map((page, index) => (
+              page < 0 ? (
+                <div key={`ellipsis-${index}`} className="px-2">...</div>
+              ) : (
+                <Button 
+                  key={page}
+                  variant={currentPage === page ? "default" : "outline"} 
+                  size="sm" 
+                  className={`h-8 w-8 ${currentPage === page ? 'pointer-events-none' : ''}`}
+                  onClick={() => handlePageChange(page)}
+                >
+                  {page}
+                </Button>
+              )
+            ))}
+            
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
               <ChevronRight className="h-4 w-4" />
               <span className="sr-only">Halaman berikutnya</span>
             </Button>
