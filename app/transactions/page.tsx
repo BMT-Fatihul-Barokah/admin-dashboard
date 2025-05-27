@@ -299,12 +299,21 @@ export default function TransactionsPage() {
       tipe_transaksi: 'Jenis Transaksi',
       kategori: 'Kategori',
       jumlah: 'Jumlah',
+      'rekening_pinjaman': 'Rekening/Pinjaman',
       created_at: 'Tanggal'
     }
     
     // Format data with transformations
     const exportData = formatDataForExport(
-      filteredTransactions,
+      filteredTransactions.map(transaction => ({
+        ...transaction,
+        // Add a virtual field for rekening/pinjaman
+        rekening_pinjaman: transaction.tabungan 
+          ? `${transaction.tabungan.jenis_tabungan?.nama || 'Tabungan'}` 
+          : transaction.pinjaman 
+            ? `${transaction.pinjaman.jenis_pinjaman || 'Pinjaman'}` 
+            : '-'
+      })),
       fieldMap,
       {
         'Nama Anggota': (value: any, row: Transaksi) => row.anggota?.nama || 'Anggota',
