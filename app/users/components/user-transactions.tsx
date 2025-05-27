@@ -89,7 +89,7 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px]">
         <DialogHeader>
           <DialogTitle>Riwayat Transaksi</DialogTitle>
           <DialogDescription>
@@ -107,63 +107,62 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
           </div>
         ) : (
           <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Deskripsi</TableHead>
-                  <TableHead>Referensi</TableHead>
-                  <TableHead className="text-right">Jumlah</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>{formatDate(transaction.created_at)}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={transaction.tipe_transaksi === 'kredit' ? 'default' : 'outline'}
-                        className={transaction.tipe_transaksi === 'kredit' 
-                          ? "bg-green-500 hover:bg-green-600" 
-                          : "text-red-500 border-red-500"
-                        }
-                      >
-                        {transaction.tipe_transaksi === 'kredit' ? (
-                          <ArrowDownIcon className="mr-1 h-3 w-3" />
-                        ) : (
-                          <ArrowUpIcon className="mr-1 h-3 w-3" />
-                        )}
-                        {transaction.tipe_transaksi === 'kredit' ? 'Masuk' : 'Keluar'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{transaction.kategori}</TableCell>
-                    <TableCell>{transaction.deskripsi || '-'}</TableCell>
-                    <TableCell>{transaction.reference_number || '-'}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      <span className={transaction.tipe_transaksi === 'kredit' ? 'text-green-600' : 'text-red-600'}>
-                        {transaction.tipe_transaksi === 'kredit' ? '+' : '-'} Rp {Number(transaction.jumlah).toLocaleString('id-ID')}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      Rp {Number(transaction.saldo_sesudah).toLocaleString('id-ID')}
-                    </TableCell>
+            <div className="max-h-[60vh] overflow-y-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead>Tipe</TableHead>
+                    <TableHead>Kategori</TableHead>
+                    <TableHead>Deskripsi</TableHead>
+                    <TableHead>Referensi</TableHead>
+                    <TableHead className="text-right">Jumlah</TableHead>
+                    <TableHead className="text-right">Saldo</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {transactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>{formatDate(transaction.created_at)}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={transaction.tipe_transaksi === 'kredit' ? 'default' : 'outline'}
+                          className={transaction.tipe_transaksi === 'kredit' 
+                            ? "bg-green-500 hover:bg-green-600" 
+                            : "text-red-500 border-red-500"
+                          }
+                        >
+                          {transaction.tipe_transaksi === 'kredit' ? (
+                            <ArrowDownIcon className="mr-1 h-3 w-3" />
+                          ) : (
+                            <ArrowUpIcon className="mr-1 h-3 w-3" />
+                          )}
+                          {transaction.tipe_transaksi === 'kredit' ? 'Masuk' : 'Keluar'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{transaction.kategori}</TableCell>
+                      <TableCell>{transaction.deskripsi || '-'}</TableCell>
+                      <TableCell>{transaction.reference_number || '-'}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        <span className={transaction.tipe_transaksi === 'kredit' ? 'text-green-600' : 'text-red-600'}>
+                          {transaction.tipe_transaksi === 'kredit' ? '+' : '-'} Rp {Number(transaction.jumlah).toLocaleString('id-ID')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        Rp {Number(transaction.saldo_sesudah).toLocaleString('id-ID')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
         
-        <div className="flex justify-between items-center mt-4">
+        <div className="flex justify-center items-center mt-4">
           <p className="text-sm text-muted-foreground">
             Menampilkan {transactions.length} transaksi terakhir
           </p>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Tutup
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
