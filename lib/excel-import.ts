@@ -53,6 +53,7 @@ export type TransaksiExcelRow = {
   'Jenis Transaksi': string; // masuk or keluar
   'Kategori': string; // setoran, penarikan, etc.
   'Jumlah': string | number; // Amount (might be formatted as currency)
+  'Rekening/Pinjaman': string; // Account or loan type
   'Tanggal': string | number; // Might be Excel date or formatted date string
   'Deskripsi'?: string; // Optional description
 };
@@ -503,40 +504,167 @@ export async function importTransactionData(
           console.log(`Found member via exact match: ${anggotaData.nama} (ID: ${anggotaData.id})`);
         }
 
-        // Find the tabungan (savings account) for this anggota
-        console.log(`Looking for savings account for member ID: ${anggotaData.id}`);
 
-        // Try to get the default tabungan first
-        const { data: defaultTabungan, error: defaultTabunganError } = await supabase
-          .from('tabungan')
-          .select('id, saldo, is_default')
-          .eq('anggota_id', anggotaData.id)
-          .eq('is_default', true)
-          .limit(1)
-          .single();
-
-        // If no default tabungan found, try to get any tabungan
-        let tabunganData: { id: any, saldo: any };
-
-        if (defaultTabunganError || !defaultTabungan) {
-          console.log(`No default savings account found, trying to find any savings account...`);
-          const { data: anyTabungan, error: anyTabunganError } = await supabase
-            .from('tabungan')
-            .select('id, saldo')
+        
+        // Check if this is a savings account or loan transaction based on 'Rekening/Pinjaman' field
+        const accountOrLoanName = row['Rekening/Pinjaman'];
+        console.log(`Transaction for: ${accountOrLoanName}`);
+        
+        // Variables to track which account type we're dealing with
+        let isLoanTransaction = false;
+        let tabunganData: { id: any, saldo: any } | null = null;
+        let pinjamanData: { id: any, sisa_pembayaran: any, total_pembayaran: any, status: string } | null = null;
+        
+        // First check if this matches a loan type
+        const loanTypes = [
+          'Pinjaman Umum', 'Pembiayaan Usaha', 'Pinjaman Usaha', 'Pinjaman Modal Usaha',
+          'Pembiayaan Pendidikan', 'Pinjaman Pendidikan', 'Pendidikan',
+          'Pinjaman Darurat', 'Pembiayaan Konsumtif', 'Pinjaman Konsumtif',
+          'Pinjaman Kendaraan', 'Pembiayaan Kendaraan', 'Modal Usaha'
+        ];
+        
+        if (loanTypes.some(type => accountOrLoanName.includes(type))) {
+          isLoanTransaction = true;
+          console.log(`This appears to be a loan transaction for: ${accountOrLoanName}`);
+          
+          // Find the loan by type and member - first try active loans
+          let { data: loanData, error: loanError } = await supabase
+            .from('pinjaman')
+            .select('id, jenis_pinjaman, sisa_pembayaran, total_pembayaran, status')
             .eq('anggota_id', anggotaData.id)
-            .limit(1)
-            .single();
+            .eq('status', 'aktif')
+            .ilike('jenis_pinjaman', `%${accountOrLoanName}%`)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          // Normalize transaction type and category first (moved up to avoid reference errors)
+          const tipeTransaksi = row['Jenis Transaksi'].toLowerCase() === 'keluar' ? 'keluar' : 'masuk';
+          let kategori = row['Kategori'].toLowerCase();
+
+          // Map common categories
+          const kategoriMap: {[key: string]: string} = {
+            'setoran': 'setoran',
+            'penarikan': 'penarikan',
+            'bunga': 'bunga',
+            'bagi hasil': 'bunga',
+            'bagi_hasil': 'bunga',
+            'biaya admin': 'biaya_admin',
+            'biaya_admin': 'biaya_admin',
+            'angsuran': 'pembayaran_pinjaman',
+            'pembayaran pinjaman': 'pembayaran_pinjaman',
+            'pembayaran_pinjaman': 'pembayaran_pinjaman',
+            'cicilan': 'pembayaran_pinjaman',
+            'pinjaman': 'pencairan_pinjaman',
+            'pencairan pinjaman': 'pencairan_pinjaman',
+            'pencairan_pinjaman': 'pencairan_pinjaman',
+            'pencairan': 'pencairan_pinjaman',
+            'pinjaman baru': 'pencairan_pinjaman',
+            'pinjaman_baru': 'pencairan_pinjaman',
+            'zakat': 'lainnya',
+            'infaq': 'lainnya',
+            'sedekah': 'lainnya',
+            'donasi': 'lainnya',
+            'lainnya': 'lainnya'
+          };
+
+          kategori = kategoriMap[kategori] || 'lainnya';
+          
+          // If no active loan found, try to find the most recent loan of this type regardless of status
+          if (loanError || !loanData || loanData.length === 0) {
+            console.log(`No active loan found for member: ${anggotaData.nama}, loan type: ${accountOrLoanName}. Trying to find any loan...`);
             
-          if (anyTabunganError || !anyTabungan) {
-            console.error(`No savings account found for member: ${anggotaData.nama}, error:`, anyTabunganError);
-            throw new Error(`No savings account found for member: ${row['Nama Anggota']}`);
+            const { data: anyLoanData, error: anyLoanError } = await supabase
+              .from('pinjaman')
+              .select('id, jenis_pinjaman, sisa_pembayaran, total_pembayaran, status')
+              .eq('anggota_id', anggotaData.id)
+              .ilike('jenis_pinjaman', `%${accountOrLoanName}%`)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            
+            if (anyLoanError || !anyLoanData || anyLoanData.length === 0) {
+              console.error(`No loan found for member: ${anggotaData.nama}, loan type: ${accountOrLoanName}, error:`, anyLoanError);
+              
+              // If this is a loan payment and no loan is found, we'll create a special error record
+              if (kategori === 'pembayaran_pinjaman') {
+                result.errors.push({
+                  row: result.processed,
+                  data: row,
+                  error: `No loan found for member: ${row['Nama Anggota']} with type: ${accountOrLoanName}`
+                });
+                continue; // Skip this transaction and move to the next one
+              } else {
+                throw new Error(`No loan found for member: ${row['Nama Anggota']} with type: ${accountOrLoanName}`);
+              }
+            }
+            
+            loanData = anyLoanData;
+            console.log(`Found non-active loan: ${loanData[0].id} with status ${loanData[0].status}`);
           }
           
-          tabunganData = anyTabungan;
-          console.log(`Found non-default savings account: ${tabunganData.id} with balance ${tabunganData.saldo}`);
+          // Use the first loan found
+          pinjamanData = loanData[0];
+          console.log(`Using loan: ${pinjamanData.id} with status ${pinjamanData.status} and remaining balance ${pinjamanData.sisa_pembayaran}`);
+          
+          // If the loan is already paid off (status = 'lunas') and this is a payment, warn about it
+          if (pinjamanData.status === 'lunas' && kategori === 'pembayaran_pinjaman') {
+            console.warn(`Warning: Payment for an already paid off loan: ${pinjamanData.id} for member ${anggotaData.nama}`);
+          }
+          console.log(`Found loan: ${pinjamanData.id} with remaining balance ${pinjamanData.sisa_pembayaran}`);
         } else {
-          tabunganData = defaultTabungan;
-          console.log(`Found default savings account: ${tabunganData.id} with balance ${tabunganData.saldo}`);
+          // This is a savings account transaction
+          console.log(`Looking for savings account for member ID: ${anggotaData.id} with name: ${accountOrLoanName}`);
+          
+          // Try to find the specific savings account by name
+          const { data: matchingTabungan, error: matchingTabunganError } = await supabase
+            .from('tabungan')
+            .select('id, saldo, jenis_tabungan_id, jenis_tabungan(nama)')
+            .eq('anggota_id', anggotaData.id)
+            .eq('status', 'aktif')
+            .order('created_at', { ascending: false })
+            .limit(10);
+          
+          if (matchingTabunganError || !matchingTabungan || matchingTabungan.length === 0) {
+            console.error(`No savings accounts found for member: ${anggotaData.nama}, error:`, matchingTabunganError);
+            throw new Error(`No savings accounts found for member: ${row['Nama Anggota']}`);
+          }
+          
+          // Find the account that matches the name in the Excel
+          let foundAccount = false;
+          for (const account of matchingTabungan) {
+            // @ts-ignore - jenis_tabungan is a joined table
+            const accountName = account.jenis_tabungan?.nama;
+            if (accountName && accountOrLoanName.includes(accountName)) {
+              tabunganData = account;
+              foundAccount = true;
+              console.log(`Found matching savings account: ${tabunganData.id} with name ${accountName} and balance ${tabunganData.saldo}`);
+              break;
+            }
+          }
+          
+          // If no specific match found, use the default account
+          if (!foundAccount) {
+            // Try to get the default tabungan
+            const { data: defaultTabungan, error: defaultTabunganError } = await supabase
+              .from('tabungan')
+              .select('id, saldo, is_default')
+              .eq('anggota_id', anggotaData.id)
+              .eq('is_default', true)
+              .limit(1)
+              .single();
+            
+            if (defaultTabunganError || !defaultTabungan) {
+              // If no default, use the first active account
+              if (matchingTabungan.length > 0) {
+                tabunganData = matchingTabungan[0];
+                console.log(`Using first available savings account: ${tabunganData.id} with balance ${tabunganData.saldo}`);
+              } else {
+                throw new Error(`No suitable savings account found for member: ${row['Nama Anggota']}`);
+              }
+            } else {
+              tabunganData = defaultTabungan;
+              console.log(`Using default savings account: ${tabunganData.id} with balance ${tabunganData.saldo}`);
+            }
+          }
         }
 
         // Normalize transaction type and category
@@ -548,14 +676,25 @@ export async function importTransactionData(
           'setoran': 'setoran',
           'penarikan': 'penarikan',
           'bunga': 'bunga',
+          'bagi hasil': 'bunga',
+          'bagi_hasil': 'bunga',
           'biaya admin': 'biaya_admin',
           'biaya_admin': 'biaya_admin',
           'angsuran': 'pembayaran_pinjaman',
           'pembayaran pinjaman': 'pembayaran_pinjaman',
           'pembayaran_pinjaman': 'pembayaran_pinjaman',
+          'cicilan': 'pembayaran_pinjaman',
           'pinjaman': 'pencairan_pinjaman',
           'pencairan pinjaman': 'pencairan_pinjaman',
-          'pencairan_pinjaman': 'pencairan_pinjaman'
+          'pencairan_pinjaman': 'pencairan_pinjaman',
+          'pencairan': 'pencairan_pinjaman',
+          'pinjaman baru': 'pencairan_pinjaman',
+          'pinjaman_baru': 'pencairan_pinjaman',
+          'zakat': 'lainnya',
+          'infaq': 'lainnya',
+          'sedekah': 'lainnya',
+          'donasi': 'lainnya',
+          'lainnya': 'lainnya'
         };
 
         kategori = kategoriMap[kategori] || 'lainnya';
@@ -579,61 +718,137 @@ export async function importTransactionData(
         const randomStr = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         const referenceNumber = `TRX-${dateStr}-${randomStr}`;
 
-        // Calculate new balance
-        let newBalance = Number(tabunganData.saldo);
-        if (tipeTransaksi === 'masuk') {
-          newBalance += amount;
+        // Prepare transaction data based on whether it's a savings or loan transaction
+        let transactionData: any;
+        
+        if (isLoanTransaction && pinjamanData) {
+          // For loan transactions
+          // Calculate new remaining balance for the loan
+          let newRemainingBalance = Number(pinjamanData.sisa_pembayaran);
+          if (tipeTransaksi === 'masuk' && kategori === 'pembayaran_pinjaman') {
+            // Payment towards the loan reduces the remaining balance
+            newRemainingBalance -= amount;
+            if (newRemainingBalance < 0) newRemainingBalance = 0; // Prevent negative balance
+          } else if (tipeTransaksi === 'keluar' && kategori === 'pencairan_pinjaman') {
+            // Loan disbursement increases the remaining balance
+            newRemainingBalance += amount;
+          }
+          
+          // Calculate progress percentage
+          const totalLoan = Number(pinjamanData.total_pembayaran);
+          const progressPercentage = totalLoan > 0 ? 
+            Math.min(Math.floor(((totalLoan - newRemainingBalance) / totalLoan) * 100), 100) : 0;
+          
+          // Prepare transaction data for loan
+          transactionData = {
+            anggota_id: anggotaData.id,
+            pinjaman_id: pinjamanData.id,
+            reference_number: referenceNumber,
+            tipe_transaksi: tipeTransaksi,
+            kategori: kategori,
+            jumlah: amount,
+            deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} ${kategori} - ${accountOrLoanName}`,
+            saldo_sebelum: pinjamanData.sisa_pembayaran,
+            saldo_sesudah: newRemainingBalance,
+            created_at: transactionDate.toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          console.log('Attempting to insert loan transaction with data:', transactionData);
+          
+          // Insert transaction
+          const { data: insertedTransaction, error: transactionError } = await supabase
+            .from('transaksi')
+            .insert(transactionData)
+            .select();
+          
+          if (transactionError) {
+            console.error('Loan transaction insert error:', transactionError);
+            throw new Error(`Failed to insert loan transaction: ${transactionError.message || 'Unknown error'}`);
+          }
+          
+          console.log('Loan transaction inserted successfully:', insertedTransaction);
+          
+          // Update loan remaining balance only - don't update progress_percentage as it's a computed column
+          console.log(`Updating loan ${pinjamanData.id} remaining balance from ${pinjamanData.sisa_pembayaran} to ${newRemainingBalance}`);
+          
+          const { error: updateError } = await supabase
+            .from('pinjaman')
+            .update({ 
+              sisa_pembayaran: newRemainingBalance,
+              updated_at: new Date().toISOString(),
+              // If fully paid, update status
+              ...(newRemainingBalance <= 0 ? { status: 'lunas' } : {})
+            })
+            .eq('id', pinjamanData.id);
+          
+          if (updateError) {
+            console.error('Error updating loan balance:', updateError);
+            throw new Error(`Failed to update loan balance: ${updateError.message || 'Unknown error'}`);
+          }
+          
+          console.log('Loan balance updated successfully');
+          
+        } else if (tabunganData) {
+          // For savings account transactions
+          // Calculate new balance
+          let newBalance = Number(tabunganData.saldo);
+          if (tipeTransaksi === 'masuk') {
+            newBalance += amount;
+          } else {
+            newBalance -= amount;
+          }
+          
+          // Prepare transaction data for savings account
+          transactionData = {
+            anggota_id: anggotaData.id,
+            tabungan_id: tabunganData.id,
+            reference_number: referenceNumber,
+            tipe_transaksi: tipeTransaksi,
+            kategori: kategori,
+            jumlah: amount,
+            deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} ${kategori} - ${accountOrLoanName}`,
+            saldo_sebelum: tabunganData.saldo,
+            saldo_sesudah: newBalance,
+            created_at: transactionDate.toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          console.log('Attempting to insert savings transaction with data:', transactionData);
+          
+          // Insert transaction
+          const { data: insertedTransaction, error: transactionError } = await supabase
+            .from('transaksi')
+            .insert(transactionData)
+            .select();
+          
+          if (transactionError) {
+            console.error('Savings transaction insert error:', transactionError);
+            throw new Error(`Failed to insert savings transaction: ${transactionError.message || 'Unknown error'}`);
+          }
+          
+          console.log('Savings transaction inserted successfully:', insertedTransaction);
+          
+          // Update savings account balance
+          console.log(`Updating savings account ${tabunganData.id} balance from ${tabunganData.saldo} to ${newBalance}`);
+          
+          const { error: updateError } = await supabase
+            .from('tabungan')
+            .update({ 
+              saldo: newBalance,
+              last_transaction_date: new Date().toISOString()
+            })
+            .eq('id', tabunganData.id);
+          
+          if (updateError) {
+            console.error('Error updating savings balance:', updateError);
+            throw new Error(`Failed to update savings balance: ${updateError.message || 'Unknown error'}`);
+          }
+          
+          console.log('Savings balance updated successfully');
         } else {
-          newBalance -= amount;
+          throw new Error(`No valid account or loan found for this transaction`);
         }
-
-        // Prepare transaction data
-        const transactionData = {
-          anggota_id: anggotaData.id,
-          tabungan_id: tabunganData.id,
-          reference_number: referenceNumber,
-          tipe_transaksi: tipeTransaksi,
-          kategori: kategori,
-          jumlah: amount,
-          deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} ${kategori}`,
-          saldo_sebelum: tabunganData.saldo,
-          saldo_sesudah: newBalance,
-          created_at: transactionDate.toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        console.log('Attempting to insert transaction with data:', transactionData);
-
-        // Insert transaction
-        const { data: insertedTransaction, error: transactionError } = await supabase
-          .from('transaksi')
-          .insert(transactionData)
-          .select();
-
-        if (transactionError) {
-          console.error('Transaction insert error:', transactionError);
-          throw new Error(`Failed to insert transaction: ${transactionError.message || 'Unknown error'}`);
-        }
-
-        console.log('Transaction inserted successfully:', insertedTransaction);
-
-        // Update tabungan balance
-        console.log(`Updating tabungan ${tabunganData.id} balance from ${tabunganData.saldo} to ${newBalance}`);
-
-        const { error: updateError } = await supabase
-          .from('tabungan')
-          .update({ 
-            saldo: newBalance,
-            last_transaction_date: new Date().toISOString()
-          })
-          .eq('id', tabunganData.id);
-
-        if (updateError) {
-          console.error('Error updating tabungan balance:', updateError);
-          throw new Error(`Failed to update balance: ${updateError.message || 'Unknown error'}`);
-        }
-
-        console.log('Balance updated successfully');
         result.created++;
 
         // Report progress
