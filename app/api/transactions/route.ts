@@ -13,21 +13,39 @@ interface Transaksi {
   saldo_sebelum?: number;
   saldo_sesudah?: number;
   pinjaman_id?: string;
+  tabungan_id?: string;
   created_at: string;
   updated_at: string;
   anggota?: { nama: string } | null;
+  tabungan?: { 
+    nomor_rekening: string;
+    saldo: number;
+    jenis_tabungan_id: string;
+    jenis_tabungan?: {
+      nama: string;
+      kode: string;
+    } | null;
+  } | null;
+  pinjaman?: {
+    id: string;
+    jumlah: number;
+    sisa_pembayaran: number;
+    jenis_pinjaman: string;
+  } | null;
 }
 
 export async function GET() {
   try {
     console.log('Fetching transactions from Supabase...')
     
-    // Fetch transactions with anggota information
+    // Fetch transactions with anggota, tabungan, and pinjaman information
     const { data, error } = await supabase
       .from('transaksi')
       .select(`
         *,
-        anggota:anggota_id(nama)
+        anggota:anggota_id(nama),
+        tabungan:tabungan_id(nomor_rekening, saldo, jenis_tabungan_id, jenis_tabungan:jenis_tabungan_id(nama, kode)),
+        pinjaman:pinjaman_id(id, jumlah, sisa_pembayaran, jenis_pinjaman)
       `)
       .order('created_at', { ascending: false })
     

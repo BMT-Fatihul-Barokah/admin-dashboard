@@ -22,8 +22,24 @@ interface Transaksi {
   saldo_sebelum?: number;
   saldo_sesudah?: number;
   pinjaman_id?: string;
+  tabungan_id?: string;
   created_at: string;
   updated_at: string;
+  tabungan?: { 
+    nomor_rekening: string;
+    saldo: number;
+    jenis_tabungan_id: string;
+    jenis_tabungan?: {
+      nama: string;
+      kode: string;
+    } | null;
+  } | null;
+  pinjaman?: {
+    id: string;
+    jumlah: number;
+    sisa_pembayaran: number;
+    jenis_pinjaman: string;
+  } | null;
 }
 
 interface TransactionDetailModalProps {
@@ -137,10 +153,26 @@ export function TransactionDetailModal({
             )}
           </div>
           
-          {transaction.pinjaman_id && (
+          {transaction.tabungan && (
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">ID Pinjaman Terkait</p>
-              <p>{transaction.pinjaman_id}</p>
+              <p className="text-sm font-medium text-muted-foreground">Rekening Tabungan</p>
+              <div>
+                <p><span className="font-medium">{transaction.tabungan.jenis_tabungan?.nama || 'Tabungan'}</span></p>
+                <p className="text-sm text-muted-foreground">No. Rekening: {transaction.tabungan.nomor_rekening}</p>
+                <p className="text-sm text-muted-foreground">Saldo Saat Ini: {formatCurrency(Number(transaction.tabungan.saldo))}</p>
+              </div>
+            </div>
+          )}
+          
+          {transaction.pinjaman && (
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Pinjaman Terkait</p>
+              <div>
+                <p><span className="font-medium">{transaction.pinjaman.jenis_pinjaman || 'Pinjaman'}</span></p>
+                <p className="text-sm text-muted-foreground">ID: {transaction.pinjaman.id.substring(0, 8)}</p>
+                <p className="text-sm text-muted-foreground">Jumlah Pinjaman: {formatCurrency(Number(transaction.pinjaman.jumlah))}</p>
+                <p className="text-sm text-muted-foreground">Sisa Pembayaran: {formatCurrency(Number(transaction.pinjaman.sisa_pembayaran))}</p>
+              </div>
             </div>
           )}
         </div>

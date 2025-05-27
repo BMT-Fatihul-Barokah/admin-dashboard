@@ -39,8 +39,24 @@ interface Transaksi {
   saldo_sebelum?: number;
   saldo_sesudah?: number;
   pinjaman_id?: string;
+  tabungan_id?: string;
   created_at: string;
   updated_at: string;
+  tabungan?: { 
+    nomor_rekening: string;
+    saldo: number;
+    jenis_tabungan_id: string;
+    jenis_tabungan?: {
+      nama: string;
+      kode: string;
+    } | null;
+  } | null;
+  pinjaman?: {
+    id: string;
+    jumlah: number;
+    sisa_pembayaran: number;
+    jenis_pinjaman: string;
+  } | null;
 }
 
 export default function TransactionsPage() {
@@ -458,6 +474,7 @@ export default function TransactionsPage() {
                 <TableHead>Jenis</TableHead>
                 <TableHead>Kategori</TableHead>
                 <TableHead>Jumlah</TableHead>
+                <TableHead>Rekening/Pinjaman</TableHead>
                 <TableHead>Tanggal</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
@@ -478,6 +495,21 @@ export default function TransactionsPage() {
                   <TableCell>
                     {transaction.tipe_transaksi === 'masuk' ? '+ ' : '- '}
                     {formatCurrency(Number(transaction.jumlah))}
+                  </TableCell>
+                  <TableCell>
+                    {transaction.tabungan ? (
+                      <div className="flex flex-col">
+                        <span className="text-xs font-medium">{transaction.tabungan.jenis_tabungan?.nama || 'Tabungan'}</span>
+                        <span className="text-xs text-muted-foreground">{transaction.tabungan.nomor_rekening}</span>
+                      </div>
+                    ) : transaction.pinjaman ? (
+                      <div className="flex flex-col">
+                        <span className="text-xs font-medium">{transaction.pinjaman.jenis_pinjaman || 'Pinjaman'}</span>
+                        <span className="text-xs text-muted-foreground">ID: {transaction.pinjaman.id.substring(0, 8)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>{formatDate(transaction.created_at.toString())}</TableCell>
                   <TableCell className="text-right">
