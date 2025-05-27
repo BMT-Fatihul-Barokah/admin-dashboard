@@ -7,6 +7,7 @@ import { AdminSidebar } from "@/components/admin-sidebar"
 import { Toaster } from "@/components/ui/toaster"
 import { AdminAuthProvider } from "@/lib/admin-auth-context"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { NavigationProgress } from "@/components/navigation-progress"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,6 +30,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AdminAuthProvider>
+            <NavigationProgress />
             <div className="flex min-h-screen">
               <div className="sticky top-0 h-screen">
                 <AdminSidebar />
