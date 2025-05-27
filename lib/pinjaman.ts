@@ -9,11 +9,14 @@ export type Pinjaman = {
   jatuh_tempo: Date;
   total_pembayaran: number;
   sisa_pembayaran: number;
+  durasi_bulan: number;
+  progress_percentage: number;
   created_at: Date;
   updated_at: Date;
   anggota?: {
     nama: string;
   };
+  alasan?: string;
 }
 
 export type PinjamanInput = {
@@ -21,6 +24,7 @@ export type PinjamanInput = {
   jenis_pinjaman: string;
   jumlah: number;
   jatuh_tempo: string;
+  durasi_bulan: number;
   alasan?: string;
 }
 
@@ -120,6 +124,7 @@ export async function createPinjaman(pinjamanData: PinjamanInput): Promise<{ suc
         jenis_pinjaman: pinjamanData.jenis_pinjaman,
         jumlah: jumlah,
         jatuh_tempo: pinjamanData.jatuh_tempo,
+        durasi_bulan: pinjamanData.durasi_bulan || 3,
         status: 'aktif',
         total_pembayaran: jumlah,
         sisa_pembayaran: jumlah,

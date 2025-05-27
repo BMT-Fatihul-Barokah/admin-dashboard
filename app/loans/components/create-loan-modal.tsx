@@ -24,6 +24,16 @@ const LOAN_TYPES = [
   "Pinjaman Konsumtif"
 ]
 
+// Loan durations in months
+const LOAN_DURATIONS = [
+  { label: "3 Bulan", value: 3 },
+  { label: "4 Bulan", value: 4 },
+  { label: "6 Bulan", value: 6 },
+  { label: "8 Bulan", value: 8 },
+  { label: "12 Bulan (1 Tahun)", value: 12 },
+  { label: "24 Bulan (2 Tahun)", value: 24 },
+]
+
 interface Anggota {
   id: string;
   nama: string;
@@ -49,9 +59,11 @@ export function CreateLoanModal({
     jenis_pinjaman: "",
     jumlah: 0,
     jatuh_tempo: format(addMonths(new Date(), 3), 'yyyy-MM-dd'),
+    durasi_bulan: 3,
     alasan: ""
   })
   const [date, setDate] = useState<Date | undefined>(addMonths(new Date(), 3))
+  const [loanDuration, setLoanDuration] = useState<number>(3)
 
   // Reset form when modal opens
   useEffect(() => {
@@ -61,9 +73,11 @@ export function CreateLoanModal({
         jenis_pinjaman: "",
         jumlah: 0,
         jatuh_tempo: format(addMonths(new Date(), 3), 'yyyy-MM-dd'),
+        durasi_bulan: 3,
         alasan: ""
       })
       setDate(addMonths(new Date(), 3))
+      setLoanDuration(3)
     }
   }, [isOpen])
 
@@ -76,6 +90,18 @@ export function CreateLoanModal({
       }))
     }
   }, [date])
+
+  // Update due date when loan duration changes
+  const handleDurationChange = (durationInMonths: number) => {
+    setLoanDuration(durationInMonths)
+    const newDueDate = addMonths(new Date(), durationInMonths)
+    setDate(newDueDate)
+    setFormData(prev => ({
+      ...prev,
+      jatuh_tempo: format(newDueDate, 'yyyy-MM-dd'),
+      durasi_bulan: durationInMonths
+    }))
+  }
 
   const handleChange = (field: keyof PinjamanInput, value: string | number) => {
     setFormData(prev => ({
@@ -105,10 +131,11 @@ export function CreateLoanModal({
 
     setIsSubmitting(true)
     try {
-      // Ensure jumlah is a number
+      // Ensure jumlah is a number and all required fields are present
       const cleanedData = {
         ...formData,
-        jumlah: Number(formData.jumlah)
+        jumlah: Number(formData.jumlah),
+        durasi_bulan: loanDuration
       }
       
       // Create the loan
@@ -193,6 +220,27 @@ export function CreateLoanModal({
               value={formData.jumlah || ''}
               onChange={(e) => handleChange('jumlah', Number(e.target.value))}
             />
+          </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="loanDuration" className="text-right">
+              Durasi Pinjaman
+            </Label>
+            <Select 
+              value={loanDuration.toString()} 
+              onValueChange={(value) => handleDurationChange(Number(value))}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Pilih durasi pinjaman" />
+              </SelectTrigger>
+              <SelectContent>
+                {LOAN_DURATIONS.map((duration) => (
+                  <SelectItem key={duration.value} value={duration.value.toString()}>
+                    {duration.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="grid grid-cols-4 items-center gap-4">

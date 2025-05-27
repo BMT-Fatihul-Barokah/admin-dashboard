@@ -1,24 +1,34 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { format, parseISO } from "date-fns"
+import { format, parseISO, addMonths } from "date-fns"
 import { id } from "date-fns/locale"
-import { X, Save, AlertCircle } from "lucide-react"
+import { X, Save, AlertCircle, CalendarIcon, Loader2 } from "lucide-react"
 import { Pinjaman } from "@/lib/pinjaman"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { calculateMonthlyInstallment, recordPembayaranPinjaman, generatePaymentSchedule, getPembayaranByPinjamanId, PembayaranPinjaman } from "@/lib/pembayaran-pinjaman"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   loan: Pinjaman | null;
   onPaymentRecorded: () => void;
+}
+
+type PaymentScheduleItem = {
+  bulan_ke: number;
+  tanggal_jatuh_tempo: Date;
+  jumlah: number;
+  status: string;
 }
 
 export function RecordPaymentModal({
@@ -33,12 +43,76 @@ export function RecordPaymentModal({
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<number>(1);
+  const [monthlyInstallment, setMonthlyInstallment] = useState<number>(0);
+  const [previousPayments, setPreviousPayments] = useState<any[]>([]);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(false);
 
   // Format currency
   const formatCurrency = (amount: number) => {
     return `Rp ${amount.toLocaleString('id-ID')}`;
   };
 
+  // Load payment schedule and previous payments when loan changes
+  useEffect(() => {
+    if (loan) {
+      // Calculate monthly installment
+      const installment = calculateMonthlyInstallment(
+        Number(loan.jumlah), 
+        loan.durasi_bulan || 3
+      );
+      setMonthlyInstallment(installment);
+      setAmount(installment.toString());
+      
+      // Generate payment schedule
+      const startDate = new Date(loan.created_at);
+      const schedule = generatePaymentSchedule(
+        Number(loan.jumlah),
+        loan.durasi_bulan || 3,
+        startDate
+      );
+      setPaymentSchedule(schedule);
+      
+      // Find the next unpaid month
+      loadPreviousPayments(loan.id);
+    }
+  }, [loan]);
+  
+  // Load previous payments
+  const loadPreviousPayments = async (loanId: string) => {
+    setIsLoadingPayments(true);
+    try {
+      const payments = await getPembayaranByPinjamanId(loanId);
+      setPreviousPayments(payments);
+      
+      // Find the next unpaid month
+      const paidMonths = payments.map(p => p.bulan_ke);
+      for (let i = 1; i <= (loan?.durasi_bulan || 3); i++) {
+        if (!paidMonths.includes(i)) {
+          setSelectedMonth(i);
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading payments:', error);
+    } finally {
+      setIsLoadingPayments(false);
+    }
+  };
+  
+  // Handle month selection
+  const handleMonthSelection = (month: number) => {
+    setSelectedMonth(month);
+    // Set amount to the monthly installment for the selected month
+    const monthItem = paymentSchedule.find(item => item.bulan_ke === month);
+    if (monthItem) {
+      setAmount(monthItem.jumlah.toString());
+    } else {
+      setAmount(monthlyInstallment.toString());
+    }
+  };
+  
   // Reset form
   const resetForm = () => {
     setAmount("");
@@ -46,6 +120,7 @@ export function RecordPaymentModal({
     setReferenceNumber("");
     setNotes("");
     setError(null);
+    setSelectedMonth(1);
   };
 
   // Handle form submission
@@ -63,7 +138,7 @@ export function RecordPaymentModal({
     
     // Validate against remaining payment
     if (paymentAmount > Number(loan.sisa_pembayaran)) {
-      setError(`Jumlah pembayaran tidak boleh melebihi sisa pembayaran (${formatCurrency(Number(loan.sisa_pembayaran))})`);
+      setError(`Jumlah pembayaran tidak boleh melebihi sisa pembayaran (${formatCurrency(Number(loan.sisa_pembayaran))})`); 
       return;
     }
     
@@ -71,25 +146,58 @@ export function RecordPaymentModal({
     setError(null);
     
     try {
-      // In a real application, this would be a transaction to:
-      // 1. Create a payment record
-      // 2. Update the loan's remaining payment
-      // 3. Update the loan status if fully paid
-      // 4. Create a transaction record
+      // Directly update the loan balance first to ensure immediate UI update
+      const newBalance = Math.max(Number(loan.sisa_pembayaran) - paymentAmount, 0);
+      const newStatus = newBalance <= 0 ? 'lunas' : 'aktif';
       
-      // For demo purposes, we'll simulate a successful payment
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Update the loan record immediately
+      const { error: directUpdateError } = await supabase
+        .from('pinjaman')
+        .update({
+          sisa_pembayaran: newBalance,
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', loan.id);
       
-      // Show success message
-      toast.success("Pembayaran berhasil dicatat");
+      if (directUpdateError) {
+        console.error('Error directly updating loan balance:', directUpdateError);
+      }
       
-      // Close modal and refresh data
-      resetForm();
-      onClose();
-      onPaymentRecorded();
-    } catch (error) {
+      // Record the payment using the function
+      const result = await recordPembayaranPinjaman(
+        {
+          pinjaman_id: loan.id,
+          jumlah: paymentAmount,
+          bulan_ke: selectedMonth,
+          catatan: notes || `Pembayaran angsuran bulan ke-${selectedMonth} via ${paymentMethod}${referenceNumber ? ` (${referenceNumber})` : ''}`
+        },
+        loan.anggota_id
+      );
+      
+      if (result.success) {
+        // Call the backend function to update the loan balance
+        try {
+          await supabase.rpc('update_loan_balance', { loan_id: loan.id });
+        } catch (rpcError) {
+          console.error('Failed to update loan balance via RPC:', rpcError);
+        }
+        
+        // Show success message with new balance
+        toast.success(`Pembayaran berhasil dicatat. Sisa pembayaran: ${formatCurrency(newBalance)}`);
+        
+        // Close modal
+        resetForm();
+        onClose();
+        
+        // Force complete page refresh to ensure data is updated
+        window.location.reload();
+      } else {
+        setError(result.error?.message || "Gagal mencatat pembayaran");
+      }
+    } catch (error: any) {
       console.error('Error recording payment:', error);
-      setError("Terjadi kesalahan saat mencatat pembayaran");
+      setError("Terjadi kesalahan saat mencatat pembayaran: " + (error?.message || "Unknown error"));
     } finally {
       setIsSubmitting(false);
     }
@@ -114,16 +222,31 @@ export function RecordPaymentModal({
         
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4 mb-2">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Pinjaman</p>
-                <p className="font-medium">{formatCurrency(Number(loan.total_pembayaran))}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Sisa Pembayaran</p>
-                <p className="font-medium">{formatCurrency(Number(loan.sisa_pembayaran))}</p>
-              </div>
-            </div>
+            <Card className="mb-4">
+              <CardHeader className="pb-2">
+                <CardTitle>Informasi Pinjaman</CardTitle>
+                <CardDescription>
+                  Durasi: {loan.durasi_bulan || 3} bulan | Jatuh Tempo: {format(new Date(loan.jatuh_tempo), 'dd MMM yyyy')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 mb-2">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Pinjaman</p>
+                    <p className="font-medium">{formatCurrency(Number(loan.jumlah))}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Sisa Pembayaran</p>
+                    <p className="font-medium">{formatCurrency(Number(loan.sisa_pembayaran))}</p>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Progress Pembayaran</p>
+                  <Progress value={loan.progress_percentage || 0} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-1 text-right">{loan.progress_percentage || 0}%</p>
+                </div>
+              </CardContent>
+            </Card>
             
             {error && (
               <div className="bg-destructive/10 p-3 rounded-md flex items-start gap-2">
@@ -131,6 +254,33 @@ export function RecordPaymentModal({
                 <p className="text-sm text-destructive">{error}</p>
               </div>
             )}
+            
+            <div className="grid gap-2">
+              <Label htmlFor="installment-month">Angsuran Bulan Ke-</Label>
+              <Select 
+                value={selectedMonth.toString()} 
+                onValueChange={(value) => handleMonthSelection(Number(value))}
+                disabled={isSubmitting || isLoadingPayments}
+              >
+                <SelectTrigger id="installment-month">
+                  <SelectValue placeholder="Pilih bulan angsuran" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({length: loan.durasi_bulan || 3}, (_, i) => i + 1).map((month) => {
+                    const isPaid = previousPayments.some(p => p.bulan_ke === month);
+                    return (
+                      <SelectItem 
+                        key={month} 
+                        value={month.toString()}
+                        disabled={isPaid}
+                      >
+                        Bulan {month} {isPaid ? '(Sudah Dibayar)' : ''}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
             
             <div className="grid gap-2">
               <Label htmlFor="amount">Jumlah Pembayaran</Label>
@@ -143,6 +293,7 @@ export function RecordPaymentModal({
                 required
                 disabled={isSubmitting}
               />
+              <p className="text-xs text-muted-foreground">Angsuran per bulan: {formatCurrency(monthlyInstallment)}</p>
             </div>
             
             <div className="grid gap-2">
