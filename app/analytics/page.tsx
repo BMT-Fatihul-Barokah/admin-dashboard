@@ -13,6 +13,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, subMonths, differenceInMonths, addMonths } from "date-fns";
+import {
+  ImprovedTrendChart,
+  ImprovedPieChart,
+  ImprovedBarChart,
+  ImprovedLineChart,
+  ImprovedDarkLineChart,
+  ImprovedDualAxisBarChart,
+  CustomTooltip,
+  CHART_COLORS
+} from "./fixed-charts";
+
+import { StatusDistributionPieChart } from "./fixed-pie-charts";
+
 import { 
   AreaChart, 
   Area, 
@@ -36,19 +49,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Define types for our analytics data
-interface MonthlyData {
+// Define types for analytics data
+type MonthlyData = {
   month: string;
   name: string;
   value: number;
   count?: number;
   amount?: number;
-}
+};
 
-interface StatusDistribution {
+type StatusDistribution = {
   name: string;
   value: number;
-}
+  percentage?: number;
+};
 
 interface AnalyticsData {
   registrationData: MonthlyData[];
@@ -64,8 +78,7 @@ interface AnalyticsData {
   approvalRate: number;
 }
 
-// Colors for charts
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+// Colors for charts - using the imported CHART_COLORS from fixed-charts.tsx
 
 // Helper function to generate month ranges
 const generateMonthRanges = (months: number): { start: Date, end: Date, label: string }[] => {
@@ -133,7 +146,38 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
     });
   });
   
-  // 2. Fetch loan data by month
+  // 2. Fetch loan data by month using the new loan_trend_view
+  const { data: loanTrendData, error: loanTrendError } = await supabase
+    .from('loan_trend_view')
+    .select('*')
+    .gte('month', startDate);
+  
+  if (loanTrendError) {
+    console.error('Error fetching loan trend data:', loanTrendError);
+    throw new Error('Failed to fetch loan trend data');
+  }
+  
+  // Process loan data by month
+  monthRanges.forEach(range => {
+    // Find matching month in the loan trend data
+    const matchingMonth = loanTrendData?.find(trend => {
+      const trendMonth = new Date(trend.month);
+      const rangeMonth = range.start.getMonth();
+      const rangeYear = range.start.getFullYear();
+      return trendMonth.getMonth() === rangeMonth && trendMonth.getFullYear() === rangeYear;
+    });
+    
+    const amount = matchingMonth ? Number(matchingMonth.total_amount) : 0;
+    
+    loanData.push({
+      month: range.label,
+      name: range.label,
+      value: amount,
+      amount
+    });
+  });
+  
+  // Also fetch all loan data for other calculations
   const { data: pinjamanData, error: pinjamanError } = await supabase
     .from('pinjaman')
     .select('jumlah, created_at, status, jenis_pinjaman')
@@ -143,23 +187,6 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
     console.error('Error fetching pinjaman data:', pinjamanError);
     throw new Error('Failed to fetch loan data');
   }
-  
-  // Process loan data by month
-  monthRanges.forEach(range => {
-    const loansInMonth = pinjamanData?.filter(pinjaman => {
-      const createdAt = new Date(pinjaman.created_at);
-      return createdAt >= range.start && createdAt <= range.end;
-    }) || [];
-    
-    const amount = loansInMonth.reduce((sum, loan) => sum + Number(loan.jumlah), 0);
-    
-    loanData.push({
-      month: range.label,
-      name: range.label,
-      value: amount,
-      amount
-    });
-  });
   
   // 3. Fetch transaction data by month
   const { data: transaksiData, error: transaksiError } = await supabase
@@ -218,19 +245,36 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
     });
   });
   
-  // 6. Calculate loan type distribution
-  const loanTypeCounts: Record<string, number> = {};
-  pinjamanData?.forEach(pinjaman => {
-    const type = pinjaman.jenis_pinjaman;
-    loanTypeCounts[type] = (loanTypeCounts[type] || 0) + 1;
-  });
+  // 6. Calculate loan type distribution using the new loan_type_distribution_view
+  const { data: loanTypeData, error: loanTypeError } = await supabase
+    .from('loan_type_distribution_view')
+    .select('*');
   
-  Object.entries(loanTypeCounts).forEach(([type, count]) => {
-    loanTypeDistribution.push({
-      name: type,
-      value: count
+  if (loanTypeError) {
+    console.error('Error fetching loan type distribution:', loanTypeError);
+    // Fallback to the old calculation method if the view query fails
+    const loanTypeCounts: Record<string, number> = {};
+    pinjamanData?.forEach(pinjaman => {
+      const type = pinjaman.jenis_pinjaman;
+      loanTypeCounts[type] = (loanTypeCounts[type] || 0) + 1;
     });
-  });
+    
+    Object.entries(loanTypeCounts).forEach(([type, count]) => {
+      loanTypeDistribution.push({
+        name: type,
+        value: count
+      });
+    });
+  } else {
+    // Use the normalized data from the view
+    loanTypeData?.forEach(item => {
+      loanTypeDistribution.push({
+        name: item.name,
+        value: item.count,
+        percentage: item.count_percentage
+      });
+    });
+  }
   
   // Calculate summary metrics
   const totalRegistrations = registrationData.reduce((sum, item) => sum + item.value, 0);
@@ -289,24 +333,7 @@ export default function AnalyticsPage() {
     loadData();
   }, [timeRange]);
   
-  // Custom tooltip for charts
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-background border p-2 rounded-md shadow-sm">
-          <p className="font-medium">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={`item-${index}`} style={{ color: entry.color }}>
-              {entry.name}: {entry.value.toString().includes('.') 
-                ? formatCurrency(entry.value) 
-                : entry.value}
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
+  // Using the CustomTooltip from fixed-charts.tsx
   
   // Render the summary cards
   const renderSummaryCards = () => {
@@ -381,23 +408,10 @@ export default function AnalyticsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart
-                      data={analyticsData.loanData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                      <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend />
-                      <Bar yAxisId="left" dataKey="value" name="Jumlah Pinjaman" fill="#8884d8" />
-                      <Bar yAxisId="right" dataKey="count" name="Jumlah Pendaftaran" fill="#82ca9d" />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ImprovedDualAxisBarChart 
+                  data={analyticsData.loanData} 
+                  formatCurrency={formatCurrency} 
+                />
               </CardContent>
             </Card>
             
@@ -410,31 +424,13 @@ export default function AnalyticsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                        <Pie
-                          data={analyticsData.loanStatusDistribution}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {analyticsData.loanStatusDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <ImprovedPieChart 
+                    data={analyticsData.loanStatusDistribution} 
+                    formatCurrency={formatCurrency} 
+                  />
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Tren Transaksi</CardTitle>
@@ -443,26 +439,18 @@ export default function AnalyticsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={analyticsData.transactionData}
-                        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Area type="monotone" dataKey="value" name="Jumlah Transaksi" stroke="#8884d8" fill="#8884d8" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <ImprovedLineChart 
+                    data={analyticsData.transactionData} 
+                    dataKey="value" 
+                    name="Jumlah Transaksi" 
+                    formatCurrency={formatCurrency} 
+                  />
                 </CardContent>
               </Card>
             </div>
           </>
         );
-        
+
       case 'ketua':
         return (
           <>
@@ -474,24 +462,15 @@ export default function AnalyticsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={analyticsData.transactionData}
-                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend />
-                      <Area type="monotone" dataKey="value" name="Total Transaksi" stroke="#ffffff" fill="rgba(255,255,255,0.3)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                <ImprovedTrendChart 
+                  data={analyticsData.transactionData} 
+                  dataKey="value" 
+                  name="Total Transaksi" 
+                  formatCurrency={formatCurrency} 
+                />
               </CardContent>
             </Card>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <Card>
                 <CardHeader>
@@ -501,24 +480,15 @@ export default function AnalyticsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsLineChart
-                        data={analyticsData.registrationData}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend />
-                        <Line type="monotone" dataKey="value" name="Jumlah Pendaftaran" stroke="#8884d8" activeDot={{ r: 8 }} />
-                      </RechartsLineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <ImprovedLineChart 
+                    data={analyticsData.registrationData} 
+                    dataKey="value" 
+                    name="Jumlah Pendaftaran" 
+                    formatCurrency={formatCurrency} 
+                  />
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Distribusi Status Anggota</CardTitle>
@@ -541,7 +511,7 @@ export default function AnalyticsPage() {
                           dataKey="value"
                         >
                           {analyticsData.statusDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                           ))}
                         </Pie>
                         <Tooltip />
@@ -554,7 +524,7 @@ export default function AnalyticsPage() {
             </div>
           </>
         );
-        
+
       case 'sekretaris':
         return (
           <>
@@ -566,24 +536,15 @@ export default function AnalyticsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart
-                      data={analyticsData.registrationData}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend />
-                      <Line type="monotone" dataKey="value" name="Jumlah Pendaftaran" stroke="#ffffff" activeDot={{ r: 8 }} />
-                    </RechartsLineChart>
-                  </ResponsiveContainer>
-                </div>
+                <ImprovedDarkLineChart 
+                  data={analyticsData.registrationData} 
+                  dataKey="value" 
+                  name="Jumlah Pendaftaran" 
+                  formatCurrency={formatCurrency} 
+                />
               </CardContent>
             </Card>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <Card>
                 <CardHeader>
@@ -607,7 +568,7 @@ export default function AnalyticsPage() {
                           dataKey="value"
                         >
                           {analyticsData.statusDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                           ))}
                         </Pie>
                         <Tooltip />
@@ -617,7 +578,7 @@ export default function AnalyticsPage() {
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Aktivitas Pendaftaran Bulanan</CardTitle>
@@ -626,27 +587,18 @@ export default function AnalyticsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart
-                        data={analyticsData.registrationData}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend />
-                        <Bar dataKey="value" name="Jumlah Pendaftaran" fill="#8884d8" />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <ImprovedBarChart 
+                    data={analyticsData.registrationData} 
+                    dataKey="value" 
+                    name="Jumlah Pendaftaran" 
+                    formatCurrency={formatCurrency} 
+                  />
                 </CardContent>
               </Card>
             </div>
           </>
         );
-        
+
       case 'bendahara':
         return (
           <>
@@ -658,24 +610,16 @@ export default function AnalyticsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={analyticsData.loanData}
-                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend />
-                      <Area type="monotone" dataKey="value" name="Jumlah Pinjaman" stroke="#ffffff" fill="rgba(255,255,255,0.3)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                <ImprovedTrendChart 
+                  data={analyticsData.loanData} 
+                  dataKey="value" 
+                  name="Jumlah Pinjaman" 
+                  formatCurrency={formatCurrency}
+                  isDarkTheme={true} 
+                />
               </CardContent>
             </Card>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <Card>
                 <CardHeader>
@@ -685,31 +629,13 @@ export default function AnalyticsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                        <Pie
-                          data={analyticsData.loanTypeDistribution}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {analyticsData.loanTypeDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <ImprovedPieChart 
+                    data={analyticsData.loanTypeDistribution} 
+                    formatCurrency={formatCurrency} 
+                  />
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Status Pinjaman</CardTitle>
@@ -718,27 +644,18 @@ export default function AnalyticsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart
-                        data={analyticsData.loanStatusDistribution}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend />
-                        <Bar dataKey="value" name="Jumlah Pinjaman" fill="#8884d8" />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <ImprovedBarChart 
+                    data={analyticsData.loanStatusDistribution} 
+                    dataKey="value" 
+                    name="Jumlah Pinjaman" 
+                    formatCurrency={formatCurrency} 
+                  />
                 </CardContent>
               </Card>
             </div>
           </>
         );
-        
+
       default:
         return null;
     }
