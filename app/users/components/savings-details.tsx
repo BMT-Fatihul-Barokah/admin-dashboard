@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Loader2 } from "lucide-react"
@@ -94,40 +94,35 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
 
   if (isLoading) {
     return (
-      <DialogContent className="sm:max-w-[600px]">
-        <div className="flex justify-center items-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DialogContent>
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     )
   }
 
   if (error) {
     return (
-      <DialogContent className="sm:max-w-[600px]">
-        <div className="flex flex-col items-center py-8 text-center">
-          <p className="text-destructive mb-4">{error}</p>
-          <Button variant="outline" onClick={() => window.location.reload()}>
-            Coba Lagi
-          </Button>
-        </div>
-      </DialogContent>
+      <div className="flex flex-col items-center py-8 text-center">
+        <p className="text-destructive mb-4">{error}</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Coba Lagi
+        </Button>
+      </div>
     )
   }
 
   if (savingsAccounts.length === 0) {
     return (
-      <DialogContent className="sm:max-w-[600px]">
-        <div className="flex flex-col items-center py-8 text-center">
-          <p className="text-muted-foreground mb-4">Anggota ini belum memiliki tabungan</p>
-        </div>
-      </DialogContent>
+      <div className="flex flex-col items-center py-8 text-center">
+        <p className="text-muted-foreground mb-4">Anggota ini belum memiliki tabungan</p>
+      </div>
     )
   }
 
   return (
-    <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-      <div className="space-y-6">
+    <>
+      <div className="overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(80vh - 150px)' }}>
+        <div className="space-y-6">
         {savingsAccounts.map((account) => (
           <Card key={account.id} className={account.is_default ? "border-primary" : ""}>
             <CardHeader className="pb-2">
@@ -142,7 +137,7 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
               </div>
             </CardHeader>
             <CardContent className="pb-2">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-sm font-medium">Saldo</p>
                   <p className="text-2xl font-bold">{formatCurrency(account.saldo)}</p>
@@ -164,14 +159,14 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
                 )}
               </div>
               
-              <div className="mt-4 space-y-2">
+              <div className="mt-3 space-y-1">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Jenis Tabungan</span>
                   <span className="text-sm font-medium">{account.jenis_tabungan_kode} - {account.jenis_tabungan_nama}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Deskripsi</span>
-                  <span className="text-sm font-medium text-right max-w-[200px]">{account.jenis_tabungan_deskripsi}</span>
+                  <span className="text-sm font-medium text-right max-w-[180px] truncate" title={account.jenis_tabungan_deskripsi}>{account.jenis_tabungan_deskripsi}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Tanggal Buka</span>
@@ -222,13 +217,10 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
             </CardFooter>
           </Card>
         ))}
+        </div>
       </div>
-      <DialogFooter>
-        <Button variant="outline" type="button">
-          Tutup
-        </Button>
-      </DialogFooter>
-      
+
+
       {/* Transaction History Dialog */}
       {selectedAccount && (
         <UserTransactions 
@@ -242,6 +234,6 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
           onOpenChange={setTransactionsOpen}
         />
       )}
-    </DialogContent>
+    </>
   )
 }
