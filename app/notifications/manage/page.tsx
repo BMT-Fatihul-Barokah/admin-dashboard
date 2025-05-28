@@ -17,6 +17,10 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, Plus, Edit, Trash2, ArrowLeft, Search, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 type Notifikasi = {
   id: string;
@@ -38,7 +42,6 @@ type Anggota = {
   nama: string;
   nomor_anggota: string;
 }
-import Link from "next/link"
 
 export default function ManageNotificationsPage() {
   const router = useRouter()
@@ -55,9 +58,14 @@ export default function ManageNotificationsPage() {
     jenis: "info",
     judul: "",
     pesan: "",
-    anggota_id: "",
+    anggota_id: "null",
     data: {}
   })
+
+  // Anggota selection popover states
+  const [openAnggotaPopover, setOpenAnggotaPopover] = useState(false)
+  const [openEditAnggotaPopover, setOpenEditAnggotaPopover] = useState(false)
+  const [anggotaSearchQuery, setAnggotaSearchQuery] = useState("")
 
   // Format the date to a readable format
   const formatDate = (date: Date) => {
@@ -438,29 +446,86 @@ export default function ManageNotificationsPage() {
               <Label htmlFor="anggota_id" className="text-right">
                 Anggota (Opsional)
               </Label>
-              <Select 
-                value={formData.anggota_id} 
-                onValueChange={(value) => setFormData({...formData, anggota_id: value})}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Pilih anggota (kosongkan untuk notifikasi global)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="null">Notifikasi Global</SelectItem>
-                  {isLoadingAnggota ? (
-                    <div className="flex items-center justify-center p-2">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      <span>Memuat data anggota...</span>
-                    </div>
-                  ) : (
-                    anggotaList.map((anggota) => (
-                      <SelectItem key={anggota.id} value={anggota.id}>
-                        {anggota.nama} - {anggota.nomor_anggota}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <div className="col-span-3">
+                <Popover open={openAnggotaPopover} onOpenChange={setOpenAnggotaPopover}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openAnggotaPopover}
+                      className="w-full justify-between"
+                    >
+                      {formData.anggota_id === "null"
+                        ? "Notifikasi Global"
+                        : anggotaList.find((anggota) => anggota.id === formData.anggota_id)
+                          ? `${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nama} - ${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nomor_anggota}`
+                          : "Pilih anggota..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Cari anggota..." 
+                        className="h-9"
+                        value={anggotaSearchQuery}
+                        onValueChange={setAnggotaSearchQuery}
+                      />
+                      <CommandEmpty>Anggota tidak ditemukan.</CommandEmpty>
+                      <CommandGroup className="max-h-[300px] overflow-auto">
+                        <CommandItem
+                          key="global"
+                          value="global"
+                          onSelect={() => {
+                            setFormData({...formData, anggota_id: "null"})
+                            setOpenAnggotaPopover(false)
+                            setAnggotaSearchQuery("")
+                          }}
+                        >
+                          <span className={cn(
+                            "mr-2",
+                            formData.anggota_id === "null" ? "opacity-100" : "opacity-40"
+                          )}>
+                            🌐
+                          </span>
+                          Notifikasi Global
+                        </CommandItem>
+                        {isLoadingAnggota ? (
+                          <div className="flex items-center justify-center p-2">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span>Memuat data anggota...</span>
+                          </div>
+                        ) : (
+                          anggotaList
+                            .filter(anggota => 
+                              anggota.nama.toLowerCase().includes(anggotaSearchQuery.toLowerCase()) ||
+                              anggota.nomor_anggota.toLowerCase().includes(anggotaSearchQuery.toLowerCase())
+                            )
+                            .map((anggota) => (
+                              <CommandItem
+                                key={anggota.id}
+                                value={anggota.nama}
+                                onSelect={() => {
+                                  setFormData({...formData, anggota_id: anggota.id})
+                                  setOpenAnggotaPopover(false)
+                                  setAnggotaSearchQuery("")
+                                }}
+                              >
+                                <span className={cn(
+                                  "mr-2",
+                                  formData.anggota_id === anggota.id ? "opacity-100" : "opacity-40"
+                                )}>
+                                  👤
+                                </span>
+                                {anggota.nama} - {anggota.nomor_anggota}
+                              </CommandItem>
+                            ))
+                        )}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="data" className="text-right">
@@ -557,29 +622,86 @@ export default function ManageNotificationsPage() {
               <Label htmlFor="edit-anggota_id" className="text-right">
                 Anggota (Opsional)
               </Label>
-              <Select 
-                value={formData.anggota_id} 
-                onValueChange={(value) => setFormData({...formData, anggota_id: value})}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Pilih anggota (kosongkan untuk notifikasi global)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="null">Notifikasi Global</SelectItem>
-                  {isLoadingAnggota ? (
-                    <div className="flex items-center justify-center p-2">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      <span>Memuat data anggota...</span>
-                    </div>
-                  ) : (
-                    anggotaList.map((anggota) => (
-                      <SelectItem key={anggota.id} value={anggota.id}>
-                        {anggota.nama} - {anggota.nomor_anggota}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <div className="col-span-3">
+                <Popover open={openEditAnggotaPopover} onOpenChange={setOpenEditAnggotaPopover}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openEditAnggotaPopover}
+                      className="w-full justify-between"
+                    >
+                      {formData.anggota_id === "null"
+                        ? "Notifikasi Global"
+                        : anggotaList.find((anggota) => anggota.id === formData.anggota_id)
+                          ? `${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nama} - ${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nomor_anggota}`
+                          : "Pilih anggota..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Cari anggota..." 
+                        className="h-9"
+                        value={anggotaSearchQuery}
+                        onValueChange={setAnggotaSearchQuery}
+                      />
+                      <CommandEmpty>Anggota tidak ditemukan.</CommandEmpty>
+                      <CommandGroup className="max-h-[300px] overflow-auto">
+                        <CommandItem
+                          key="global-edit"
+                          value="global"
+                          onSelect={() => {
+                            setFormData({...formData, anggota_id: "null"})
+                            setOpenEditAnggotaPopover(false)
+                            setAnggotaSearchQuery("")
+                          }}
+                        >
+                          <span className={cn(
+                            "mr-2",
+                            formData.anggota_id === "null" ? "opacity-100" : "opacity-40"
+                          )}>
+                            🌐
+                          </span>
+                          Notifikasi Global
+                        </CommandItem>
+                        {isLoadingAnggota ? (
+                          <div className="flex items-center justify-center p-2">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span>Memuat data anggota...</span>
+                          </div>
+                        ) : (
+                          anggotaList
+                            .filter(anggota => 
+                              anggota.nama.toLowerCase().includes(anggotaSearchQuery.toLowerCase()) ||
+                              anggota.nomor_anggota.toLowerCase().includes(anggotaSearchQuery.toLowerCase())
+                            )
+                            .map((anggota) => (
+                              <CommandItem
+                                key={anggota.id}
+                                value={anggota.nama}
+                                onSelect={() => {
+                                  setFormData({...formData, anggota_id: anggota.id})
+                                  setOpenEditAnggotaPopover(false)
+                                  setAnggotaSearchQuery("")
+                                }}
+                              >
+                                <span className={cn(
+                                  "mr-2",
+                                  formData.anggota_id === anggota.id ? "opacity-100" : "opacity-40"
+                                )}>
+                                  👤
+                                </span>
+                                {anggota.nama} - {anggota.nomor_anggota}
+                              </CommandItem>
+                            ))
+                        )}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-data" className="text-right">
