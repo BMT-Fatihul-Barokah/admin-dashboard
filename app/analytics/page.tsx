@@ -24,6 +24,8 @@ import {
   CHART_COLORS
 } from "./fixed-charts";
 
+import { ImprovedTransactionTrendChart } from "./transaction-chart";
+
 import { StatusDistributionPieChart } from "./fixed-pie-charts";
 
 import { 
@@ -213,59 +215,79 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
     throw new Error('Failed to fetch loan data');
   }
   
-  // 3. Fetch transaction data by month
-  const { data: transaksiData, error: transaksiError } = await supabase
-    .from('transaksi')
-    .select('jumlah, created_at, tipe_transaksi')
-    .gte('created_at', startDate);
+  // 3. Fetch transaction data by month using stored procedure
+  const { data: monthlyTransactions, error: transactionError } = await supabase
+    .rpc('get_monthly_transactions', { start_date: startDate });
   
-  if (transaksiError) {
-    console.error('Error fetching transaksi data:', transaksiError);
-    throw new Error('Failed to fetch transaction data');
-  }
-  
-  // Process transaction data by month
-  monthRanges.forEach(range => {
-    const transactionsInMonth = transaksiData?.filter(transaksi => {
-      const createdAt = new Date(transaksi.created_at);
-      return createdAt >= range.start && createdAt <= range.end;
-    }) || [];
-    
-    const amount = transactionsInMonth.reduce((sum, transaction) => {
-      // Only count incoming transactions for the total
-      if (transaction.tipe_transaksi === 'masuk') {
-        return sum + Number(transaction.jumlah);
-      }
-      return sum;
-    }, 0);
-    
-    transactionData.push({
-      month: range.label,
-      name: range.label,
-      value: amount,
-      amount
-    });
-  });
-  
-  // Fetch anggota data for status distribution if not already fetched
-  let anggotaDataForStatus;
-  if (!registrationError) {
-    // If we used the RPC function, we need to fetch anggota data separately for status distribution
-    const { data: fetchedAnggotaData, error: fetchAnggotaError } = await supabase
-      .from('anggota')
-      .select('created_at, is_active')
+  if (transactionError) {
+    console.error('Error fetching transaction data:', transactionError);
+    // Fallback to direct query if stored procedure fails
+    const { data: transaksiData, error: transaksiError } = await supabase
+      .from('transaksi')
+      .select('jumlah, created_at, tipe_transaksi')
       .gte('created_at', startDate);
-      
-    if (fetchAnggotaError) {
-      console.error('Error fetching anggota data for status:', fetchAnggotaError);
-      throw new Error('Failed to fetch anggota status data');
+    
+    if (transaksiError) {
+      console.error('Error fetching transaksi data:', transaksiError);
+      throw new Error('Failed to fetch transaction data');
     }
     
-    anggotaDataForStatus = fetchedAnggotaData;
+    // Process transaction data by month
+    monthRanges.forEach(range => {
+      const transactionsInMonth = transaksiData?.filter(transaksi => {
+        const createdAt = new Date(transaksi.created_at);
+        return createdAt >= range.start && createdAt <= range.end;
+      }) || [];
+      
+      const amount = transactionsInMonth.reduce((sum, transaction) => {
+        // Only count incoming transactions for the total
+        if (transaction.tipe_transaksi === 'masuk') {
+          return sum + Number(transaction.jumlah);
+        }
+        return sum;
+      }, 0);
+      
+      transactionData.push({
+        month: range.label,
+        name: range.label,
+        value: amount,
+        amount
+      });
+    });
   } else {
-    // We already have anggota data from the fallback query
-    anggotaDataForStatus = anggotaData;
+    // Process data from the stored procedure
+    monthRanges.forEach(range => {
+      const monthKey = `${range.start.getFullYear()}-${String(range.start.getMonth() + 1).padStart(2, '0')}`;
+      const matchingData = monthlyTransactions.find((item: { month: string; total_amount: number; count: number }) => 
+        item.month.startsWith(monthKey)
+      );
+      const amount = matchingData ? Number(matchingData.total_amount) : 0;
+      const count = matchingData ? Number(matchingData.count) : 0;
+      
+      transactionData.push({
+        month: range.label,
+        name: range.label,
+        value: amount,
+        amount,
+        count
+      });
+    });
   }
+  
+  // Fetch anggota data for status distribution
+  let anggotaDataForStatus;
+  // Always fetch anggota data separately for status distribution to avoid errors
+  const { data: fetchedAnggotaData, error: fetchAnggotaError } = await supabase
+    .from('anggota')
+    .select('created_at, is_active')
+    .gte('created_at', startDate);
+    
+  if (fetchAnggotaError) {
+    console.error('Error fetching anggota data for status:', fetchAnggotaError);
+    throw new Error('Failed to fetch anggota status data');
+  }
+  
+  anggotaDataForStatus = fetchedAnggotaData;
   
   // Calculate status distribution
   const activeCount = anggotaDataForStatus?.filter((anggota: { is_active: boolean }) => anggota.is_active).length || 0;
@@ -484,12 +506,11 @@ export default function AnalyticsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ImprovedLineChart 
-                    data={analyticsData.transactionData} 
-                    dataKey="value" 
-                    name="Jumlah Transaksi" 
-                    formatCurrency={formatCurrency} 
-                  />
+                  <div className="h-80">
+                    <ImprovedTransactionTrendChart 
+                      data={analyticsData.transactionData} 
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </div>
