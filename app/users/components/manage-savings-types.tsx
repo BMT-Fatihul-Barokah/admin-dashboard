@@ -202,6 +202,56 @@ export function ManageSavingsTypes() {
         return
       }
 
+      // Check for duplicates - using separate queries for better accuracy
+      // Check for duplicate kode
+      const { data: duplicateKodes, error: kodeError } = await supabase
+        .from('jenis_tabungan')
+        .select('id, kode')
+        .ilike('kode', formData.kode)
+        .eq('is_active', true)
+        
+      if (kodeError) throw kodeError
+        
+      // Check for duplicate nama
+      const { data: duplicateNames, error: nameError } = await supabase
+        .from('jenis_tabungan')
+        .select('id, nama')
+        .ilike('nama', formData.nama)
+        .eq('is_active', true)
+        
+      if (nameError) throw nameError
+      
+      // Filter out the current record if in edit mode
+      const filteredKodes = editMode && selectedTypeId 
+        ? duplicateKodes?.filter(type => type.id !== selectedTypeId) 
+        : duplicateKodes
+        
+      const filteredNames = editMode && selectedTypeId 
+        ? duplicateNames?.filter(type => type.id !== selectedTypeId) 
+        : duplicateNames
+      
+      // Check for duplicates
+      if (filteredKodes && filteredKodes.length > 0) {
+
+        toast({
+          title: "⚠️ Duplikasi Kode",
+          description: `Kode tabungan '${formData.kode}' sudah digunakan oleh jenis tabungan lain`,
+          variant: "destructive"
+        })
+        setIsSubmitting(false)
+        return
+      }
+      
+      if (filteredNames && filteredNames.length > 0) {
+        toast({
+          title: "⚠️ Duplikasi Nama",
+          description: `Nama tabungan '${formData.nama}' sudah digunakan oleh jenis tabungan lain`,
+          variant: "destructive"
+        })
+        setIsSubmitting(false)
+        return
+      }
+
       if (editMode && selectedTypeId) {
         // Update existing savings type
         const { error } = await supabase
@@ -227,8 +277,8 @@ export function ManageSavingsTypes() {
         if (error) throw error
 
         toast({
-          title: "Berhasil",
-          description: "Jenis tabungan berhasil diperbarui",
+          title: "✅ Sukses",
+          description: `Jenis tabungan ${formData.nama} berhasil diperbarui`,
           variant: "default"
         })
       } else {
@@ -254,8 +304,8 @@ export function ManageSavingsTypes() {
         if (error) throw error
 
         toast({
-          title: "Berhasil",
-          description: "Jenis tabungan baru berhasil ditambahkan",
+          title: "✅ Sukses",
+          description: `Jenis tabungan ${formData.nama} berhasil ditambahkan`,
           variant: "default"
         })
       }

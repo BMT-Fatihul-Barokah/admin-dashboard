@@ -41,11 +41,24 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
   const [tanggalSetoranReguler, setTanggalSetoranReguler] = useState<number | null>(null)
   const [selectedType, setSelectedType] = useState<SavingsType | null>(null)
   
-  // Fetch available savings types
+  // Fetch available savings types (only those the member doesn't already have)
   useEffect(() => {
     async function fetchSavingsTypes() {
       setIsLoading(true)
       try {
+        // First, get the member's existing savings accounts
+        const { data: memberAccounts, error: memberError } = await supabase
+          .from('tabungan')
+          .select('jenis_tabungan_id')
+          .eq('anggota_id', userId)
+          .eq('status', 'aktif')
+        
+        if (memberError) throw memberError
+        
+        // Extract the IDs of savings types the member already has
+        const existingTypeIds = (memberAccounts || []).map(account => account.jenis_tabungan_id)
+        
+        // Get all active savings types
         const { data, error } = await supabase
           .from('jenis_tabungan')
           .select('*')
@@ -54,7 +67,10 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
         
         if (error) throw error
         
-        setSavingsTypes(data || [])
+        // Filter out the savings types the member already has
+        const availableTypes = (data || []).filter(type => !existingTypeIds.includes(type.id))
+        
+        setSavingsTypes(availableTypes)
       } catch (error) {
         console.error('Error fetching savings types:', error)
         toast({
@@ -68,7 +84,7 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     }
 
     fetchSavingsTypes()
-  }, [toast])
+  }, [toast, userId])
 
   // Update selected type when type ID changes
   useEffect(() => {
@@ -187,11 +203,21 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
       onSuccess()
     } catch (error: any) {
       console.error('Error adding savings account:', error)
-      toast({
-        title: "Error",
-        description: `Gagal menambahkan tabungan baru: ${error?.message || JSON.stringify(error)}`,
-        variant: "destructive"
-      })
+      
+      // Periksa apakah error adalah duplikasi jenis tabungan
+      if (error?.message && error.message.includes('Anggota sudah memiliki jenis tabungan ini')) {
+        toast({
+          title: "⚠️ Duplikasi Tabungan",
+          description: `Anggota sudah memiliki jenis tabungan ini. Tidak dapat menambahkan jenis tabungan yang sama.`,
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: `Gagal menambahkan tabungan baru: ${error?.message || JSON.stringify(error)}`,
+          variant: "destructive"
+        })
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -220,21 +246,29 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="jenis_tabungan">Jenis Tabungan</Label>
-          <Select
-            value={selectedTypeId}
-            onValueChange={setSelectedTypeId}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Pilih jenis tabungan" />
-            </SelectTrigger>
-            <SelectContent>
-              {savingsTypes.map((type) => (
-                <SelectItem key={type.id} value={type.id}>
-                  {type.kode} - {type.nama} (Min. {formatCurrency(type.minimum_setoran)})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {savingsTypes.length === 0 ? (
+            <div className="p-4 border rounded-md bg-muted/50">
+              <p className="text-sm text-muted-foreground text-center">
+                Anggota ini sudah memiliki semua jenis tabungan yang tersedia.
+              </p>
+            </div>
+          ) : (
+            <Select
+              value={selectedTypeId}
+              onValueChange={setSelectedTypeId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih jenis tabungan" />
+              </SelectTrigger>
+              <SelectContent>
+                {savingsTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.kode} - {type.nama} (Min. {formatCurrency(type.minimum_setoran)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {selectedType?.is_reguler && (
@@ -274,7 +308,10 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
       </div>
 
       <div className="flex justify-end space-x-2">
-        <Button type="submit" disabled={isSubmitting}>
+        <Button 
+          type="submit" 
+          disabled={isSubmitting || savingsTypes.length === 0}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
