@@ -38,7 +38,6 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
   // Form state
   const [selectedTypeId, setSelectedTypeId] = useState<string>("")
   const [isDefault, setIsDefault] = useState(false)
-  const [tanggalSetoranReguler, setTanggalSetoranReguler] = useState<number | null>(null)
   const [selectedType, setSelectedType] = useState<SavingsType | null>(null)
   
   // Fetch available savings types (only those the member doesn't already have)
@@ -182,7 +181,7 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
         p_jenis_tabungan_id: selectedTypeId,
         p_saldo: 0,
         p_tanggal_jatuh_tempo: tanggalJatuhTempo,
-        p_tanggal_setoran_reguler: tanggalSetoranReguler || 1,
+        p_tanggal_setoran_reguler: 1, // Default to 1
         p_is_default: isDefault
       });
       
@@ -271,29 +270,7 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
           )}
         </div>
 
-        {selectedType?.is_reguler && (
-          <div className="space-y-2">
-            <Label htmlFor="tanggal_setoran">Tanggal Setoran Reguler</Label>
-            <Select
-              value={tanggalSetoranReguler?.toString() || ""}
-              onValueChange={(value) => setTanggalSetoranReguler(value ? parseInt(value, 10) : null)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih tanggal setoran" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                  <SelectItem key={day} value={day.toString()}>
-                    Tanggal {day}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-muted-foreground">
-              Periode setoran: {selectedType.periode_setoran || 'Tidak ditentukan'}
-            </p>
-          </div>
-        )}
+
 
 
 

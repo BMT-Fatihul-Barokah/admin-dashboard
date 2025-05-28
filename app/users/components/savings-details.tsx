@@ -190,12 +190,7 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
                     <span className="text-sm font-medium capitalize">{account.periode_setoran}</span>
                   </div>
                 )}
-                {account.tanggal_setoran_reguler && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Tanggal Setoran</span>
-                    <span className="text-sm font-medium">Tanggal {account.tanggal_setoran_reguler}</span>
-                  </div>
-                )}
+
                 {account.last_transaction_date && (
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Transaksi Terakhir</span>

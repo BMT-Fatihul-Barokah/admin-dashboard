@@ -199,7 +199,7 @@ export function MemberSavingsTypes({ userId, userName }: MemberSavingsTypesProps
                 <TableCell className="font-medium">{type.kode}</TableCell>
                 <TableCell>{type.nama}</TableCell>
                 <TableCell>{formatCurrency(type.minimum_setoran)}</TableCell>
-                <TableCell>{type.bagi_hasil}%</TableCell>
+                <TableCell>{type.bagi_hasil || 0}%</TableCell>
                 <TableCell>
                   <Badge
                     variant={type.has_account ? "default" : "outline"}
