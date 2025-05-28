@@ -16,7 +16,7 @@ import {
 	Wallet,
 	Upload,
 } from "lucide-react";
-import { ThemeToggle } from "./theme-toggle";
+// Theme toggle removed as requested
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAdminAuth } from "@/lib/admin-auth-context";
@@ -235,13 +235,7 @@ export function AdminSidebar() {
 									</DropdownMenuLabel>
 									<DropdownMenuSeparator />
 
-									<DropdownMenuItem asChild className="cursor-default">
-										<div className="flex justify-between items-center w-full">
-											<span>Tema</span>
-											<ThemeToggle />
-										</div>
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
+									{/* Theme toggle removed as requested */}
 
 									<DropdownMenuItem onClick={() => logoutAdmin()}>
 										<LogOut className="mr-2 h-4 w-4" />
