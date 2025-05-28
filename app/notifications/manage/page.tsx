@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, Plus, Edit, Trash2, ArrowLeft } from "lucide-react"
+import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, Plus, Edit, Trash2, ArrowLeft, Search, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 type Notifikasi = {
@@ -32,13 +32,21 @@ type Notifikasi = {
     nama: string;
   };
 }
+
+type Anggota = {
+  id: string;
+  nama: string;
+  nomor_anggota: string;
+}
 import Link from "next/link"
 
 export default function ManageNotificationsPage() {
   const router = useRouter()
   const [notifications, setNotifications] = useState<Notifikasi[]>([])
   const [notificationTypes, setNotificationTypes] = useState<{kode: string, nama: string, deskripsi: string}[]>([])
+  const [anggotaList, setAnggotaList] = useState<Anggota[]>([])
   const [loading, setLoading] = useState(true)
+  const [isLoadingAnggota, setIsLoadingAnggota] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -98,32 +106,38 @@ export default function ManageNotificationsPage() {
     }
   }
 
+  // Fetch anggota list
+  const fetchAnggota = async () => {
+    setIsLoadingAnggota(true)
+    try {
+      const response = await fetch('/api/anggota')
+      if (!response.ok) {
+        throw new Error('Failed to fetch anggota')
+      }
+      const data = await response.json()
+      setAnggotaList(data || [])
+    } catch (error) {
+      console.error("Error fetching anggota:", error)
+      toast({
+        title: "Error",
+        description: "Gagal memuat data anggota. Silakan coba lagi nanti.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingAnggota(false)
+    }
+  }
+
   // Create a new notification
   const createNotification = async () => {
     try {
-      // Validate anggota_id if provided
-      if (formData.anggota_id) {
-        const { data: anggotaExists, error: anggotaError } = await supabase
-          .from('anggota')
-          .select('id')
-          .eq('id', formData.anggota_id)
-          .single()
-
-        if (anggotaError || !anggotaExists) {
-          toast({
-            title: "Error",
-            description: "ID Anggota tidak valid.",
-            variant: "destructive",
-          })
-          return
-        }
-      }
+      const anggotaIdValue = formData.anggota_id === 'null' ? null : formData.anggota_id || null
 
       const { data, error } = await supabase
         .from('notifikasi')
         .insert([
           {
-            anggota_id: formData.anggota_id || null,
+            anggota_id: anggotaIdValue,
             judul: formData.judul,
             pesan: formData.pesan,
             jenis: formData.jenis,
@@ -158,28 +172,12 @@ export default function ManageNotificationsPage() {
     if (!currentNotification) return
 
     try {
-      // Validate anggota_id if provided
-      if (formData.anggota_id) {
-        const { data: anggotaExists, error: anggotaError } = await supabase
-          .from('anggota')
-          .select('id')
-          .eq('id', formData.anggota_id)
-          .single()
-
-        if (anggotaError || !anggotaExists) {
-          toast({
-            title: "Error",
-            description: "ID Anggota tidak valid.",
-            variant: "destructive",
-          })
-          return
-        }
-      }
+      const anggotaIdValue = formData.anggota_id === 'null' ? null : formData.anggota_id || null
 
       const { error } = await supabase
         .from('notifikasi')
         .update({
-          anggota_id: formData.anggota_id || null,
+          anggota_id: anggotaIdValue,
           judul: formData.judul,
           pesan: formData.pesan,
           jenis: formData.jenis,
@@ -244,7 +242,7 @@ export default function ManageNotificationsPage() {
       jenis: notification.jenis,
       judul: notification.judul,
       pesan: notification.pesan,
-      anggota_id: notification.anggota_id,
+      anggota_id: notification.anggota_id || 'null',
       data: notification.data || {}
     })
     setIsEditing(true)
@@ -262,7 +260,7 @@ export default function ManageNotificationsPage() {
       jenis: "info",
       judul: "",
       pesan: "",
-      anggota_id: "",
+      anggota_id: "null",
       data: {}
     })
     setCurrentNotification(null)
@@ -286,9 +284,10 @@ export default function ManageNotificationsPage() {
     }
   }
 
-  // Fetch notifications on component mount
+  // Fetch notifications and anggota list on component mount
   useEffect(() => {
     fetchNotifications()
+    fetchAnggota()
   }, [])
 
   return (
@@ -437,15 +436,31 @@ export default function ManageNotificationsPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="anggota_id" className="text-right">
-                ID Anggota (Opsional)
+                Anggota (Opsional)
               </Label>
-              <Input
-                id="anggota_id"
-                value={formData.anggota_id}
-                onChange={(e) => setFormData({...formData, anggota_id: e.target.value})}
-                className="col-span-3"
-                placeholder="ID Anggota (kosongkan untuk notifikasi global)"
-              />
+              <Select 
+                value={formData.anggota_id} 
+                onValueChange={(value) => setFormData({...formData, anggota_id: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Pilih anggota (kosongkan untuk notifikasi global)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="null">Notifikasi Global</SelectItem>
+                  {isLoadingAnggota ? (
+                    <div className="flex items-center justify-center p-2">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span>Memuat data anggota...</span>
+                    </div>
+                  ) : (
+                    anggotaList.map((anggota) => (
+                      <SelectItem key={anggota.id} value={anggota.id}>
+                        {anggota.nama} - {anggota.nomor_anggota}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="data" className="text-right">
@@ -540,15 +555,31 @@ export default function ManageNotificationsPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-anggota_id" className="text-right">
-                ID Anggota (Opsional)
+                Anggota (Opsional)
               </Label>
-              <Input
-                id="edit-anggota_id"
-                value={formData.anggota_id}
-                onChange={(e) => setFormData({...formData, anggota_id: e.target.value})}
-                className="col-span-3"
-                placeholder="ID Anggota (kosongkan untuk notifikasi global)"
-              />
+              <Select 
+                value={formData.anggota_id} 
+                onValueChange={(value) => setFormData({...formData, anggota_id: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Pilih anggota (kosongkan untuk notifikasi global)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="null">Notifikasi Global</SelectItem>
+                  {isLoadingAnggota ? (
+                    <div className="flex items-center justify-center p-2">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span>Memuat data anggota...</span>
+                    </div>
+                  ) : (
+                    anggotaList.map((anggota) => (
+                      <SelectItem key={anggota.id} value={anggota.id}>
+                        {anggota.nama} - {anggota.nomor_anggota}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-data" className="text-right">
