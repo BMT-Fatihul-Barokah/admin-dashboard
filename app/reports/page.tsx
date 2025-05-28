@@ -509,7 +509,7 @@ export default function ReportsPage() {
                                               reportType === 'members' ? 'Anggota' : 
                                               reportType === 'loans' ? 'Pinjaman' : 
                                               reportType === 'transactions' ? 'Transaksi' : 'Tidak Diketahui' },
-        { 'Metadata': 'Dibuat Oleh', 'Nilai': user?.name || 'Admin' }
+        { 'Metadata': 'Dibuat Oleh', 'Nilai': user?.name || 'Admin' } 
       ])
       
       // Set column widths

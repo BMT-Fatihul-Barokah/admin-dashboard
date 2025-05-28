@@ -49,6 +49,33 @@ const formSchema = z.object({
   jenis_tabungan_id: z.string().optional(),
 })
 
+// Create a function to generate a dynamic schema based on the selected savings type
+const createFormSchema = (jenisTabunganList: JenisTabungan[], selectedJenisTabunganId?: string, kategori?: string) => {
+  // Get the base schema
+  const baseSchema = formSchema;
+  
+  // If we have a selected savings type and the category is deposit, add minimum deposit validation
+  if (selectedJenisTabunganId && kategori === "setoran" && jenisTabunganList.length > 0) {
+    const selectedJenisTabungan = jenisTabunganList.find(jt => jt.id === selectedJenisTabunganId);
+    
+    if (selectedJenisTabungan && selectedJenisTabungan.minimum_setoran > 0) {
+      return baseSchema.extend({
+        jumlah: z.coerce.number({
+          required_error: "Masukkan jumlah",
+          invalid_type_error: "Jumlah harus berupa angka",
+        })
+        .positive("Jumlah harus lebih dari 0")
+        .min(
+          selectedJenisTabungan.minimum_setoran,
+          `Setoran minimum untuk ${selectedJenisTabungan.nama} adalah Rp ${selectedJenisTabungan.minimum_setoran.toLocaleString('id-ID')}`
+        ),
+      });
+    }
+  }
+  
+  return baseSchema;
+}
+
 // Define props for the component
 interface TransactionFormModalProps {
   isOpen: boolean
@@ -75,8 +102,8 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
   const [isLoadingPinjaman, setIsLoadingPinjaman] = useState(false)
   const [isLoadingJenisTabungan, setIsLoadingJenisTabungan] = useState(false)
   
-  // Initialize form
-  const form = useForm<z.infer<typeof formSchema>>({
+  // Initialize form with base schema first
+  const form = useForm<z.infer<typeof formSchema>>({    
     resolver: zodResolver(formSchema),
     defaultValues: {
       tipe_transaksi: "",
@@ -91,6 +118,39 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
   // Watch for changes to form values
   const tipeTransaksi = form.watch("tipe_transaksi")
   const selectedAnggotaId = form.watch("anggota_id")
+  const selectedKategori = form.watch("kategori")
+  const selectedJenisTabunganId = form.watch("jenis_tabungan_id")
+  
+  // State to track minimum deposit amount for the selected savings type
+  const [minimumSetoran, setMinimumSetoran] = useState<number | null>(null)
+  const [selectedJenisTabunganNama, setSelectedJenisTabunganNama] = useState<string>('')
+  
+  // Update minimum deposit amount when savings type changes
+  useEffect(() => {
+    // Only apply minimum deposit validation for deposits
+    if (selectedKategori === "setoran" && selectedJenisTabunganId && jenisTabunganList.length > 0) {
+      const selectedJenisTabungan = jenisTabunganList.find(jt => jt.id === selectedJenisTabunganId);
+      
+      if (selectedJenisTabungan) {
+        setMinimumSetoran(selectedJenisTabungan.minimum_setoran);
+        setSelectedJenisTabunganNama(selectedJenisTabungan.nama);
+        
+        // Validate the current amount against minimum deposit
+        const currentAmount = form.getValues("jumlah");
+        if (currentAmount && currentAmount < selectedJenisTabungan.minimum_setoran) {
+          form.setError("jumlah", {
+            type: "min",
+            message: `Setoran minimum untuk ${selectedJenisTabungan.nama} adalah Rp ${selectedJenisTabungan.minimum_setoran.toLocaleString('id-ID')}`
+          });
+        } else {
+          form.clearErrors("jumlah");
+        }
+      }
+    } else {
+      setMinimumSetoran(null);
+      setSelectedJenisTabunganNama('');
+    }
+  }, [selectedKategori, selectedJenisTabunganId, jenisTabunganList, form])
   
   // Reset form when modal is opened/closed
   useEffect(() => {
@@ -190,6 +250,14 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
   
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Check minimum deposit amount before submitting
+    if (values.kategori === "setoran" && minimumSetoran && values.jumlah < minimumSetoran) {
+      form.setError("jumlah", {
+        type: "min",
+        message: `Setoran minimum untuk ${selectedJenisTabunganNama} adalah Rp ${minimumSetoran.toLocaleString('id-ID')}`
+      });
+      return;
+    }
     setIsSubmitting(true)
     try {
       // Send data to API
@@ -224,16 +292,20 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Tambah Transaksi Baru</DialogTitle>
-          <DialogDescription>
-            Isi form berikut untuk membuat transaksi baru.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[500px] p-0 max-h-[85vh] flex flex-col">
+        <div className="p-6 pb-4">
+          <DialogHeader>
+            <DialogTitle>Tambah Transaksi Baru</DialogTitle>
+            <DialogDescription>
+              Isi form berikut untuk membuat transaksi baru.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
         
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="flex flex-col flex-1 h-full">
+          <div className="overflow-y-auto px-6 flex-1" style={{ maxHeight: 'calc(85vh - 180px)' }}>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Anggota Field */}
             <FormField
               control={form.control}
@@ -415,14 +487,36 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                       type="number" 
                       placeholder="Masukkan jumlah" 
                       value={field.value || ""} 
+                      onKeyDown={(e) => {
+                        // Prevent mathematical operators
+                        if (['+', '-', '*', '/', 'e', 'E'].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       onChange={(e) => {
-                        const value = e.target.value === "" ? undefined : Number(e.target.value);
+                        // Remove any non-numeric characters
+                        const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                        const value = numericValue === "" ? undefined : Number(numericValue);
                         field.onChange(value);
+                        
+                        // Validate against minimum deposit if applicable
+                        if (selectedKategori === "setoran" && minimumSetoran && value && value < minimumSetoran) {
+                          form.setError("jumlah", {
+                            type: "min",
+                            message: `Setoran minimum untuk ${selectedJenisTabunganNama} adalah Rp ${minimumSetoran.toLocaleString('id-ID')}`
+                          });
+                        } else if (value) {
+                          form.clearErrors("jumlah");
+                        }
                       }}
                     />
                   </FormControl>
                   <FormDescription>
-                    Masukkan jumlah transaksi dalam Rupiah
+                    {selectedKategori === "setoran" && minimumSetoran ? (
+                      <>Masukkan jumlah transaksi dalam Rupiah <strong>(minimum Rp {minimumSetoran.toLocaleString('id-ID')})</strong></>
+                    ) : (
+                      <>Masukkan jumlah transaksi dalam Rupiah</>
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -447,17 +541,27 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
               )}
             />
             
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
+              </form>
+            </Form>
+          </div>
+          
+          <div className="p-4 border-t bg-background shadow-sm w-full mt-auto">
+            <div className="flex justify-end gap-3 px-2">
+              <Button type="button" variant="outline" onClick={onClose} className="min-w-[100px]">
                 Batal
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="button" 
+                disabled={isSubmitting} 
+                className="min-w-[100px]"
+                onClick={form.handleSubmit(onSubmit)}
+              >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Simpan
+                Tambah
               </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )

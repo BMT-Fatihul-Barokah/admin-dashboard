@@ -216,63 +216,114 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   }
   
   // 3. Fetch transaction data by month using stored procedure
-  const { data: monthlyTransactions, error: transactionError } = await supabase
-    .rpc('get_monthly_transactions', { start_date: startDate });
-  
-  if (transactionError) {
-    console.error('Error fetching transaction data:', transactionError);
-    // Fallback to direct query if stored procedure fails
-    const { data: transaksiData, error: transaksiError } = await supabase
-      .from('transaksi')
-      .select('jumlah, created_at, tipe_transaksi')
-      .gte('created_at', startDate);
+  try {
+    const { data: monthlyTransactions, error: transactionError } = await supabase
+      .rpc('get_monthly_transactions', { start_date: startDate });
     
-    if (transaksiError) {
-      console.error('Error fetching transaksi data:', transaksiError);
-      throw new Error('Failed to fetch transaction data');
+    if (transactionError) {
+      console.error('Error fetching transaction data from RPC:', transactionError);
+      throw transactionError;
     }
     
-    // Process transaction data by month
-    monthRanges.forEach(range => {
-      const transactionsInMonth = transaksiData?.filter(transaksi => {
-        const createdAt = new Date(transaksi.created_at);
-        return createdAt >= range.start && createdAt <= range.end;
-      }) || [];
-      
-      const amount = transactionsInMonth.reduce((sum, transaction) => {
-        // Only count incoming transactions for the total
-        if (transaction.tipe_transaksi === 'masuk') {
-          return sum + Number(transaction.jumlah);
-        }
-        return sum;
-      }, 0);
-      
-      transactionData.push({
-        month: range.label,
-        name: range.label,
-        value: amount,
-        amount
+    if (monthlyTransactions && monthlyTransactions.length > 0) {
+      // Process data from the RPC function
+      monthRanges.forEach(range => {
+        const monthKey = `${range.start.getFullYear()}-${String(range.start.getMonth() + 1).padStart(2, '0')}`;
+        const matchingData = monthlyTransactions.find((item: { month: string; total_amount: number; count: number }) => 
+          item.month === monthKey
+        );
+        
+        const amount = matchingData ? Number(matchingData.total_amount) : 0;
+        const count = matchingData ? Number(matchingData.count) : 0;
+        
+        transactionData.push({
+          month: range.label,
+          name: range.label,
+          value: amount,
+          amount,
+          count
+        });
       });
-    });
-  } else {
-    // Process data from the stored procedure
-    monthRanges.forEach(range => {
-      const monthKey = `${range.start.getFullYear()}-${String(range.start.getMonth() + 1).padStart(2, '0')}`;
-      const matchingData = monthlyTransactions.find((item: { month: string; total_amount: number; count: number }) => 
-        item.month.startsWith(monthKey)
-      );
-      const amount = matchingData ? Number(matchingData.total_amount) : 0;
-      const count = matchingData ? Number(matchingData.count) : 0;
-      
-      transactionData.push({
-        month: range.label,
-        name: range.label,
-        value: amount,
-        amount,
-        count
+    } else {
+      // If no data returned from RPC, initialize with zeros
+      monthRanges.forEach(range => {
+        transactionData.push({
+          month: range.label,
+          name: range.label,
+          value: 0,
+          amount: 0,
+          count: 0
+        });
       });
-    });
+    }
+  } catch (rpcError) {
+    console.error('Falling back to direct query due to RPC error:', rpcError);
+    
+    try {
+      // Fallback to direct query if stored procedure fails
+      const { data: transaksiData, error: transaksiError } = await supabase
+        .from('transaksi')
+        .select('jumlah, created_at, tipe_transaksi')
+        .gte('created_at', startDate);
+      
+      if (transaksiError) {
+        console.error('Error fetching transaksi data:', transaksiError);
+        throw transaksiError;
+      }
+      
+      // Process transaction data by month
+      if (transaksiData && transaksiData.length > 0) {
+        monthRanges.forEach(range => {
+          const transactionsInMonth = transaksiData.filter(transaksi => {
+            const createdAt = new Date(transaksi.created_at);
+            return createdAt >= range.start && createdAt <= range.end;
+          });
+          
+          const amount = transactionsInMonth.reduce((sum, transaction) => {
+            // Only count incoming transactions for the total
+            if (transaction.tipe_transaksi === 'masuk') {
+              return sum + Number(transaction.jumlah);
+            }
+            return sum;
+          }, 0);
+          
+          transactionData.push({
+            month: range.label,
+            name: range.label,
+            value: amount,
+            amount,
+            count: transactionsInMonth.length
+          });
+        });
+      } else {
+        // If no data found, initialize with zeros
+        monthRanges.forEach(range => {
+          transactionData.push({
+            month: range.label,
+            name: range.label,
+            value: 0,
+            amount: 0,
+            count: 0
+          });
+        });
+      }
+    } catch (fallbackError) {
+      console.error('Error in fallback query:', fallbackError);
+      // Initialize with zeros if both methods fail
+      monthRanges.forEach(range => {
+        transactionData.push({
+          month: range.label,
+          name: range.label,
+          value: 0,
+          amount: 0,
+          count: 0
+        });
+      });
+    }
   }
+  
+  // 4. Calculate transaction totals for later use
+  let transactionTotal = transactionData.reduce((sum, item) => sum + (item.amount || 0), 0);
   
   // Fetch anggota data for status distribution
   let anggotaDataForStatus;
@@ -346,7 +397,7 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   // Calculate summary metrics
   const totalRegistrations = registrationData.reduce((sum, item) => sum + item.value, 0);
   const totalLoanAmount = loanData.reduce((sum, item) => sum + item.value, 0);
-  const totalTransactionAmount = transactionData.reduce((sum, item) => sum + item.value, 0);
+  const totalTransactionAmount = transactionTotal; // Use the previously calculated value
   const activeLoans = pinjamanData?.filter(loan => loan.status === 'aktif').length || 0;
   const approvedLoans = pinjamanData?.filter(loan => ['aktif', 'lunas', 'disetujui'].includes(loan.status)).length || 0;
   const totalLoans = pinjamanData?.length || 0;
