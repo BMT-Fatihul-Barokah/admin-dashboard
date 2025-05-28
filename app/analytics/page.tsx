@@ -120,31 +120,54 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   const loanStatusDistribution: StatusDistribution[] = [];
   const loanTypeDistribution: StatusDistribution[] = [];
   
-  // 1. Fetch registration data by month
-  const { data: anggotaData, error: anggotaError } = await supabase
-    .from('anggota')
-    .select('created_at, is_active')
-    .gte('created_at', startDate);
+  // 1. Fetch registration data by month directly from database using SQL query
+  const { data: registrationCountData, error: registrationError } = await supabase
+    .rpc('get_monthly_registrations', { start_date: startDate });
   
-  if (anggotaError) {
-    console.error('Error fetching anggota data:', anggotaError);
-    throw new Error('Failed to fetch registration data');
-  }
-  
-  // Process registration data by month
-  monthRanges.forEach(range => {
-    const count = anggotaData?.filter(anggota => {
-      const createdAt = new Date(anggota.created_at);
-      return createdAt >= range.start && createdAt <= range.end;
-    }).length || 0;
+  if (registrationError) {
+    console.error('Error fetching registration data:', registrationError);
+    // Fallback to direct query
+    const { data: anggotaData, error: anggotaError } = await supabase
+      .from('anggota')
+      .select('created_at, is_active')
+      .gte('created_at', startDate);
     
-    registrationData.push({
-      month: range.label,
-      name: range.label,
-      value: count,
-      count
+    if (anggotaError) {
+      console.error('Error fetching anggota data:', anggotaError);
+      throw new Error('Failed to fetch registration data');
+    }
+    
+    // Process registration data by month
+    monthRanges.forEach(range => {
+      const count = anggotaData?.filter(anggota => {
+        const createdAt = new Date(anggota.created_at);
+        return createdAt >= range.start && createdAt <= range.end;
+      }).length || 0;
+      
+      registrationData.push({
+        month: range.label,
+        name: range.label,
+        value: count,
+        count
+      });
     });
-  });
+  } else {
+    // Process data from the RPC function
+    monthRanges.forEach(range => {
+      const monthKey = `${range.start.getFullYear()}-${String(range.start.getMonth() + 1).padStart(2, '0')}`;
+      const matchingData = registrationCountData.find((item: { month: string; count: number }) => 
+        item.month.startsWith(monthKey)
+      );
+      const count = matchingData ? matchingData.count : 0;
+      
+      registrationData.push({
+        month: range.label,
+        name: range.label,
+        value: count,
+        count
+      });
+    });
+  }
   
   // 2. Fetch loan data by month using the new loan_trend_view
   const { data: loanTrendData, error: loanTrendError } = await supabase
@@ -168,12 +191,14 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
     });
     
     const amount = matchingMonth ? Number(matchingMonth.total_amount) : 0;
+    const count = matchingMonth ? Number(matchingMonth.count) : 0;
     
     loanData.push({
       month: range.label,
       name: range.label,
       value: amount,
-      amount
+      amount,
+      count
     });
   });
   
@@ -222,9 +247,29 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
     });
   });
   
-  // 4. Calculate status distribution
-  const activeCount = anggotaData?.filter(anggota => anggota.is_active).length || 0;
-  const inactiveCount = (anggotaData?.length || 0) - activeCount;
+  // Fetch anggota data for status distribution if not already fetched
+  let anggotaDataForStatus;
+  if (!registrationError) {
+    // If we used the RPC function, we need to fetch anggota data separately for status distribution
+    const { data: fetchedAnggotaData, error: fetchAnggotaError } = await supabase
+      .from('anggota')
+      .select('created_at, is_active')
+      .gte('created_at', startDate);
+      
+    if (fetchAnggotaError) {
+      console.error('Error fetching anggota data for status:', fetchAnggotaError);
+      throw new Error('Failed to fetch anggota status data');
+    }
+    
+    anggotaDataForStatus = fetchedAnggotaData;
+  } else {
+    // We already have anggota data from the fallback query
+    anggotaDataForStatus = anggotaData;
+  }
+  
+  // Calculate status distribution
+  const activeCount = anggotaDataForStatus?.filter((anggota: { is_active: boolean }) => anggota.is_active).length || 0;
+  const inactiveCount = (anggotaDataForStatus?.length || 0) - activeCount;
   
   statusDistribution.push(
     { name: 'Aktif', value: activeCount },
@@ -400,20 +445,20 @@ export default function AnalyticsPage() {
       case 'admin':
         return (
           <>
-            <Card className={`${roleTheme.secondary} border-none`}>
-              <CardHeader>
-                <CardTitle>Tren Pinjaman dan Pendaftaran</CardTitle>
-                <CardDescription className="text-white/70">
+            <div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden mb-6">
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-white mb-2">Tren Pinjaman dan Pendaftaran</h2>
+                <p className="text-gray-300 text-sm">
                   Perbandingan tren pinjaman dan pendaftaran nasabah dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+                </p>
+              </div>
+              <div className="px-2 pb-4">
                 <ImprovedDualAxisBarChart 
                   data={analyticsData.loanData} 
                   formatCurrency={formatCurrency} 
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <Card>
@@ -472,22 +517,21 @@ export default function AnalyticsPage() {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tren Pendaftaran Nasabah</CardTitle>
-                  <CardDescription>
+              <div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden">
+                <div className="p-6">
+                  <h2 className="text-xl font-bold text-white mb-2">Tren Pendaftaran Nasabah</h2>
+                  <p className="text-gray-300 text-sm">
                     Tren pendaftaran nasabah dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ImprovedLineChart 
+                  </p>
+                </div>
+                <div className="px-2 pb-4">
+                  <ImprovedDualAxisBarChart 
                     data={analyticsData.registrationData} 
-                    dataKey="value" 
-                    name="Jumlah Pendaftaran" 
                     formatCurrency={formatCurrency} 
+                    isRegistrationData={true} 
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               <Card>
                 <CardHeader>
@@ -528,22 +572,21 @@ export default function AnalyticsPage() {
       case 'sekretaris':
         return (
           <>
-            <Card className={`${roleTheme.secondary} border-none`}>
-              <CardHeader>
-                <CardTitle>Tren Pendaftaran Nasabah</CardTitle>
-                <CardDescription className="text-white/70">
+            <div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden mb-6">
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-white mb-2">Tren Pendaftaran Nasabah</h2>
+                <p className="text-gray-300 text-sm">
                   Tren pendaftaran nasabah dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ImprovedDarkLineChart 
+                </p>
+              </div>
+              <div className="px-2 pb-4">
+                <ImprovedDualAxisBarChart 
                   data={analyticsData.registrationData} 
-                  dataKey="value" 
-                  name="Jumlah Pendaftaran" 
                   formatCurrency={formatCurrency} 
+                  isRegistrationData={true} 
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <Card>

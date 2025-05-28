@@ -440,25 +440,115 @@ export const ImprovedDarkLineChart = ({ data, dataKey, name, formatCurrency }: a
   );
 };
 
-// Improved Dual Axis Bar Chart for admin role
-export const ImprovedDualAxisBarChart = ({ data, formatCurrency }: any) => {
+// Improved Dual Axis Bar Chart for admin role and other roles
+export const ImprovedDualAxisBarChart = ({ data, formatCurrency, isRegistrationData = false }: any) => {
+  // Determine labels based on data type
+  const leftBarLabel = isRegistrationData ? "Jumlah Pendaftaran" : "Jumlah Pinjaman";
+  const rightBarLabel = isRegistrationData ? "Jumlah Anggota Aktif" : "Jumlah Pendaftaran";
+  
+  // Determine colors based on data type - using more vibrant colors with higher opacity
+  const leftBarColor = isRegistrationData ? "#10b981" : "#4f46e5";
+  const rightBarColor = isRegistrationData ? "#4f46e5" : "#10b981";
+  
+  // Enhanced tooltip for better visibility
+  const EnhancedTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="dark:bg-gray-900 bg-white border dark:border-gray-700 border-gray-200 p-3 rounded-md shadow-md">
+          <p className="font-semibold dark:text-white text-gray-900 mb-1">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={`item-${index}`} className="dark:text-white text-gray-800 text-sm flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></span>
+              <span className="font-medium">{entry.name}:</span> 
+              <span>{entry.dataKey === "value" ? formatCurrency(entry.value) : entry.value}</span>
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+  
   return (
-    <div className="h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
-          <XAxis dataKey="month" stroke="rgba(255,255,255,0.8)" />
-          <YAxis yAxisId="left" orientation="left" stroke="rgba(255,255,255,0.8)" />
-          <YAxis yAxisId="right" orientation="right" stroke="rgba(255,255,255,0.8)" />
-          <Tooltip content={(props) => CustomTooltip({ ...props, formatCurrency })} />
-          <Legend wrapperStyle={{ color: "#fff" }} />
-          <Bar yAxisId="left" dataKey="value" name="Jumlah Pinjaman" fill="rgba(136,132,216,0.8)" radius={[4, 4, 0, 0]} />
-          <Bar yAxisId="right" dataKey="count" name="Jumlah Pendaftaran" fill="rgba(130,202,157,0.8)" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="h-96 w-full dark:bg-gray-900 bg-white rounded-lg p-4 dark:border-0 border border-gray-200">
+      <div className="w-full h-full dark:bg-gray-800 bg-gray-100 rounded-lg overflow-hidden">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={data}
+            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
+            barGap={5}
+            barCategoryGap={20}
+          >
+            <defs>
+              <style type="text/css">{`
+                .recharts-cartesian-grid-horizontal line,
+                .recharts-cartesian-grid-vertical line {
+                  stroke: var(--grid-color);
+                }
+              `}</style>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" />
+            <XAxis 
+              dataKey="month" 
+              stroke="var(--axis-color)" 
+              tick={{
+                fill: 'var(--text-color)',
+                fontSize: 11,
+                fontWeight: 'bold'
+              }}
+            />
+            <YAxis 
+              yAxisId="left" 
+              orientation="left" 
+              stroke="var(--axis-color)"
+              hide={true}
+              domain={[0, 'dataMax + 5000000']}
+            />
+            <YAxis 
+              yAxisId="right" 
+              orientation="right" 
+              stroke="var(--axis-color)"
+              hide={true}
+              domain={[0, 'dataMax + 2']}
+              allowDecimals={false}
+            />
+            <Tooltip content={EnhancedTooltip} />
+            <Legend 
+              wrapperStyle={{ paddingTop: 20 }}
+              formatter={(value, entry) => {
+                const { color } = entry;
+                return (
+                  <span className="dark:bg-gray-800 bg-white dark:text-white text-gray-900 px-3 py-1 rounded-md border-2" style={{
+                    borderColor: color,
+                    fontWeight: 'bold',
+                    fontSize: 12
+                  }}>
+                    {value}
+                  </span>
+                );
+              }}
+            />
+            <Bar 
+              yAxisId="left" 
+              dataKey="value" 
+              name={leftBarLabel} 
+              fill={leftBarColor} 
+              radius={[6, 6, 0, 0]} 
+              barSize={20}
+              maxBarSize={20}
+            />
+            <Bar 
+              yAxisId="right" 
+              dataKey="count" 
+              name={rightBarLabel} 
+              fill={rightBarColor} 
+              radius={[6, 6, 0, 0]} 
+              barSize={20}
+              maxBarSize={20}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };

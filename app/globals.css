@@ -19,6 +19,14 @@ body {
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
+    
+    /* Chart theme variables - light mode */
+    --chart-bg-color: rgba(243, 244, 246, 1);
+    --grid-color: rgba(107, 114, 128, 0.2);
+    --axis-color: #374151;
+    --text-color: #374151;
+    --legend-bg-color: rgba(255, 255, 255, 0.95);
+    --legend-text-color: #111827;
     --popover-foreground: 0 0% 3.9%;
     --primary: 0 0% 9%;
     --primary-foreground: 0 0% 98%;
@@ -51,6 +59,14 @@ body {
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
+    
+    /* Chart theme variables - dark mode */
+    --chart-bg-color: rgba(17, 24, 39, 0.8);
+    --grid-color: rgba(255, 255, 255, 0.2);
+    --axis-color: #ffffff;
+    --text-color: #ffffff;
+    --legend-bg-color: rgba(31, 41, 55, 0.95);
+    --legend-text-color: #ffffff;
     --card: 0 0% 3.9%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 3.9%;
