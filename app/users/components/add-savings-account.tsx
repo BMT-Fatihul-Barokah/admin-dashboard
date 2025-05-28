@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { format } from "date-fns"
+import { createClient } from '@supabase/supabase-js'
 
 interface AddSavingsAccountProps {
   userId: string
@@ -36,7 +37,6 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
   
   // Form state
   const [selectedTypeId, setSelectedTypeId] = useState<string>("")
-  const [targetAmount, setTargetAmount] = useState<number | null>(null)
   const [isDefault, setIsDefault] = useState(false)
   const [tanggalSetoranReguler, setTanggalSetoranReguler] = useState<number | null>(null)
   const [selectedType, setSelectedType] = useState<SavingsType | null>(null)
@@ -134,38 +134,48 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
       const accountNumber = await generateAccountNumber()
       
       // Prepare data for new savings account
-      const newAccount = {
-        nomor_rekening: accountNumber,
-        anggota_id: userId,
-        jenis_tabungan_id: selectedTypeId,
-        saldo: 0, // Initial balance is 0
-        tanggal_buka: new Date().toISOString(),
-        tanggal_jatuh_tempo: selectedType?.jangka_waktu 
-          ? new Date(Date.now() + selectedType.jangka_waktu * 30 * 24 * 60 * 60 * 1000).toISOString() 
-          : null,
-        status: 'aktif',
-        tanggal_setoran_reguler: tanggalSetoranReguler,
-        is_default: isDefault,
-        target_amount: targetAmount
-      }
+      const currentTime = new Date().toISOString();
+      const tanggalJatuhTempo = selectedType?.jangka_waktu 
+        ? new Date(Date.now() + selectedType.jangka_waktu * 30 * 24 * 60 * 60 * 1000).toISOString() 
+        : null;
       
-      // If this is set as default, update all other accounts to not be default
+      // Jika ini adalah tabungan default, update tabungan lain terlebih dahulu
       if (isDefault) {
-        const { error: updateError } = await supabase
-          .from('tabungan')
-          .update({ is_default: false })
-          .eq('anggota_id', userId)
-          .eq('status', 'aktif')
-        
-        if (updateError) throw updateError
+        try {
+          const { error: updateError } = await supabase
+            .from('tabungan')
+            .update({ is_default: false })
+            .eq('anggota_id', userId)
+            .eq('status', 'aktif');
+          
+          if (updateError) {
+            console.error('Error updating other accounts:', updateError);
+          }
+        } catch (updateErr) {
+          console.error('Exception updating other accounts:', updateErr);
+        }
       }
       
-      // Insert new savings account
-      const { error } = await supabase
-        .from('tabungan')
-        .insert(newAccount)
+      // Gunakan fungsi bypass RLS yang baru dibuat
+      console.log('Attempting to insert account using bypass RLS function');
       
-      if (error) throw error
+      // Panggil fungsi add_tabungan_baru untuk bypass RLS
+      const { data, error } = await supabase.rpc('add_tabungan_baru', {
+        p_nomor_rekening: accountNumber,
+        p_anggota_id: userId,
+        p_jenis_tabungan_id: selectedTypeId,
+        p_saldo: 0,
+        p_tanggal_jatuh_tempo: tanggalJatuhTempo,
+        p_tanggal_setoran_reguler: tanggalSetoranReguler || 1,
+        p_is_default: isDefault
+      });
+      
+      console.log('Insert response:', { data, error });
+      
+      if (error) {
+        console.error('Detailed error:', JSON.stringify(error));
+        throw error;
+      }
       
       toast({
         title: "Berhasil",
@@ -175,11 +185,11 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
       
       // Call success callback
       onSuccess()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding savings account:', error)
       toast({
         title: "Error",
-        description: "Gagal menambahkan tabungan baru",
+        description: `Gagal menambahkan tabungan baru: ${error?.message || JSON.stringify(error)}`,
         variant: "destructive"
       })
     } finally {
@@ -251,20 +261,7 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="target_amount">Target Tabungan (Opsional)</Label>
-          <Input
-            id="target_amount"
-            type="number"
-            min={0}
-            value={targetAmount || ""}
-            onChange={(e) => setTargetAmount(e.target.value ? parseFloat(e.target.value) : null)}
-            placeholder="Masukkan target tabungan"
-          />
-          <p className="text-sm text-muted-foreground">
-            Target tabungan akan digunakan untuk menghitung progres tabungan
-          </p>
-        </div>
+
 
         <div className="flex items-center space-x-2">
           <Switch

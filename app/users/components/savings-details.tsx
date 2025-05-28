@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Loader2 } from "lucide-react"
@@ -67,28 +67,30 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
     }
   }
 
-  // Fetch savings accounts data
-  useEffect(() => {
-    async function fetchSavingsAccounts() {
-      setIsLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from('tabungan_display_view')
-          .select('*')
-          .eq('anggota_id', userId)
-          .order('display_order', { ascending: true })
-        
-        if (error) throw error
-        
-        setSavingsAccounts(data || [])
-      } catch (error) {
-        console.error('Error fetching savings accounts:', error)
-        setError('Gagal memuat data tabungan')
-      } finally {
-        setIsLoading(false)
-      }
-    }
 
+
+  // Fetch savings accounts data
+  const fetchSavingsAccounts = async () => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('tabungan_display_view')
+        .select('*')
+        .eq('anggota_id', userId)
+        .order('display_order', { ascending: true })
+      
+      if (error) throw error
+      
+      setSavingsAccounts(data || [])
+    } catch (error) {
+      console.error('Error fetching savings accounts:', error)
+      setError('Gagal memuat data tabungan')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchSavingsAccounts()
   }, [userId])
 
@@ -234,6 +236,8 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
           onOpenChange={setTransactionsOpen}
         />
       )}
+      
+
 
 
     </>

@@ -55,6 +55,8 @@ export function ManageSavingsTypes() {
   const [formOpen, setFormOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [typeToDelete, setTypeToDelete] = useState<SavingsType | null>(null)
   
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -329,10 +331,22 @@ export function ManageSavingsTypes() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => openEditForm(type)}>
-                      <Pencil className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
+                    <div className="flex justify-end space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => openEditForm(type)}>
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => {
+                          setTypeToDelete(type);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        Hapus
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -341,6 +355,86 @@ export function ManageSavingsTypes() {
         </div>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Hapus Jenis Tabungan</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus jenis tabungan {typeToDelete?.nama}? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Batal</Button>
+            <Button 
+              variant="destructive" 
+              onClick={async () => {
+                if (!typeToDelete) return;
+                
+                try {
+                  setIsSubmitting(true);
+                  
+                  // Periksa apakah jenis tabungan sedang digunakan
+                  const { data: usageData, error: usageError } = await supabase
+                    .from('tabungan')
+                    .select('id')
+                    .eq('jenis_tabungan_id', typeToDelete.id)
+                    .limit(1);
+                  
+                  if (usageError) throw usageError;
+                  
+                  if (usageData && usageData.length > 0) {
+                    toast({
+                      title: "Tidak dapat menghapus",
+                      description: "Jenis tabungan ini sedang digunakan oleh satu atau lebih anggota",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  
+                  // Hapus jenis tabungan
+                  const { error } = await supabase
+                    .from('jenis_tabungan')
+                    .delete()
+                    .eq('id', typeToDelete.id);
+                  
+                  if (error) throw error;
+                  
+                  toast({
+                    title: "Berhasil",
+                    description: "Jenis tabungan berhasil dihapus",
+                    variant: "default"
+                  });
+                  
+                  // Refresh data
+                  await fetchSavingsTypes();
+                  setDeleteDialogOpen(false);
+                } catch (error) {
+                  console.error('Error deleting savings type:', error);
+                  toast({
+                    title: "Error",
+                    description: "Gagal menghapus jenis tabungan",
+                    variant: "destructive"
+                  });
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                'Hapus'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Add/Edit Form Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
