@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Loader2 } from "lucide-react"
@@ -234,6 +234,8 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
           onOpenChange={setTransactionsOpen}
         />
       )}
+
+
     </>
   )
 }

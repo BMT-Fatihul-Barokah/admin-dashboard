@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, RefreshCcw, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, RefreshCcw, Loader2, Settings } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { format, parseISO } from "date-fns"
@@ -30,6 +30,8 @@ import { EditUserForm } from "./components/edit-user-form"
 import { UserTransactions } from "./components/user-transactions"
 import { ToggleUserStatus } from "./components/toggle-user-status"
 import { SavingsDetails } from "./components/savings-details"
+import { ManageSavingsTypes } from "./components/manage-savings-types"
+import { AddSavingsAccount } from "./components/add-savings-account"
 
 type Anggota = {
   id: string
@@ -70,6 +72,8 @@ export default function UsersPage() {
   const [transactionsDialogOpen, setTransactionsDialogOpen] = useState(false)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [savingsDialogOpen, setSavingsDialogOpen] = useState(false)
+  const [savingsTypesDialogOpen, setSavingsTypesDialogOpen] = useState(false)
+  const [addSavingsDialogOpen, setAddSavingsDialogOpen] = useState(false)
   
   // Format date function
   const formatDate = (dateString: string | Date) => {
@@ -266,6 +270,16 @@ export default function UsersPage() {
           />
         </div>
         <div className="ml-auto"></div>
+        <PermissionGuard permission="edit_users" anyPermission={["edit_users", "manage_roles"]}>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={() => setSavingsTypesDialogOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+            Kelola Jenis Tabungan
+          </Button>
+        </PermissionGuard>
         <Button variant="outline" size="icon" onClick={fetchAnggota} disabled={isLoading}>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -384,6 +398,16 @@ export default function UsersPage() {
                           </DropdownMenuItem>
                         </PermissionGuard>
                         
+                        {/* Add Savings Account - Only users with edit_users permission */}
+                        <PermissionGuard permission="edit_users">
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedUser(member)
+                            setAddSavingsDialogOpen(true)
+                          }}>
+                            Tambah Tabungan
+                          </DropdownMenuItem>
+                        </PermissionGuard>
+                        
                         {/* Only show separator if user has permission to activate/deactivate */}
                         <PermissionGuard permission="edit_users">
                           <DropdownMenuSeparator />
@@ -471,6 +495,52 @@ export default function UsersPage() {
               </DialogClose>
             </div>
             <SavingsDetails userId={selectedUser.id} />
+          </DialogContent>
+        </Dialog>
+      )}
+      
+      {/* Manage Savings Types Dialog */}
+      <Dialog open={savingsTypesDialogOpen} onOpenChange={setSavingsTypesDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-hidden p-0">
+          <div className="flex justify-between items-center px-6 py-4 sticky top-0 bg-background z-10 border-b">
+            <div>
+              <DialogTitle>Manajemen Jenis Tabungan</DialogTitle>
+              <DialogDescription>
+                Kelola jenis-jenis tabungan yang tersedia di koperasi.
+              </DialogDescription>
+            </div>
+            <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15" fill="none" className="h-4 w-4">
+                <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor"></path>
+              </svg>
+              <span className="sr-only">Close</span>
+            </DialogClose>
+          </div>
+          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 120px)' }}>
+            <ManageSavingsTypes />
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Savings Account Dialog */}
+      {selectedUser && (
+        <Dialog open={addSavingsDialogOpen} onOpenChange={setAddSavingsDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Tambah Tabungan Baru</DialogTitle>
+              <DialogDescription>
+                Tambahkan jenis tabungan baru untuk {selectedUser.nama}.
+              </DialogDescription>
+            </DialogHeader>
+            <AddSavingsAccount 
+              userId={selectedUser.id}
+              userName={selectedUser.nama}
+              onSuccess={() => {
+                setAddSavingsDialogOpen(false);
+                // Refresh data if needed
+                fetchAnggota();
+              }}
+            />
           </DialogContent>
         </Dialog>
       )}
