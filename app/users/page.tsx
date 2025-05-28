@@ -272,16 +272,6 @@ export default function UsersPage() {
           />
         </div>
         <div className="ml-auto"></div>
-        <PermissionGuard permission="edit_users" anyPermission={["edit_users", "manage_roles"]}>
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2"
-            onClick={() => setSavingsTypesDialogOpen(true)}
-          >
-            <Settings className="h-4 w-4" />
-            Kelola Jenis Tabungan
-          </Button>
-        </PermissionGuard>
         <Button variant="outline" size="icon" onClick={fetchAnggota} disabled={isLoading}>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
