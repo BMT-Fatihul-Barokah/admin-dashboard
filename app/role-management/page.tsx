@@ -1,52 +1,64 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { Loader2, Plus, Trash, Edit, Save } from "lucide-react";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/components/ui/use-toast";
-import { useAdminAuth } from "@/lib/admin-auth-context";
-import { createClient } from '@supabase/supabase-js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { RoleProtected } from "@/components/role-protected";
-import { Loader2, Plus, Trash, Edit, Save } from "lucide-react";
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+}
 
-// Permission types
 interface Permission {
   id: string;
   name: string;
   description: string;
 }
 
-// Role types
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  created_at: string;
-  permissions: string[];
-}
-
-// User types
 interface AdminUser {
   id: string;
   username: string;
   role: string;
   nama: string;
-  email?: string;
+  email: string;
 }
 
-export default function RoleManagementPage() {
-  const { toast } = useToast();
+function RoleManagementContent(): React.ReactElement {
   const { user } = useAdminAuth();
+  const { toast } = useToast();
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -58,60 +70,54 @@ export default function RoleManagementPage() {
   const [newRoleDescription, setNewRoleDescription] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
-  // Fetch roles, permissions, and users on component mount
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch roles
         const { data: rolesData, error: rolesError } = await supabase
-          .from('admin_roles')
-          .select('*');
+          .from("admin_roles")
+          .select("*");
 
         if (rolesError) throw rolesError;
 
-        // Fetch permissions
         const { data: permissionsData, error: permissionsError } = await supabase
-          .from('admin_permissions')
-          .select('*');
+          .from("admin_permissions")
+          .select("*");
 
         if (permissionsError) throw permissionsError;
 
-        // Fetch role permissions
         const { data: rolePermissionsData, error: rolePermissionsError } = await supabase
-          .from('admin_role_permissions')
-          .select('*');
+          .from("admin_role_permissions")
+          .select("*");
 
         if (rolePermissionsError) throw rolePermissionsError;
 
-        // Fetch users
         const { data: usersData, error: usersError } = await supabase
-          .from('admin_users')
-          .select('*');
+          .from("admin_users")
+          .select("*");
 
         if (usersError) throw usersError;
 
-        // Process roles with their permissions
-        const processedRoles = rolesData.map(role => {
+        const processedRoles = rolesData?.map((role) => {
           const rolePermissions = rolePermissionsData
-            .filter(rp => rp.role_id === role.id)
-            .map(rp => rp.permission_id);
-          
+            ?.filter((rp) => rp.role_id === role.id)
+            .map((rp) => rp.permission_id) || [];
+
           return {
             ...role,
-            permissions: rolePermissions
+            permissions: rolePermissions,
           };
-        });
+        }) || [];
 
         setRoles(processedRoles);
-        setPermissions(permissionsData);
-        setUsers(usersData);
+        setPermissions(permissionsData || []);
+        setUsers(usersData || []);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
         toast({
-          title: 'Error',
-          description: 'Gagal memuat data. Silakan coba lagi.',
-          variant: 'destructive'
+          title: "Error",
+          description: "Gagal memuat data. Silakan coba lagi.",
+          variant: "destructive",
         });
       } finally {
         setIsLoading(false);
@@ -121,393 +127,411 @@ export default function RoleManagementPage() {
     fetchData();
   }, [toast]);
 
-  // Handle adding a new role
-  const handleAddRole = async () => {
-    if (!newRoleName.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Nama peran harus diisi.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    try {
-      // Insert new role
-      const { data: newRole, error: roleError } = await supabase
-        .from('admin_roles')
-        .insert({
-          name: newRoleName,
-          description: newRoleDescription
-        })
-        .select()
-        .single();
-
-      if (roleError) throw roleError;
-
-      // Insert role permissions
-      if (selectedPermissions.length > 0) {
-        const rolePermissions = selectedPermissions.map(permissionId => ({
-          role_id: newRole.id,
-          permission_id: permissionId
-        }));
-
-        const { error: permissionsError } = await supabase
-          .from('admin_role_permissions')
-          .insert(rolePermissions);
-
-        if (permissionsError) throw permissionsError;
-      }
-
-      // Update local state
-      setRoles([...roles, { ...newRole, permissions: selectedPermissions }]);
-      
-      // Reset form
-      setNewRoleName("");
-      setNewRoleDescription("");
-      setSelectedPermissions([]);
-      setIsAddRoleDialogOpen(false);
-
-      toast({
-        title: 'Berhasil',
-        description: `Peran ${newRoleName} telah ditambahkan.`,
-        variant: 'default'
-      });
-    } catch (error) {
-      console.error('Error adding role:', error);
-      toast({
-        title: 'Error',
-        description: 'Gagal menambahkan peran. Silakan coba lagi.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  // Handle editing a role
-  const handleEditRole = async () => {
-    if (!selectedRole || !newRoleName.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Nama peran harus diisi.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    try {
-      // Update role
-      const { error: roleError } = await supabase
-        .from('admin_roles')
-        .update({
-          name: newRoleName,
-          description: newRoleDescription
-        })
-        .eq('id', selectedRole.id);
-
-      if (roleError) throw roleError;
-
-      // Delete existing role permissions
-      const { error: deleteError } = await supabase
-        .from('admin_role_permissions')
-        .delete()
-        .eq('role_id', selectedRole.id);
-
-      if (deleteError) throw deleteError;
-
-      // Insert new role permissions
-      if (selectedPermissions.length > 0) {
-        const rolePermissions = selectedPermissions.map(permissionId => ({
-          role_id: selectedRole.id,
-          permission_id: permissionId
-        }));
-
-        const { error: permissionsError } = await supabase
-          .from('admin_role_permissions')
-          .insert(rolePermissions);
-
-        if (permissionsError) throw permissionsError;
-      }
-
-      // Update local state
-      const updatedRoles = roles.map(role => 
-        role.id === selectedRole.id 
-          ? { ...role, name: newRoleName, description: newRoleDescription, permissions: selectedPermissions }
-          : role
-      );
-      
-      setRoles(updatedRoles);
-      
-      // Reset form
-      setNewRoleName("");
-      setNewRoleDescription("");
-      setSelectedPermissions([]);
-      setSelectedRole(null);
-      setIsEditRoleDialogOpen(false);
-
-      toast({
-        title: 'Berhasil',
-        description: `Peran ${newRoleName} telah diperbarui.`,
-        variant: 'default'
-      });
-    } catch (error) {
-      console.error('Error updating role:', error);
-      toast({
-        title: 'Error',
-        description: 'Gagal memperbarui peran. Silakan coba lagi.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  // Handle deleting a role
-  const handleDeleteRole = async (roleId: string) => {
-    // Check if role is assigned to any users
-    const usersWithRole = users.filter(user => user.role === roleId);
-    
-    if (usersWithRole.length > 0) {
-      toast({
-        title: 'Error',
-        description: 'Tidak dapat menghapus peran yang sedang digunakan oleh pengguna.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    try {
-      // Delete role permissions first
-      const { error: permissionsError } = await supabase
-        .from('admin_role_permissions')
-        .delete()
-        .eq('role_id', roleId);
-
-      if (permissionsError) throw permissionsError;
-
-      // Delete role
-      const { error: roleError } = await supabase
-        .from('admin_roles')
-        .delete()
-        .eq('id', roleId);
-
-      if (roleError) throw roleError;
-
-      // Update local state
-      setRoles(roles.filter(role => role.id !== roleId));
-
-      toast({
-        title: 'Berhasil',
-        description: 'Peran telah dihapus.',
-        variant: 'default'
-      });
-    } catch (error) {
-      console.error('Error deleting role:', error);
-      toast({
-        title: 'Error',
-        description: 'Gagal menghapus peran. Silakan coba lagi.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  // Handle permission checkbox change
-  const handlePermissionChange = (permissionId: string) => {
-    setSelectedPermissions(prev => 
-      prev.includes(permissionId)
-        ? prev.filter(id => id !== permissionId)
-        : [...prev, permissionId]
+  const togglePermission = (id: string) => {
+    setSelectedPermissions((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
   };
 
-  // Get permission name by ID
   const getPermissionName = (permissionId: string) => {
-    const permission = permissions.find(p => p.id === permissionId);
-    return permission ? permission.name : 'Unknown';
+    const permission = permissions.find((p) => p.id === permissionId);
+    return permission ? permission.name : "Unknown";
   };
 
-  // Open edit role dialog
   const openEditDialog = (role: Role) => {
     setSelectedRole(role);
     setNewRoleName(role.name);
-    setNewRoleDescription(role.description || '');
+    setNewRoleDescription(role.description || "");
     setSelectedPermissions(role.permissions || []);
     setIsEditRoleDialogOpen(true);
   };
 
+  const handleAddRole = async () => {
+    if (!newRoleName) {
+      toast({
+        title: "Error",
+        description: "Nama role tidak boleh kosong",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('admin_roles')
+        .insert([
+          {
+            name: newRoleName,
+            description: newRoleDescription,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        // Add role permissions
+        if (selectedPermissions.length > 0) {
+          const { error: permissionsError } = await supabase
+            .from('admin_role_permissions')
+            .insert(
+              selectedPermissions.map(permissionId => ({
+                role_id: data.id,
+                permission_id: permissionId,
+              }))
+            );
+
+          if (permissionsError) throw permissionsError;
+        }
+
+        setRoles([...roles, { ...data, permissions: selectedPermissions }]);
+        toast({
+          title: 'Success',
+          description: 'Role berhasil ditambahkan',
+          variant: 'default'
+        });
+        handleCloseDialogs();
+      }
+    } catch (error) {
+      console.error('Error adding role:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal menambahkan role. Silakan coba lagi.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleEditRole = async () => {
+    try {
+      if (!selectedRole || !newRoleName.trim()) {
+        toast({
+          title: "Error",
+          description: "Role name is required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error: roleError } = await supabase
+        .from("admin_roles")
+        .update({
+          name: newRoleName.trim(),
+          description: newRoleDescription.trim(),
+        })
+        .eq("id", selectedRole.id);
+
+      if (roleError) throw roleError;
+
+      // Update role permissions
+      const { error: deletePermError } = await supabase
+        .from("admin_role_permissions")
+        .delete()
+        .eq("role_id", selectedRole.id);
+
+      if (deletePermError) throw deletePermError;
+
+      if (selectedPermissions.length > 0) {
+        const { error: addPermError } = await supabase
+          .from("admin_role_permissions")
+          .insert(
+            selectedPermissions.map((permissionId) => ({
+              role_id: selectedRole.id,
+              permission_id: permissionId,
+            }))
+          );
+
+        if (addPermError) throw addPermError;
+      }
+
+      const updatedRoles = roles.map((role) =>
+        role.id === selectedRole.id
+          ? {
+              ...role,
+              name: newRoleName.trim(),
+              description: newRoleDescription.trim(),
+              permissions: selectedPermissions,
+            }
+          : role
+      );
+
+      setRoles(updatedRoles);
+      handleCloseDialogs();
+
+      toast({
+        title: "Success",
+        description: "Role updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string) => {
+    try {
+      // Delete role permissions first
+      const { error: permError } = await supabase
+        .from("admin_role_permissions")
+        .delete()
+        .eq("role_id", roleId);
+
+      if (permError) throw permError;
+
+      // Then delete the role
+      const { error } = await supabase
+        .from("admin_roles")
+        .delete()
+        .eq("id", roleId);
+
+      if (error) throw error;
+
+      setRoles(roles.filter((role) => role.id !== roleId));
+      toast({
+        title: "Success",
+        description: "Role deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePermissionChange = (permissionId: string) => {
+    setSelectedPermissions((prev) =>
+      prev.includes(permissionId)
+        ? prev.filter((id) => id !== permissionId)
+        : [...prev, permissionId]
+    );
+  };
+
+  const handleOpenEditDialog = (role: Role) => {
+    setSelectedRole(role);
+    setNewRoleName(role.name);
+    setNewRoleDescription(role.description);
+    setSelectedPermissions(role.permissions);
+    setIsEditRoleDialogOpen(true);
+  };
+
+  const handleCloseDialogs = () => {
+    setIsAddRoleDialogOpen(false);
+    setIsEditRoleDialogOpen(false);
+    setSelectedRole(null);
+    setNewRoleName("");
+    setNewRoleDescription("");
+    setSelectedPermissions([]);
+  };
+
   return (
-    <RoleProtected allowedRoles={['admin']}>
-      <div className="container mx-auto py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Manajemen Peran</h1>
-          <Button onClick={() => setIsAddRoleDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Tambah Peran
-          </Button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Daftar Peran</CardTitle>
-              <CardDescription>Kelola peran dan izin akses untuk pengguna admin</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama Peran</TableHead>
-                    <TableHead>Deskripsi</TableHead>
-                    <TableHead>Izin Akses</TableHead>
-                    <TableHead>Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {roles.map(role => (
-                    <TableRow key={role.id}>
-                      <TableCell className="font-medium">{role.name}</TableCell>
-                      <TableCell>{role.description}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {role.permissions.map(permissionId => (
-                            <span key={permissionId} className="bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-xs">
-                              {getPermissionName(permissionId)}
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="icon" onClick={() => openEditDialog(role)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="destructive" size="icon" onClick={() => handleDeleteRole(role.id)}>
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Add Role Dialog */}
-        <Dialog open={isAddRoleDialogOpen} onOpenChange={setIsAddRoleDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Tambah Peran Baru</DialogTitle>
-              <DialogDescription>
-                Buat peran baru dan tetapkan izin akses yang sesuai.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="role-name">Nama Peran</Label>
-                <Input
-                  id="role-name"
-                  value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
-                  placeholder="Masukkan nama peran"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role-description">Deskripsi</Label>
-                <Input
-                  id="role-description"
-                  value={newRoleDescription}
-                  onChange={(e) => setNewRoleDescription(e.target.value)}
-                  placeholder="Masukkan deskripsi peran"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Izin Akses</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {permissions.map(permission => (
-                    <div key={permission.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`permission-${permission.id}`}
-                        checked={selectedPermissions.includes(permission.id)}
-                        onCheckedChange={() => handlePermissionChange(permission.id)}
-                      />
-                      <Label htmlFor={`permission-${permission.id}`} className="text-sm">
-                        {permission.name}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddRoleDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button onClick={handleAddRole}>
-                <Save className="mr-2 h-4 w-4" /> Simpan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Role Dialog */}
-        <Dialog open={isEditRoleDialogOpen} onOpenChange={setIsEditRoleDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Peran</DialogTitle>
-              <DialogDescription>
-                Ubah detail peran dan izin akses.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-role-name">Nama Peran</Label>
-                <Input
-                  id="edit-role-name"
-                  value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
-                  placeholder="Masukkan nama peran"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-role-description">Deskripsi</Label>
-                <Input
-                  id="edit-role-description"
-                  value={newRoleDescription}
-                  onChange={(e) => setNewRoleDescription(e.target.value)}
-                  placeholder="Masukkan deskripsi peran"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Izin Akses</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {permissions.map(permission => (
-                    <div key={permission.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`edit-permission-${permission.id}`}
-                        checked={selectedPermissions.includes(permission.id)}
-                        onCheckedChange={() => handlePermissionChange(permission.id)}
-                      />
-                      <Label htmlFor={`edit-permission-${permission.id}`} className="text-sm">
-                        {permission.name}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditRoleDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button onClick={handleEditRole}>
-                <Save className="mr-2 h-4 w-4" /> Simpan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Role Management</h2>
+        <Button onClick={() => setIsAddRoleDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Role
+        </Button>
       </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead>Permissions</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {roles.map((role) => (
+            <TableRow key={role.id}>
+              <TableCell>{role.name}</TableCell>
+              <TableCell>{role.description}</TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-2">
+                  {role.permissions.map((permId) => {
+                    const permission = permissions.find((p) => p.id === permId);
+                    return (
+                      <Badge key={permId} variant="secondary">
+                        {permission?.name || "Unknown"}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOpenEditDialog(role)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteRole(role.id)}
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Dialog open={isAddRoleDialogOpen} onOpenChange={setIsAddRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Role</DialogTitle>
+            <DialogDescription>
+              Create a new role with specific permissions
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                placeholder="Enter role name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={newRoleDescription}
+                onChange={(e) => setNewRoleDescription(e.target.value)}
+                placeholder="Enter role description"
+              />
+            </div>
+            <div>
+              <Label>Permissions</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2 max-h-[200px] overflow-y-auto">
+                {permissions.map((permission) => (
+                  <div key={permission.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={permission.id}
+                      checked={selectedPermissions.includes(permission.id)}
+                      onCheckedChange={() =>
+                        handlePermissionChange(permission.id)
+                      }
+                    />
+                    <Label htmlFor={permission.id} className="text-sm">
+                      {permission.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseDialogs}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddRole}>
+              Add Role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditRoleDialogOpen} onOpenChange={setIsEditRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Role</DialogTitle>
+            <DialogDescription>
+              Modify role details and permissions
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                placeholder="Enter role name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
+                id="edit-description"
+                value={newRoleDescription}
+                onChange={(e) => setNewRoleDescription(e.target.value)}
+                placeholder="Enter role description"
+              />
+            </div>
+            <div>
+              <Label>Permissions</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2 max-h-[200px] overflow-y-auto">
+                {permissions.map((permission) => (
+                  <div key={permission.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-${permission.id}`}
+                      checked={selectedPermissions.includes(permission.id)}
+                      onCheckedChange={() =>
+                        handlePermissionChange(permission.id)
+                      }
+                    />
+                    <Label htmlFor={`edit-${permission.id}`} className="text-sm">
+                      {permission.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseDialogs}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditRole}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export default function RoleManagement(): React.ReactElement {
+  return (
+    <RoleProtected
+      requiredPermission="view_roles"
+      allowedRoles={["admin"]}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle>Role Management</CardTitle>
+          <CardDescription>
+            Manage roles and their permissions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense
+            fallback={
+              <div className="flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            }
+          >
+            <RoleManagementContent />
+          </Suspense>
+        </CardContent>
+      </Card>
     </RoleProtected>
   );
 }

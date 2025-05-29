@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,22 @@ import { useRouter } from "next/navigation";
 import { loginAdmin } from "@/lib/admin-auth";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 
-export default function LoginPage() {
+// Login content component that safely uses hooks inside Suspense
+function LoginContent() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center p-4">
+          <div className="animate-spin mr-2">Loading...</div>
+        </div>
+      }
+    >
+      <LoginUI />
+    </Suspense>
+  );
+}
+
+function LoginUI() {
   const router = useRouter();
   const { setUser } = useAdminAuth();
   const [username, setUsername] = useState("");
@@ -46,6 +61,8 @@ export default function LoginPage() {
     }
   };
 
+
+  
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md">
@@ -96,5 +113,40 @@ export default function LoginPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+// Main login page component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-2 text-center">
+            <div className="flex justify-center">
+              <Wallet className="h-12 w-12" />
+            </div>
+            <CardTitle className="text-2xl font-bold">Control Panel</CardTitle>
+            <CardDescription>Masuk ke panel admin untuk mengelola sistem koperasi</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="h-8 w-full bg-muted animate-pulse rounded"></div>
+            </div>
+            <div className="space-y-2">
+              <div className="h-8 w-full bg-muted animate-pulse rounded"></div>
+            </div>
+            <div className="h-10 w-full bg-muted animate-pulse rounded"></div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <div className="text-center text-sm text-muted-foreground">
+              <span>Login sesuai dengan peran Anda</span>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

@@ -229,10 +229,10 @@ export default function ReportsPage() {
       ]
       
       // Create workbook and worksheet
-      const wb = XLSX.utils.book_new()
+      const wb = XLSX.utils.book_new();
       
       if (reportType === 'financial') {
-        fileName = `Laporan_Keuangan_${formattedPeriod}.xlsx`
+        fileName = `Laporan_Keuangan_${formattedPeriod}.xlsx`;
         
         // Financial summary data
         const summaryData = [
@@ -308,7 +308,7 @@ export default function ReportsPage() {
         
         // Set column widths
         const summaryWidths = [{ wch: 25 }, { wch: 15 }, { wch: 20 }]
-        summarySheet['!cols'] = summaryWidths
+        summarySheet['!cols'] = summaryWidths;
         
         XLSX.utils.book_append_sheet(wb, summarySheet, 'Ringkasan Keuangan')
         
@@ -317,7 +317,7 @@ export default function ReportsPage() {
         
         // Set column widths
         const distributionWidths = [{ wch: 20 }, { wch: 15 }, { wch: 15 }]
-        distributionSheet['!cols'] = distributionWidths
+        distributionSheet['!cols'] = distributionWidths;
         
         XLSX.utils.book_append_sheet(wb, distributionSheet, 'Distribusi Transaksi')
         
@@ -326,7 +326,7 @@ export default function ReportsPage() {
         
         // Set column widths
         const trendsWidths = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
-        trendsSheet['!cols'] = trendsWidths
+        trendsSheet['!cols'] = trendsWidths;
         
         XLSX.utils.book_append_sheet(wb, trendsSheet, 'Tren Keuangan')
         
@@ -335,12 +335,12 @@ export default function ReportsPage() {
         
         // Set column widths
         const transactionWidths = [{ wch: 10 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }]
-        transactionDetailsSheet['!cols'] = transactionWidths
+        transactionDetailsSheet['!cols'] = transactionWidths;
         
         XLSX.utils.book_append_sheet(wb, transactionDetailsSheet, 'Detail Transaksi')
         
       } else if (reportType === 'members') {
-        fileName = `Laporan_Anggota_${formattedPeriod}.xlsx`
+        fileName = `Laporan_Anggota_${formattedPeriod}.xlsx`;
         
         // Member statistics data
         const membersData = [
@@ -386,7 +386,7 @@ export default function ReportsPage() {
         XLSX.utils.book_append_sheet(wb, memberDetailsSheet, 'Detail Anggota')
         
       } else if (reportType === 'loans') {
-        fileName = `Laporan_Pinjaman_${formattedPeriod}.xlsx`
+        fileName = `Laporan_Pinjaman_${formattedPeriod}.xlsx`;
         
         // Loan statistics data
         const loansData = [
@@ -422,7 +422,7 @@ export default function ReportsPage() {
         
         // Set column widths
         const summaryWidths = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 20 }]
-        loansSheet['!cols'] = summaryWidths
+        loansSheet['!cols'] = summaryWidths;
         
         XLSX.utils.book_append_sheet(wb, loansSheet, 'Statistik Pinjaman')
         
@@ -431,12 +431,12 @@ export default function ReportsPage() {
         
         // Set column widths
         const loanWidths = [{ wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }]
-        loanDetailsSheet['!cols'] = loanWidths
+        loanDetailsSheet['!cols'] = loanWidths;
         
         XLSX.utils.book_append_sheet(wb, loanDetailsSheet, 'Detail Pinjaman')
         
       } else if (reportType === 'transactions') {
-        fileName = `Laporan_Transaksi_${formattedPeriod}.xlsx`
+        fileName = `Laporan_Transaksi_${formattedPeriod}.xlsx`;
         
         // Transaction statistics data
         const transactionsData = [
@@ -473,7 +473,7 @@ export default function ReportsPage() {
         
         // Set column widths
         const summaryWidths = [{ wch: 30 }, { wch: 15 }, { wch: 20 }]
-        transactionsSheet['!cols'] = summaryWidths
+        transactionsSheet['!cols'] = summaryWidths;
         
         XLSX.utils.book_append_sheet(wb, transactionsSheet, 'Statistik Transaksi')
         
@@ -482,7 +482,7 @@ export default function ReportsPage() {
         
         // Set column widths
         const transactionWidths = [{ wch: 10 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }]
-        transactionDetailsSheet['!cols'] = transactionWidths
+        transactionDetailsSheet['!cols'] = transactionWidths;
         
         XLSX.utils.book_append_sheet(wb, transactionDetailsSheet, 'Detail Transaksi')
       } else {
@@ -495,7 +495,7 @@ export default function ReportsPage() {
         
         // Set column widths
         const fallbackWidths = [{ wch: 20 }, { wch: 30 }, { wch: 15 }]
-        fallbackSheet['!cols'] = fallbackWidths
+        fallbackSheet['!cols'] = fallbackWidths;
         
         XLSX.utils.book_append_sheet(wb, fallbackSheet, 'Laporan')
       }
@@ -509,14 +509,14 @@ export default function ReportsPage() {
                                               reportType === 'members' ? 'Anggota' : 
                                               reportType === 'loans' ? 'Pinjaman' : 
                                               reportType === 'transactions' ? 'Transaksi' : 'Tidak Diketahui' },
-        { 'Metadata': 'Dibuat Oleh', 'Nilai': user?.name || 'Admin' } 
-      ])
+        { 'Metadata': 'Dibuat Oleh', 'Nilai': user?.nama || 'Admin' }
+      ]);
       
       // Set column widths
-      const metadataWidths = [{ wch: 25 }, { wch: 30 }]
-      metadataSheet['!cols'] = metadataWidths
+      const metadataWidths = [{ wch: 25 }, { wch: 30 }];
+      metadataSheet['!cols'] = metadataWidths;
       
-      XLSX.utils.book_append_sheet(wb, metadataSheet, 'Metadata')
+      XLSX.utils.book_append_sheet(wb, metadataSheet, 'Metadata');
       
       // If no sheets were added (unlikely with our checks), add a default sheet
       if (wb.SheetNames.length === 0) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Bell, Settings } from "lucide-react"
+import { ArrowLeft, Bell, Settings, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
@@ -25,7 +25,22 @@ type JenisNotifikasi = {
   template_pesan?: string
 }
 
-export default function NotificationSettingsPage() {
+// Content component that safely uses hooks inside Suspense
+function NotificationSettingsContent() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center p-4">
+          <Loader2 className="h-4 w-4 animate-spin" />
+        </div>
+      }
+    >
+      <NotificationSettingsUI />
+    </Suspense>
+  );
+}
+
+function NotificationSettingsUI() {
   const [categories, setCategories] = useState<JenisNotifikasi[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -230,163 +245,249 @@ export default function NotificationSettingsPage() {
     fetchCategories()
   }, [])
 
+  // Save all changes function
+  const saveAllChanges = async () => {
+    setSaving(true)
+    try {
+      toast({
+        title: "Perubahan Disimpan",
+        description: "Semua perubahan pengaturan notifikasi telah disimpan.",
+      })
+    } catch (error) {
+      console.error("Error saving all changes:", error)
+      toast({
+        title: "Error",
+        description: "Gagal menyimpan perubahan. Silakan coba lagi nanti.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Reset template to default
+  const resetTemplate = async (kode: string) => {
+    const defaultTemplates = {
+      'transaksi': {
+        template_judul: 'Transaksi Baru',
+        template_pesan: 'Transaksi sebesar Rp {amount} telah berhasil diproses.'
+      },
+      'pengumuman': {
+        template_judul: 'Pengumuman Penting',
+        template_pesan: '{message}'
+      },
+      'info': {
+        template_judul: 'Informasi',
+        template_pesan: '{message}'
+      },
+      'sistem': {
+        template_judul: 'Pemeliharaan Sistem',
+        template_pesan: 'Sistem akan mengalami pemeliharaan pada tanggal {date} pukul {time}.'
+      },
+      'jatuh_tempo': {
+        template_judul: 'Pinjaman Jatuh Tempo',
+        template_pesan: 'Pembayaran pinjaman Anda sebesar Rp {amount} akan jatuh tempo pada tanggal {date}.'
+      }
+    }
+    
+    const template = defaultTemplates[kode as keyof typeof defaultTemplates]
+    if (template) {
+      await updateCategory(kode, template)
+      // Update local state
+      setCategories(prev =>
+        prev.map(cat =>
+          cat.kode === kode
+            ? { ...cat, ...template }
+            : cat
+        )
+      )
+    }
+  }
+
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/notifications">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <h2 className="text-3xl font-bold tracking-tight">Pengaturan Notifikasi</h2>
-        </div>
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex items-center gap-2">
+        <Link href="/notifications" className="hover:opacity-80">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <h1 className="text-2xl font-bold">Pengaturan Notifikasi</h1>
       </div>
 
-      <Tabs defaultValue="categories" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="categories">Kategori Notifikasi</TabsTrigger>
-          <TabsTrigger value="templates">Template Notifikasi</TabsTrigger>
-          <TabsTrigger value="general">Pengaturan Umum</TabsTrigger>
-        </TabsList>
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin mr-2">
+            <Loader2 className="h-5 w-5" />
+          </div>
+          <span>Memuat pengaturan notifikasi...</span>
+        </div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pengaturan Notifikasi</CardTitle>
+            <CardDescription>
+              Kelola preferensi notifikasi dan template pesan untuk aplikasi
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="categories">
+              <TabsList className="mb-4">
+                <TabsTrigger value="categories">
+                  <Bell className="h-4 w-4 mr-2" />
+                  Jenis Notifikasi
+                </TabsTrigger>
+                <TabsTrigger value="templates">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Template Pesan
+                </TabsTrigger>
+              </TabsList>
 
-        <TabsContent value="categories" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Jenis Notifikasi</CardTitle>
-              <CardDescription>
-                Aktifkan atau nonaktifkan notifikasi push untuk setiap jenis notifikasi
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {loading ? (
-                <div className="space-y-4">
-                  {Array(5).fill(0).map((_, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="h-5 w-40 bg-gray-200 rounded animate-pulse"></div>
-                        <div className="h-4 w-60 bg-gray-100 rounded animate-pulse"></div>
+              <TabsContent value="categories">
+                <div className="space-y-6">
+                  {categories.map((category) => (
+                    <div key={category.kode} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="font-semibold">{category.nama}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {category.deskripsi}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id={`push-${category.kode}`}
+                            checked={category.is_push_enabled}
+                            onCheckedChange={(checked) => {
+                              updateCategory(category.kode, { is_push_enabled: checked })
+                            }}
+                          />
+                          <Label htmlFor={`push-${category.kode}`}>
+                            {category.is_push_enabled ? "Aktif" : "Nonaktif"}
+                          </Label>
+                        </div>
                       </div>
-                      <div className="h-6 w-12 bg-gray-200 rounded animate-pulse"></div>
+                      <Separator />
                     </div>
                   ))}
                 </div>
-              ) : (
-                categories.map((category) => (
-                  <div key={category.kode} className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <div className="font-medium">{category.nama}</div>
-                      <div className="text-sm text-muted-foreground">{category.deskripsi}</div>
-                    </div>
-                    <Switch
-                      checked={category.is_push_enabled}
-                      onCheckedChange={(checked) => togglePushEnabled(category.kode, checked)}
-                      disabled={saving}
-                    />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </TabsContent>
 
-        <TabsContent value="templates" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Template Notifikasi</CardTitle>
-              <CardDescription>
-                Kustomisasi template untuk setiap jenis notifikasi
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {loading ? (
-                <div className="space-y-8">
-                  {Array(3).fill(0).map((_, i) => (
-                    <div key={i} className="space-y-4">
-                      <div className="h-5 w-40 bg-gray-200 rounded animate-pulse"></div>
-                      <div className="space-y-2">
-                        <div className="h-10 w-full bg-gray-100 rounded animate-pulse"></div>
-                        <div className="h-24 w-full bg-gray-100 rounded animate-pulse"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                categories.map((category) => (
-                  <div key={category.kode} className="space-y-4">
-                    <div className="font-medium">{category.nama}</div>
-                    <div className="space-y-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor={`title-${category.kode}`}>Judul Template</Label>
-                        <Input
-                          id={`title-${category.kode}`}
-                          defaultValue={category.template_judul || ''}
-                          onBlur={(e) => updateTemplate(category.kode, e.target.value, category.template_pesan || '')}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor={`message-${category.kode}`}>Pesan Template</Label>
-                        <Input
-                          id={`message-${category.kode}`}
-                          defaultValue={category.template_pesan || ''}
-                          onBlur={(e) => updateTemplate(category.kode, category.template_judul || '', e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Gunakan placeholder seperti {'{member_name}'}, {'{amount}'}, {'{date}'}, dll.
+              <TabsContent value="templates">
+                <div className="space-y-6">
+                  {categories.map((category) => (
+                    <div key={category.kode} className="space-y-4 border rounded-lg p-4">
+                      <div>
+                        <h3 className="font-semibold">{category.nama}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {category.deskripsi}
                         </p>
                       </div>
-                    </div>
-                    <Separator />
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        <TabsContent value="general" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pengaturan Umum</CardTitle>
-              <CardDescription>
-                Konfigurasi pengaturan umum untuk sistem notifikasi
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Notifikasi Global</h3>
-                <p className="text-sm text-muted-foreground">
-                  Aktifkan untuk notifikasi yang dapat dilihat oleh semua pengguna tanpa perlu dikaitkan dengan anggota tertentu
-                </p>
-                
-                {loading ? (
-                  <div className="space-y-4">
-                    {Array(5).fill(0).map((_, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="h-5 w-40 bg-gray-200 rounded animate-pulse"></div>
-                        <div className="h-6 w-12 bg-gray-200 rounded animate-pulse"></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {categories.map((category) => (
-                      <div key={category.kode} className="flex items-center justify-between">
-                        <div className="font-medium">{category.nama}</div>
-                        <Switch
-                          checked={category.is_global}
-                          onCheckedChange={(checked) => toggleGlobalSetting(category.kode, checked)}
-                          disabled={saving}
+                      <div className="space-y-2">
+                        <Label htmlFor={`title-${category.kode}`}>Template Judul</Label>
+                        <Input
+                          id={`title-${category.kode}`}
+                          placeholder="Template judul notifikasi"
+                          value={category.template_judul || ''}
+                          onChange={(e) => {
+                            // Update local state immediately
+                            setCategories(prev =>
+                              prev.map(cat =>
+                                cat.kode === category.kode
+                                  ? { ...cat, template_judul: e.target.value }
+                                  : cat
+                              )
+                            )
+                          }}
+                          onBlur={(e) => {
+                            // Save to database on blur if changed
+                            if (e.target.value !== category.template_judul) {
+                              updateCategory(category.kode, { template_judul: e.target.value })
+                            }
+                          }}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          Variables: {'{amount}'}, {'{date}'}, {'{time}'}, {'{message}'}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`message-${category.kode}`}>Template Pesan</Label>
+                        <Input
+                          id={`message-${category.kode}`}
+                          placeholder="Template isi pesan notifikasi"
+                          value={category.template_pesan || ''}
+                          onChange={(e) => {
+                            // Update local state immediately
+                            setCategories(prev =>
+                              prev.map(cat =>
+                                cat.kode === category.kode
+                                  ? { ...cat, template_pesan: e.target.value }
+                                  : cat
+                              )
+                            )
+                          }}
+                          onBlur={(e) => {
+                            // Save to database on blur if changed
+                            if (e.target.value !== category.template_pesan) {
+                              updateCategory(category.kode, { template_pesan: e.target.value })
+                            }
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Variables: {'{amount}'}, {'{date}'}, {'{time}'}, {'{message}'}
+                        </p>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => resetTemplate(category.kode)}
+                      >
+                        Reset ke Default
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" asChild>
+              <Link href="/notifications">
+                Kembali
+              </Link>
+            </Button>
+            <Button
+              onClick={saveAllChanges}
+              disabled={saving}
+            >
+              {saving ? "Menyimpan..." : "Simpan Semua Perubahan"}
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function NotificationSettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <ArrowLeft className="h-5 w-5" />
+          <h1 className="text-2xl font-bold">Pengaturan Notifikasi</h1>
+        </div>
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin mr-2">
+            <Loader2 className="h-5 w-5" />
+          </div>
+          <span>Memuat pengaturan notifikasi...</span>
+        </div>
+      </div>
+    }>
+      <NotificationSettingsContent />
+    </Suspense>
   )
 }
