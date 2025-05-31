@@ -68,13 +68,13 @@ export function AdminSidebar() {
 	
 	// Redirect to login if not authenticated and not already on login page
 	useEffect(() => {
-		if (!isLoading && !isAuthenticated && pathname !== "/login") {
-			router.push("/login");
+		if (!isLoading && !isAuthenticated && pathname !== "/admin/login") {
+			router.push("/admin/login");
 		}
 	}, [isAuthenticated, isLoading, pathname, router]);
 	
 	// Don't render sidebar on login page
-	if (pathname === "/login" || !isAuthenticated) {
+	if (pathname === "/admin/login" || !isAuthenticated) {
 		return null;
 	}
 

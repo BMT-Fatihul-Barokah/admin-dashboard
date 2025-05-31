@@ -49,6 +49,9 @@ export async function loginAdmin(username: string, password: string): Promise<{
       token: data.token,
       expires_at: data.expires_at
     }));
+    
+    // Also set in cookie for middleware authentication
+    document.cookie = `admin-token=${data.token}; path=/; max-age=86400`;
 
     return { 
       success: true, 
@@ -121,8 +124,14 @@ export function logoutAdmin(): void {
     return;
   }
   
+  // Clear localStorage
   localStorage.removeItem('adminSession');
-  window.location.href = '/login';
+  
+  // Clear the cookie by setting an expired date
+  document.cookie = 'admin-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  
+  // Redirect to login page
+  window.location.href = '/admin/login';
 }
 
 // Function to check if user has permission for a specific action
@@ -141,7 +150,7 @@ export function hasPermission(role: AdminRole, action: string): boolean {
 export function getAuthorizedNavigation(role: AdminRole) {
   // All roles can see the dashboard
   const authorizedNavigation = [
-    { name: "Dashboard", href: "/", icon: "Home" }
+    { name: "Dashboard", href: "/admin", icon: "Home" }
   ];
   
   // Role-specific navigation items

@@ -14,7 +14,7 @@ export default function UnauthorizedPage() {
   useEffect(() => {
     // If not authenticated, redirect to login
     if (!isAuthenticated) {
-      router.push("/login");
+      router.push("/admin/login");
     }
   }, [isAuthenticated, router]);
 

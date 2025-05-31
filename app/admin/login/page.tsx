@@ -38,18 +38,24 @@ function LoginUI() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    console.log('Attempting login with username:', username);
 
     try {
       const result = await loginAdmin(username, password);
+      console.log('Login result:', result);
       
       if (result.success && result.data) {
         // Update the auth context directly with the user data
         setUser(result.data.user);
+        console.log('Login successful, user data:', result.data.user);
         
-        // Small delay to ensure the auth context is updated before navigation
-        setTimeout(() => {
-          router.push("/");
-        }, 100);
+        // Store session in cookie for middleware to detect
+        document.cookie = `admin-token=${result.data.token}; path=/; max-age=86400`;
+        
+        // Force a hard navigation to ensure the page refreshes completely
+        console.log('Redirecting to admin dashboard...');
+        window.location.href = '/admin';
+        return;
       } else {
         setError(result.error || "Login gagal. Periksa username dan password Anda.");
       }
@@ -60,7 +66,6 @@ function LoginUI() {
       setIsLoading(false);
     }
   };
-
 
   
   return (

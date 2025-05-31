@@ -38,8 +38,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!session) {
         setIsLoading(false);
-        if (pathname !== '/login') {
-          router.push('/login');
+        if (pathname && pathname !== '/admin/login' && pathname.startsWith('/admin')) {
+          router.push('/admin/login');
         }
         return;
       }
@@ -51,8 +51,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setUser(verifiedUser);
         } else {
           logoutAdmin();
-          if (pathname !== '/login') {
-            router.push('/login');
+          if (pathname && pathname !== '/admin/login' && pathname.startsWith('/admin')) {
+            router.push('/admin/login');
           }
         }
       } catch (error) {
@@ -69,7 +69,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     logoutAdmin();
     setUser(null);
-    router.push('/login');
+    router.push('/admin/login');
   };
 
   const hasPermission = (action: string): boolean => {
@@ -112,11 +112,11 @@ export function withAdminAuth<P extends object>(
 
     useEffect(() => {
       if (!isLoading && !isAuthenticated) {
-        router.push('/login');
+        router.push('/admin/login');
       }
       
       if (!isLoading && isAuthenticated && requiredPermission && !hasPermission(requiredPermission)) {
-        router.push('/unauthorized');
+        router.push('/admin/unauthorized');
       }
     }, [isAuthenticated, isLoading, router, requiredPermission]);
 
