@@ -77,7 +77,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     
     const permissions = {
       ketua: ['view_all'],
-      admin: ['view_all', 'edit_all', 'approve_all', 'reject_all'],
+      admin: ['view_all', 'edit_all', 'approve_all', 'reject_all', 'view_roles', 'edit_roles'],
       sekretaris: ['view_all', 'edit_users', 'approve_users', 'reject_users'],
       bendahara: ['view_all', 'edit_transactions', 'approve_transactions', 'reject_transactions']
     };

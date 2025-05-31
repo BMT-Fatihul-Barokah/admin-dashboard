@@ -543,27 +543,6 @@ export default function ReportsPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Laporan</h2>
-        <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <Calendar className="mr-2 h-4 w-4" />
-            Pilih Periode
-          </Button>
-          {user?.role !== 'ketua' && (
-            <Button onClick={handleExportReport} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Mengekspor...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Ekspor Laporan
-                </>
-              )}
-            </Button>
-          )}
-        </div>
       </div>
 
       <Tabs defaultValue="financial" className="space-y-4">
@@ -630,24 +609,7 @@ export default function ReportsPage() {
                       <CardTitle>Tren Keuangan</CardTitle>
                       <CardDescription>Perbandingan pendapatan dan pengeluaran</CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Select value={periodType} onValueChange={handlePeriodChange}>
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue placeholder="Pilih Periode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="weekly">Mingguan</SelectItem>
-                          <SelectItem value="monthly">Bulanan</SelectItem>
-                          <SelectItem value="quarterly">Kuartalan</SelectItem>
-                          <SelectItem value="yearly">Tahunan</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {user?.role !== 'ketua' && (
-                        <Button variant="outline" size="icon" onClick={handleExportReport}>
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                    <div></div>
                   </CardHeader>
                   <CardContent>
                     <FinancialTrendsChart data={financialTrends} />
@@ -687,53 +649,7 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {!isLoading && (
-            <div className="grid gap-4 grid-cols-1">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Laporan Keuangan Terunduh</CardTitle>
-                    <CardDescription>Laporan yang telah diunduh sebelumnya</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {savedReports.map((report) => (
-                      <div key={report.id} className="flex items-center justify-between border-b pb-4">
-                        <div className="flex items-center gap-4">
-                          <FileText className="h-8 w-8 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">{report.name}</p>
-                            <p className="text-sm text-muted-foreground">{report.date}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => toast.success('Laporan dibagikan')}>
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => toast.success('Laporan dicetak')}>
-                            <Printer className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleDownloadSavedReport(report)}
-                            disabled={isLoading}
-                          >
-                            {isDownloading === report.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Download className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {/* Laporan Keuangan Terunduh section removed */}
         </TabsContent>
 
         <TabsContent value="members" className="space-y-4">
