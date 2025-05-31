@@ -54,7 +54,7 @@ function LoginUI() {
         
         // Force a hard navigation to ensure the page refreshes completely
         console.log('Redirecting to admin dashboard...');
-        window.location.href = '/admin';
+        window.location.href = '/admin/dashboard';
         return;
       } else {
         setError(result.error || "Login gagal. Periksa username dan password Anda.");

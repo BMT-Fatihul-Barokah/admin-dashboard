@@ -48,7 +48,7 @@ export default function TestPage() {
                 Go to Login
               </button>
               <button 
-                onClick={() => window.location.href = '/admin'} 
+                onClick={() => window.location.href = '/admin/dashboard'} 
                 className="px-4 py-2 bg-green-600 text-white rounded"
               >
                 Go to Dashboard

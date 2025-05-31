@@ -27,7 +27,13 @@ export function middleware(request: NextRequest) {
   // If trying to access login page with a valid token, redirect to admin dashboard
   if (isPublicPath && token && token.length > 0) {
     console.log('Redirecting to admin dashboard: already logged in');
-    return NextResponse.redirect(new URL('/admin', request.url));
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+  }
+  
+  // If trying to access /admin root with a valid token, redirect to dashboard
+  if (path === '/admin' && token && token.length > 0) {
+    console.log('Redirecting from /admin to /admin/dashboard');
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
   }
   
   console.log('Proceeding with request');

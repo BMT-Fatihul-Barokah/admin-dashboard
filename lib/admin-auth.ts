@@ -150,7 +150,7 @@ export function hasPermission(role: AdminRole, action: string): boolean {
 export function getAuthorizedNavigation(role: AdminRole) {
   // All roles can see the dashboard
   const authorizedNavigation = [
-    { name: "Dashboard", href: "/admin", icon: "Home" }
+    { name: "Dashboard", href: "/admin/dashboard", icon: "Home" }
   ];
   
   // Role-specific navigation items
