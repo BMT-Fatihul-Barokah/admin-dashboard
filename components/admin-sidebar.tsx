@@ -44,15 +44,15 @@ import {
 
 // Define all navigation items with required permissions
 const allNavigation = [
-	{ name: "Dashboard", href: "/", icon: Home, permission: "view_dashboard" as Permission },
-	{ name: "Manajemen User", href: "/users", icon: Users, permission: "view_users" as Permission },
-	{ name: "Manajemen Akun", href: "/akun", icon: Smartphone, permission: "view_users" as Permission },
-	{ name: "Transaksi", href: "/transactions", icon: CreditCard, permission: "view_transactions" as Permission },
-	{ name: "Pinjaman", href: "/loans", icon: Wallet, permission: "view_loans" as Permission },
-	{ name: "Laporan", href: "/reports", icon: FileText, permission: "view_reports" as Permission },
-	{ name: "Analitik", href: "/analytics", icon: BarChart3, permission: "view_analytics" as Permission },
-	{ name: "Notifikasi", href: "/notifications", icon: Bell, permission: "view_notifications" as Permission },
-	{ name: "Import Data", href: "/import", icon: Upload, permission: "import_data" as Permission },
+	{ name: "Dashboard", href: "/admin/dashboard", icon: Home, permission: "view_dashboard" as Permission },
+	{ name: "Manajemen User", href: "/admin/users", icon: Users, permission: "view_users" as Permission },
+	{ name: "Manajemen Akun", href: "/admin/akun", icon: Smartphone, permission: "view_users" as Permission },
+	{ name: "Transaksi", href: "/admin/transactions", icon: CreditCard, permission: "view_transactions" as Permission },
+	{ name: "Pinjaman", href: "/admin/loans", icon: Wallet, permission: "view_loans" as Permission },
+	{ name: "Laporan", href: "/admin/reports", icon: FileText, permission: "view_reports" as Permission },
+	{ name: "Analitik", href: "/admin/analytics", icon: BarChart3, permission: "view_analytics" as Permission },
+	{ name: "Notifikasi", href: "/admin/notifications", icon: Bell, permission: "view_notifications" as Permission },
+	{ name: "Import Data", href: "/admin/import", icon: Upload, permission: "import_data" as Permission },
 ];
 
 
@@ -151,7 +151,7 @@ export function AdminSidebar() {
 						>
 							{!isCollapsed && (
 								<Link
-									href="/"
+									href="/admin/dashboard"
 									className="flex items-center font-semibold"
 								>
 									<Wallet className="h-6 w-6 mr-2" />
