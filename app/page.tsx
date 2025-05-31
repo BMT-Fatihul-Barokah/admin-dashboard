@@ -170,10 +170,10 @@ export default function HomePage() {
                 Simpanan
               </a>
               <a
-                href="#pinjaman"
+                href="#pembiayaan"
                 className="text-gray-700 hover:text-blue-600 font-medium px-3 py-2 rounded-lg transition-colors hover:bg-blue-50"
               >
-                Pinjaman
+                Pembiayaan
               </a>
               <a
                 href="#kontak"
@@ -235,11 +235,11 @@ export default function HomePage() {
                     Simpanan
                   </a>
                   <a
-                    href="#pinjaman"
+                    href="#pembiayaan"
                     className="block py-2 text-gray-700 hover:text-blue-600"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    Pinjaman
+                    Pembiayaan
                   </a>
                   <a
                     href="#kontak"
@@ -376,7 +376,7 @@ export default function HomePage() {
                 <svg className="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                 </svg>
-                LEGALITAS BMT FATHHUL BAROKAH
+                LEGALITAS BMT FATIHUL BAROKAH
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-blue-50 p-5 rounded-lg hover:shadow-md transition-shadow">
@@ -498,94 +498,252 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Layanan Section */}
-        <section id="layanan" className="scroll-mt-18 py-20 bg-gray-50">
+        {/* Simpanan Section */}
+        <section id="simpanan" className="scroll-mt-18 py-20 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                Layanan Kami
+                PRODUK SIMPANAN BMT FATHHUL BAROKAH
               </h2>
-              <p className="text-xl text-gray-600">
-                BMT Fatihul Barokah menyediakan berbagai layanan keuangan
-                syariah untuk memenuhi kebutuhan Anda.
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Kami menyediakan berbagai produk simpanan syariah untuk memenuhi kebutuhan finansial Anda
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-              {/* Simpanan */}
-              <div className="bg-white rounded-2xl p-8 shadow-lg">
-                <h3
-                  id="simpanan"
-                  className="scroll-mt-28 text-2xl font-bold mb-4"
-                >
-                  Simpanan
-                </h3>
-                <div className="space-y-6">
-                  <div className="border-l-4 border-blue-500 pl-4">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      Tabungan Wadiah
-                    </h4>
-                    <p className="text-gray-600">
-                      Simpanan yang dapat diambil sewaktu-waktu dengan akad
-                      wadiah.
-                    </p>
-                  </div>
-                  <div className="border-l-4 border-green-500 pl-4">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      Tabungan Umrah
-                    </h4>
-                    <p className="text-gray-600">
-                      Simpanan khusus untuk persiapan ibadah umrah.
-                    </p>
-                  </div>
-                  <div className="border-l-4 border-purple-500 pl-4">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      Deposito Mudharabah
-                    </h4>
-                    <p className="text-gray-600">
-                      Simpanan berjangka dengan bagi hasil yang kompetitif.
-                    </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* SIBAROKAH */}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                <div className="h-2 bg-blue-600"></div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Simpanan Barokah (SIBAROKAH)</h3>
+                  <p className="text-gray-700 mb-3">Simpanan dari anggota maupun non anggota BMT dengan prinsip wadiah atau akad qordh. Penarikan dapat dilakukan setiap saat.</p>
+                  <div className="mt-4 bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm font-medium text-blue-800">Setoran awal: Rp 50.000</p>
+                    <p className="text-sm font-medium text-blue-800">Setoran selanjutnya: min. Rp 10.000</p>
                   </div>
                 </div>
               </div>
 
-              {/* Pinjaman */}
-              <div className="bg-white rounded-2xl p-8 shadow-lg">
-                <h3
-                  id="pinjaman"
-                  className="scroll-mt-28 text-2xl font-bold mb-4"
-                >
-                  Pinjaman
-                </h3>
-                <div className="space-y-6">
-                  <div className="border-l-4 border-orange-500 pl-4">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      Pembiayaan Murabahah
-                    </h4>
-                    <p className="text-gray-600">
-                      Pembiayaan untuk pembelian barang dengan margin yang
-                      disepakati.
-                    </p>
+              {/* SIMUROJA */}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                <div className="h-2 bg-green-600"></div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Simpanan Mudhorobah Berjangka (SIMUROJA)</h3>
+                  <p className="text-gray-700 mb-3">Simpanan dengan prinsip Mudharabah dengan jangka waktu yang telah disepakati. Pemilik simpanan akan mendapatkan bagi hasil.</p>
+                  <div className="mt-4 bg-green-50 p-3 rounded-lg">
+                    <p className="text-sm font-medium text-green-800">Jangka waktu: 3, 6, dan 12 bulan</p>
+                    <p className="text-sm font-medium text-green-800">Setoran minimal: Rp 100.000</p>
                   </div>
-                  <div className="border-l-4 border-red-500 pl-4">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      Pembiayaan Mudharabah
-                    </h4>
-                    <p className="text-gray-600">
-                      Pembiayaan dengan sistem bagi hasil untuk modal usaha.
-                    </p>
-                  </div>
-                  <div className="border-l-4 border-indigo-500 pl-4">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      Pembiayaan Ijarah
-                    </h4>
-                    <p className="text-gray-600">
-                      Pembiayaan untuk sewa barang atau jasa dengan akad ijarah.
-                    </p>
+                </div>
+              </div>
+
+              {/* SIDIKA */}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                <div className="h-2 bg-purple-600"></div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Simpanan Pendidikan (SIDIKA)</h3>
+                  <p className="text-gray-700 mb-3">Simpanan yang dialokasikan bagi dana pendidikan. Penarikan dapat dilakukan dua kali dalam satu tahun pembayaran awal semester.</p>
+                  <div className="mt-4 bg-purple-50 p-3 rounded-lg">
+                    <p className="text-sm font-medium text-purple-800">Setoran awal: Rp 100.000</p>
+                    <p className="text-sm font-medium text-purple-800">Setoran selanjutnya: min. Rp 10.000</p>
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Show More Button */}
+            <div className="mt-10 text-center">
+              <button 
+                onClick={() => {
+                  const hiddenProducts = document.getElementById('hidden-simpanan-products');
+                  const showMoreBtn = document.getElementById('show-more-btn');
+                  const showLessBtn = document.getElementById('show-less-btn');
+                  
+                  if (hiddenProducts && showMoreBtn && showLessBtn) {
+                    hiddenProducts.classList.toggle('hidden');
+                    showMoreBtn.classList.toggle('hidden');
+                    showLessBtn.classList.toggle('hidden');
+                  }
+                }}
+                id="show-more-btn"
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-300 inline-flex items-center gap-2"
+              >
+                <span>Lihat Produk Lainnya</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Hidden Products */}
+            <div id="hidden-simpanan-products" className="hidden mt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* SIFITRI */}
+                <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                  <div className="h-2 bg-yellow-600"></div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Simpanan Idul Fitri (SIFITRI)</h3>
+                    <p className="text-gray-700 mb-3">Simpanan yang diperuntukkan untuk keperluan lebaran. Penarikan dilakukan satu kali menjelang Idul Fitri (25 hari sebelum Idul Fitri).</p>
+                    <div className="mt-4 bg-yellow-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-yellow-800">Setoran awal: Rp 100.000</p>
+                      <p className="text-sm font-medium text-yellow-800">Setoran selanjutnya: min. Rp 10.000</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SIQURBAN */}
+                <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                  <div className="h-2 bg-red-600"></div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Simpanan Qurban (SIQURBAN)</h3>
+                    <p className="text-gray-700 mb-3">Simpanan yang diperuntukkan untuk keperluan ibadah qurban. Penarikan dilakukan satu kali menjelang Idul Adha (25 hari sebelum Idul Adha).</p>
+                    <div className="mt-4 bg-red-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-red-800">Setoran awal: Rp 100.000</p>
+                      <p className="text-sm font-medium text-red-800">Setoran selanjutnya: min. Rp 10.000</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SINIKA */}
+                <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                  <div className="h-2 bg-pink-600"></div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Simpanan Nikah (SINIKA)</h3>
+                    <p className="text-gray-700 mb-3">Simpanan yang diperuntukkan bagi mereka yang merencanakan pernikahan. Penarikan dilakukan satu kali pada saat bulan pernikahan.</p>
+                    <div className="mt-4 bg-pink-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-pink-800">Setoran awal: Rp 100.000</p>
+                      <p className="text-sm font-medium text-pink-800">Setoran selanjutnya: min. Rp 10.000</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SIMUROH */}
+                <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                  <div className="h-2 bg-indigo-600"></div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Simpanan Umroh (SIMUROH)</h3>
+                    <p className="text-gray-700 mb-3">Simpanan yang diperuntukkan bagi mereka yang ingin berangkat umroh. Penarikan dilakukan saat simpanan sudah memenuhi syarat untuk umroh.</p>
+                    <div className="mt-4 bg-indigo-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-indigo-800">Setoran awal: Rp 100.000</p>
+                      <p className="text-sm font-medium text-indigo-800">Setoran selanjutnya: min. Rp 10.000</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Show Less Button */}
+              <div className="mt-10 text-center">
+                <button 
+                  onClick={() => {
+                    const hiddenProducts = document.getElementById('hidden-simpanan-products');
+                    const showMoreBtn = document.getElementById('show-more-btn');
+                    const showLessBtn = document.getElementById('show-less-btn');
+                    
+                    if (hiddenProducts && showMoreBtn && showLessBtn) {
+                      hiddenProducts.classList.toggle('hidden');
+                      showMoreBtn.classList.toggle('hidden');
+                      showLessBtn.classList.toggle('hidden');
+                    }
+                  }}
+                  id="show-less-btn"
+                  className="hidden px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-colors duration-300 inline-flex items-center gap-2"
+                >
+                  <span>Tampilkan Lebih Sedikit</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+
+
+        {/* Pembiayaan Section */}
+        <section id="pembiayaan" className="scroll-mt-18 py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                PRODUK PEMBIAYAAN BMT FATHHUL BAROKAH
+              </h2>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Solusi pembiayaan syariah untuk berbagai kebutuhan Anda
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Pembiayaan Konsumtif */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:translate-y-[-5px]">
+                <div className="h-3 bg-blue-600"></div>
+                <div className="p-8">
+                  <div className="w-16 h-16 bg-blue-600 rounded-full mb-6 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">Pembiayaan Konsumtif Syariah</h3>
+                  <p className="text-gray-700 mb-4">
+                    Merupakan solusi pembiayaan terhadap produk kebutuhan konsumtif masyarakat dan mendukung aktivitas sehari-hari.
+                  </p>
+                  <p className="text-gray-700 mb-4">
+                    Pembiayaan konsumtif ini dilakukan berdasarkan akad ijarah, murabahah, dan lain-lain.
+                  </p>
+                  <div className="mt-6 bg-white p-4 rounded-lg border border-blue-200">
+                    <p className="text-gray-800 font-medium">Contoh:</p>
+                    <p className="text-gray-700">Pembiayaan alat elektronik, kendaraan bermotor, alat rumah tangga, dll.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pembiayaan Investasi */}
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:translate-y-[-5px]">
+                <div className="h-3 bg-green-600"></div>
+                <div className="p-8">
+                  <div className="w-16 h-16 bg-green-600 rounded-full mb-6 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">Pembiayaan Investasi Syariah</h3>
+                  <p className="text-gray-700 mb-4">
+                    Merupakan solusi syariah untuk penguatan modal usaha atau sarana produksi lainnya sesuai dengan prinsip syariah.
+                  </p>
+                  <p className="text-gray-700 mb-4">
+                    Pembiayaan investasi ini menggunakan akad ijarah, murabahah, mudharabah, dll.
+                  </p>
+                  <div className="mt-6 bg-white p-4 rounded-lg border border-green-200">
+                    <p className="text-gray-800 font-medium">Contoh:</p>
+                    <p className="text-gray-700">Pembiayaan investasi syariah untuk usaha, peralatan usaha, modal usaha dan hal-hal lain.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pembiayaan Modal Kerja */}
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:translate-y-[-5px]">
+                <div className="h-3 bg-purple-600"></div>
+                <div className="p-8">
+                  <div className="w-16 h-16 bg-purple-600 rounded-full mb-6 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">Pembiayaan Modal Kerja Syariah</h3>
+                  <p className="text-gray-700 mb-4">
+                    Pembiayaan modal kerja syariah yang merupakan kebutuhan usaha jangka pendek dalam bentuk pembiayaan kas usaha (working capital) yang habis dalam satu siklus usaha.
+                  </p>
+                  <p className="text-gray-700 mb-4">
+                    Pembiayaan ini dapat digunakan oleh pelaku usaha dalam rangka peningkatan modal kerja lainnya dengan menggunakan akad murabahah.
+                  </p>
+                  <div className="mt-6 bg-white p-4 rounded-lg border border-purple-200">
+                    <p className="text-gray-800 font-medium">Keunggulan:</p>
+                    <p className="text-gray-700">Proses cepat, persyaratan mudah, dan sesuai dengan prinsip syariah.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
           </div>
         </section>
 
@@ -655,15 +813,15 @@ export default function HomePage() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Email</h3>
                 <p className="text-blue-100">
-                  <a
-                    href="mailto:fatihulbarokah.bmt@gmail.com"
-                    className="no-underline focus:outline-none active:text-white transition duration-150"
-                    style={{ WebkitTapHighlightColor: "transparent" }} // menghilangkan efek biru pada tap di mobile
-                    onTouchStart={(e) => (e.currentTarget.style.color = "#fff")}
-                    onTouchEnd={(e) => (e.currentTarget.style.color = "")}
-                  >
-                    fatihulbarokah.bmt@gmail.com
-                  </a>
+                    <a
+                      href="mailto:bmtfathhulbarokah.id@gmail.com"
+                      className="no-underline focus:outline-none active:text-white transition duration-150"
+                      style={{ WebkitTapHighlightColor: "transparent" }} // menghilangkan efek biru pada tap di mobile
+                      onTouchStart={(e) => (e.currentTarget.style.color = "#fff")}
+                      onTouchEnd={(e) => (e.currentTarget.style.color = "")}
+                    >
+                      bmtfathhulbarokah.id@gmail.com
+                    </a>
                 </p>
               </div>
 
@@ -679,7 +837,20 @@ export default function HomePage() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Telepon</h3>
-                <p className="text-blue-100">+62 858 1925 0059</p>
+                <div className="text-blue-100 space-y-1">
+                  <p>
+                    <span className="font-medium">Sdr. Dawud Setianto: </span>
+                    <a href="tel:+6281349768716" className="hover:text-white transition-colors duration-200">
+                      0813-4976-8716
+                    </a>
+                  </p>
+                  <p>
+                    <span className="font-medium">Ustadz Ahmad Nuruddin: </span>
+                    <a href="tel:+6285931250059" className="hover:text-white transition-colors duration-200">
+                      0859-3125-0059
+                    </a>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
