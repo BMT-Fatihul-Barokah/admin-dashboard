@@ -214,14 +214,23 @@ export async function importAnggotaData(
         if (existingAnggota) {
           // Update existing anggota
           console.log(`Updating account ${row['No. Rekening']} with new balance: ${row['Saldo']}`);
-          console.log('Current balance in database:', existingAnggota.saldo);
+          // Get current tabungan balance
+          const { data: tabunganData } = await supabase
+            .from('tabungan')
+            .select('saldo')
+            .eq('anggota_id', existingAnggota.id)
+            .eq('status', 'aktif')
+            .maybeSingle();
+          
+          console.log('Current tabungan balance in database:', tabunganData?.saldo || 0);
           
           let updateSuccess = false;
           
           // If RPC exists, use it as the primary method (most reliable)
           if (rpcExists) {
             console.log('Using RPC function to update balance');
-            const rpcResponse = await supabase.rpc('update_anggota_balance', {
+            // Update tabungan balance instead of anggota.saldo
+            const rpcResponse = await supabase.rpc('update_tabungan_balance', {
               p_nomor_rekening: row['No. Rekening'],
               p_saldo: Number(row['Saldo'])
             });
@@ -236,13 +245,20 @@ export async function importAnggotaData(
           if (!updateSuccess) {
             // Approach 1: Standard update by nomor_rekening
             console.log('Trying standard update by nomor_rekening');
-            const updateResponse = await supabase
-              .from('anggota')
+            // Update tabungan instead of anggota.saldo
+            const { data: tabunganRecord } = await supabase
+              .from('tabungan')
+              .select('id')
+              .eq('nomor_rekening', row['No. Rekening'])
+              .maybeSingle();
+              
+            const updateResponse = tabunganRecord ? await supabase
+              .from('tabungan')
               .update({
-                ...anggotaData,
-                saldo: Number(row['Saldo'])
+                saldo: Number(row['Saldo']),
+                updated_at: new Date().toISOString()
               })
-              .eq('nomor_rekening', row['No. Rekening']);
+              .eq('id', tabunganRecord.id) : { error: 'No tabungan record found' };
             
             console.log('Update response:', updateResponse);
             
@@ -251,13 +267,21 @@ export async function importAnggotaData(
             } else {
               // Approach 2: Update by ID
               console.log('Trying update by ID');
-              const updateByIdResponse = await supabase
-                .from('anggota')
+              // Update tabungan by anggota_id instead
+              const { data: tabunganByAnggotaId } = await supabase
+                .from('tabungan')
+                .select('id')
+                .eq('anggota_id', existingAnggota.id)
+                .eq('status', 'aktif')
+                .maybeSingle();
+                
+              const updateByIdResponse = tabunganByAnggotaId ? await supabase
+                .from('tabungan')
                 .update({
-                  ...anggotaData,
-                  saldo: Number(row['Saldo'])
+                  saldo: Number(row['Saldo']),
+                  updated_at: new Date().toISOString()
                 })
-                .eq('id', existingAnggota.id);
+                .eq('id', tabunganByAnggotaId.id) : { error: 'No tabungan record found' };
               
               console.log('Update by ID response:', updateByIdResponse);
               
@@ -266,12 +290,22 @@ export async function importAnggotaData(
               } else {
                 // Approach 3: Upsert
                 console.log('Trying upsert');
+                // Create or update tabungan record
+                const { data: existingTabungan } = await supabase
+                  .from('tabungan')
+                  .select('id')
+                  .eq('anggota_id', existingAnggota.id)
+                  .eq('status', 'aktif')
+                  .maybeSingle();
+                  
                 const upsertResponse = await supabase
-                  .from('anggota')
+                  .from('tabungan')
                   .upsert({
-                    id: existingAnggota.id,
-                    ...anggotaData,
-                    saldo: Number(row['Saldo'])
+                    id: existingTabungan?.id,
+                    anggota_id: existingAnggota.id,
+                    saldo: Number(row['Saldo']),
+                    status: 'aktif',
+                    updated_at: new Date().toISOString()
                   });
                 
                 console.log('Upsert response:', upsertResponse);

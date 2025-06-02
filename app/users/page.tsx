@@ -492,17 +492,19 @@ export default function UsersPage() {
       )}
       
       {/* Manage Savings Types Dialog */}
-      <Dialog open={savingsTypesDialogOpen} onOpenChange={setSavingsTypesDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Manajemen Jenis Tabungan</DialogTitle>
-            <DialogDescription>
-              Kelola jenis tabungan yang tersedia untuk anggota.
-            </DialogDescription>
-          </DialogHeader>
-          <ManageSavingsTypes />
-        </DialogContent>
-      </Dialog>
+      {selectedUser && (
+        <Dialog open={savingsTypesDialogOpen} onOpenChange={setSavingsTypesDialogOpen}>
+          <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Manajemen Jenis Tabungan - {selectedUser.nama}</DialogTitle>
+              <DialogDescription>
+                Kelola jenis tabungan untuk anggota {selectedUser.nama}.
+              </DialogDescription>
+            </DialogHeader>
+            <ManageSavingsTypes userId={selectedUser.id} />
+          </DialogContent>
+        </Dialog>
+      )}
       
       {/* Member Savings Types Dialog */}
       {selectedUser && (

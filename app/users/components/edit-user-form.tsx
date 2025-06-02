@@ -11,13 +11,27 @@ import { useToast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
 
 // Create a direct Supabase client instance
-const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
+const supabaseUrl = 'https://vszhxeamcxgqtwyaxhlu.supabase.co'
 
 // Use anon key for all operations - RLS policies will handle permissions
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94'
 
 // Create a single Supabase client instance
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false
+  },
+  db: {
+    schema: 'public',
+  },
+  global: {
+    headers: {
+      'x-client-info': 'admin-dashboard'
+    },
+  }
+})
 
 // Helper function to generate a UUID
 function generateUUID() {
@@ -141,32 +155,81 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
     }
   }
 
+  // Create a default SIBAROKAH savings account for a new member
+  const createDefaultSavingsAccount = async (anggotaId: string) => {
+    try {
+      console.log('Starting to create savings account for member ID:', anggotaId)
+      
+      // First, get the SIBAROKAH savings type ID
+      const { data: sibarokahType, error: typeError } = await supabase
+        .from('jenis_tabungan')
+        .select('id')
+        .eq('kode', 'SIBAROKAH')
+        .single()
+      
+      if (typeError) {
+        console.error('Error fetching SIBAROKAH type:', JSON.stringify(typeError, null, 2))
+        throw new Error('Gagal mendapatkan jenis tabungan SIBAROKAH')
+      }
+      
+      if (!sibarokahType) {
+        console.error('SIBAROKAH type not found in database')
+        throw new Error('Jenis tabungan SIBAROKAH tidak ditemukan')
+      }
+      
+      console.log('Found SIBAROKAH type ID:', sibarokahType.id)
+      
+      // Generate a unique account number for the savings account
+      const now = new Date()
+      const year = now.getFullYear().toString().slice(-2)
+      const month = (now.getMonth() + 1).toString().padStart(2, '0')
+      const day = now.getDate().toString().padStart(2, '0')
+      const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+      const accountNumber = `SB${year}${month}${day}${randomDigits}`
+      
+      // Create a new savings account for the member
+      const { data: insertedData, error: insertError } = await supabase
+        .from('tabungan')
+        .insert({
+          nomor_rekening: accountNumber,
+          anggota_id: anggotaId,
+          jenis_tabungan_id: sibarokahType.id,
+          saldo: 0,
+          status: 'active' // Using 'status' instead of 'is_active' to match the database schema
+        })
+        .select()
+      
+      if (insertError) {
+        console.error('Error creating savings account:', JSON.stringify(insertError, null, 2))
+        throw new Error('Gagal membuat akun tabungan SIBAROKAH')
+      }
+      
+      console.log(`Successfully created SIBAROKAH account ${accountNumber} for member ${anggotaId}`, insertedData)
+      return insertedData
+    } catch (error) {
+      console.error('Error in createDefaultSavingsAccount:', error)
+      throw error
+    }
+  }
+
   // Validate form data and return error message if invalid
   const validateFormData = (data: Partial<Anggota>): string | null => {
     if (!data.nama || data.nama.trim() === '') {
-      return 'Nama anggota harus diisi'
-    }
-
-    if (!data.nomor_rekening || data.nomor_rekening.trim() === '') {
-      return 'Nomor rekening harus diisi'
+      return 'Nama anggota wajib diisi'
     }
     
-    // Additional validations can be added here
     return null
   }
-
-  // Handle updating an existing user
+  
+  // Update an existing user in the database
   const updateExistingUser = async () => {
+    if (!user) return
+    
     try {
-      if (!user || !user.id) {
-        throw new Error('ID anggota tidak valid')
-      }
-      
       // Format date properly for Supabase
       let formattedDate = null
       if (formData.tanggal_lahir) {
         try {
-          // Ensure date is in YYYY-MM-DD format
           formattedDate = typeof formData.tanggal_lahir === 'string' 
             ? formData.tanggal_lahir.split('T')[0] 
             : format(formData.tanggal_lahir, 'yyyy-MM-dd')
@@ -176,9 +239,9 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
         }
       }
       
-      const now = new Date().toISOString()
+      // Prepare data for update
       const updateData = {
-        nama: formData.nama?.trim() || '',
+        nama: formData.nama?.trim() || user.nama,
         alamat: formData.alamat?.trim() || null,
         kota: formData.kota?.trim() || null,
         tempat_lahir: formData.tempat_lahir?.trim() || null,
@@ -186,73 +249,73 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
         pekerjaan: formData.pekerjaan?.trim() || null,
         jenis_identitas: formData.jenis_identitas || null,
         nomor_identitas: formData.nomor_identitas?.trim() || null,
-        updated_at: now
+        updated_at: new Date().toISOString()
       }
       
-      console.log('Updating user with data:', JSON.stringify(updateData, null, 2))
-      
-      // Update anggota in database
-      const { data, error } = await supabase
+      // Update the user
+      const { error } = await supabase
         .from('anggota')
         .update(updateData)
         .eq('id', user.id)
-        .select()
       
       if (error) {
-        console.error('Update error:', JSON.stringify(error, null, 2))
+        console.error('Update error:', error)
         throw error
-      }
-      
-      if (!data || data.length === 0) {
-        // Try to verify if the update happened
-        const { data: checkData, error: checkError } = await supabase
-          .from('anggota')
-          .select()
-          .eq('id', user.id)
-          .single()
-        
-        if (checkError) {
-          console.error('Error checking updated data:', checkError)
-          throw new Error('Gagal memverifikasi data yang diperbarui')
-        }
-        
-        if (!checkData) {
-          throw new Error('Tidak ada data yang diperbarui')
-        }
-        
-        toast({
-          title: "Berhasil",
-          description: `Data anggota ${formData.nama} telah diperbarui.`,
-        })
-        
-        return checkData
       }
       
       toast({
         title: "Berhasil",
-        description: `Data anggota ${formData.nama} telah diperbarui.`,
+        description: `Data anggota ${formData.nama || user.nama} telah diperbarui.`,
       })
       
-      return data[0]
+      // Close the dialog and refresh the user list
+      setIsSubmitting(false)
+      onOpenChange(false)
+      onUserUpdated()
+      
+      return { ...user, ...updateData }
     } catch (error) {
-      console.error('Error in updateExistingUser:', error)
-      throw error
+      setIsSubmitting(false)
+      handleSubmissionError(error)
+      return null
     }
   }
 
   // Handle adding a new user
   const addNewUser = async () => {
     try {
-      // Generate a unique account number if not provided
+      // Generate account number if not provided
       let accountNumber = formData.nomor_rekening?.trim()
+
       if (!accountNumber) {
+        // Generate a unique account number
         const now = new Date()
         const year = now.getFullYear().toString().slice(-2)
         const month = (now.getMonth() + 1).toString().padStart(2, '0')
         const day = now.getDate().toString().padStart(2, '0')
-        const timestamp = Date.now().toString().slice(-6)
         const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-        accountNumber = `${year}${month}${day}${timestamp}${randomDigits}`
+        accountNumber = `${year}${month}${day}${randomDigits}`
+        
+        // Double-check that the generated account number is unique
+        let isUnique = false
+        let attempts = 0
+        
+        while (!isUnique && attempts < 5) {
+          const { data: existingAccount } = await supabase
+            .from('anggota')
+            .select('nomor_rekening')
+            .eq('nomor_rekening', accountNumber)
+            .maybeSingle()
+          
+          if (existingAccount) {
+            // Try a different random number
+            const newRandomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+            accountNumber = `${year}${month}${day}${newRandomDigits}`
+            attempts++
+          } else {
+            isUnique = true
+          }
+        }
       }
       
       // Format date properly for Supabase
@@ -269,11 +332,8 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
         }
       }
       
-      const now = new Date().toISOString()
-      
-      // Prepare data for insert - ensure all fields are properly formatted
+      // Prepare data for insert - removed 'saldo' field as it doesn't exist in the anggota table
       const insertData = {
-        id: generateUUID(), // Generate a UUID for the new user
         nama: formData.nama?.trim() || '',
         nomor_rekening: accountNumber,
         alamat: formData.alamat?.trim() || null,
@@ -283,114 +343,108 @@ export function EditUserForm({ user, open, onOpenChange, onUserUpdated }: EditUs
         pekerjaan: formData.pekerjaan?.trim() || null,
         jenis_identitas: formData.jenis_identitas || null,
         nomor_identitas: formData.nomor_identitas?.trim() || null,
-        created_at: now,
-        updated_at: now,
         is_active: true
       }
       
       // Log the exact data being sent to Supabase
       console.log('Adding new user with data:', JSON.stringify(insertData, null, 2))
       
-      // Try upsert instead of insert to handle potential conflicts
-      // Using client with anon key (RLS policies allow these operations)
-      const { data, error } = await supabase
+      // Insert the new member without selecting to avoid schema errors
+      const { error } = await supabase
         .from('anggota')
-        .upsert(insertData, {
-          onConflict: 'nomor_rekening',
-          ignoreDuplicates: false
-        })
-        .select()
+        .insert(insertData)
       
       if (error) {
         console.error('Insert error:', JSON.stringify(error, null, 2))
         throw error
       }
       
-      if (!data || data.length === 0) {
-        // Try to get the data that was just inserted
-        // Using client with anon key
-        const { data: checkData, error: checkError } = await supabase
-          .from('anggota')
-          .select()
-          .eq('nomor_rekening', accountNumber)
-          .single()
-        
-        if (checkError) {
-          console.error('Error checking inserted data:', checkError)
-          throw new Error('Gagal memverifikasi data yang ditambahkan')
-        }
-        
-        if (!checkData) {
-          throw new Error('Gagal menambahkan data baru')
-        }
+      // After successful insert, fetch the newly created record
+      const { data: fetchedData, error: fetchError } = await supabase
+        .from('anggota')
+        .select('*')
+        .eq('nomor_rekening', accountNumber)
+        .single()
+      
+      if (fetchError) {
+        console.error('Error fetching new user:', JSON.stringify(fetchError, null, 2))
+        throw fetchError
+      }
+      
+      // Use the fetched data as the new member
+      const newMember = fetchedData || null
+      
+      if (!newMember) {
+        console.error('Failed to retrieve newly inserted member data')
+        throw new Error('Gagal mendapatkan data anggota baru')
+      }
+      
+      try {
+        // Create savings account with proper error handling
+        await createDefaultSavingsAccount(newMember.id)
         
         toast({
           title: "Berhasil",
-          description: `Anggota baru telah ditambahkan.`,
+          description: `Anggota baru telah ditambahkan dengan akun tabungan SIBAROKAH.`,
         })
         
-        return checkData
+        return newMember
+      } catch (savingsError) {
+        console.error('Failed to create savings account:', savingsError)
+        
+        // Still return the member data even if savings account creation fails
+        toast({
+          title: "Perhatian",
+          description: `Anggota baru telah ditambahkan, tetapi gagal membuat akun tabungan SIBAROKAH. Silakan buat manual.`,
+          variant: "destructive"
+        })
+        
+        return newMember
       }
-      
-      toast({
-        title: "Berhasil",
-        description: `Anggota baru telah ditambahkan.`,
-      })
-      
-      return data[0]
     } catch (error) {
       console.error('Error in addNewUser:', error)
+      handleSubmissionError(error)
       throw error
     }
   }
 
-  // Handle submission errors
+  // This is intentionally left empty as we've moved the createDefaultSavingsAccount function to the top of the file
+  
+  // Handle submission errors with appropriate user feedback
   const handleSubmissionError = (error: any) => {
-    // Log the error with full details
-    console.error('Error updating/adding user:', typeof error === 'object' ? JSON.stringify(error, null, 2) : error)
+    console.error('Error updating/adding user:', JSON.stringify(error, null, 2))
     console.error('Form data being submitted:', JSON.stringify(formData, null, 2))
     
-    // Show detailed error message
-    let errorMessage = "Gagal memperbarui/menambahkan data anggota. "
+    // Check for specific error types
+    let errorMessage = `Terjadi kesalahan saat ${user ? 'memperbarui' : 'menambahkan'} anggota.`
     
-    if (error instanceof Error) {
-      errorMessage += error.message
-    } else if (error && typeof error === 'object') {
-      // Extract error message from Supabase error format
-      if ('message' in error) {
-        errorMessage += error.message
-      } else if ('details' in error) {
-        errorMessage += error.details
+    // Handle schema-related errors
+    if (error?.message?.includes('Could not find the \'saldo\' column')) {
+      errorMessage = 'Terjadi kesalahan dengan struktur database. Kolom saldo tidak ditemukan.'
+    } else if (error?.code === 'PGRST204') {
+      errorMessage = 'Terjadi kesalahan dengan struktur database. Kolom yang diperlukan tidak ditemukan.'
+    } else if (error?.code === '23505') {
+      errorMessage = 'Nomor rekening sudah digunakan. Silakan gunakan nomor rekening lain.'
+    } else if (error?.code === '23502') {
+      errorMessage = 'Data yang dimasukkan tidak lengkap. Pastikan semua kolom wajib telah diisi.'
+    } else if (typeof error === 'object' && error !== null) {
+      if ('details' in error && error.details) {
+        errorMessage += ` ${error.details}`
       } else if ('error' in error) {
-        errorMessage += error.error
-      } else if ('code' in error) {
-        // Handle specific error codes
-        if (error.code === '23505') {
-          errorMessage += 'Nomor rekening sudah digunakan. Silakan gunakan nomor rekening lain.'
-        } else {
-          errorMessage += `Kode error: ${error.code}`
-        }
+        errorMessage += ` ${error.error}`
       } else if ('hint' in error) {
-        // Supabase sometimes provides hints
-        errorMessage += error.hint
+        errorMessage += ` ${error.hint}`
       } else {
         // Try to stringify the error object
         try {
           const errorStr = JSON.stringify(error)
-          if (errorStr === '{}') {
-            // Empty error object - provide more helpful message
-            errorMessage += 'Terjadi kesalahan pada server. Silakan coba lagi nanti.'
-          } else {
-            errorMessage += errorStr
+          if (errorStr !== '{}') {
+            errorMessage += ` ${errorStr}`
           }
         } catch (e) {
-          errorMessage += 'Error tidak dapat ditampilkan'
+          // Do nothing if we can't stringify
         }
       }
-    } else if (error === null || error === undefined) {
-      errorMessage += 'Terjadi kesalahan yang tidak diketahui. Silakan coba lagi nanti.'
-    } else {
-      errorMessage += String(error)
     }
     
     toast({

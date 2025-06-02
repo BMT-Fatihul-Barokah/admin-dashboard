@@ -154,8 +154,15 @@ export default function TransactionsPage() {
       console.log(`Fetched ${data?.length || 0} transaction records from API`)
       
       // Data is already transformed by the API
-      setTransactions(data)
-      setFilteredTransactions(data)
+      // Make sure we handle missing tabungan property gracefully
+      const processedData = data.map((item: Transaksi) => ({
+        ...item,
+        // Ensure tabungan property exists even if null
+        tabungan: item.tabungan || null
+      }))
+      
+      setTransactions(processedData)
+      setFilteredTransactions(processedData)
     } catch (error) {
       console.error('Error fetching transactions:', error)
       let errorMessage = 'An unknown error occurred';
@@ -456,18 +463,24 @@ export default function TransactionsPage() {
         </PermissionGuard>
       </div>
 
-      {isLoading ? (
+      {error ? (
+        <div className="rounded-md border border-destructive p-4 my-4">
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <h3 className="font-medium">Error saat memuat data transaksi</h3>
+              <p className="text-sm text-muted-foreground mt-1">{error}</p>
+              <div className="mt-3">
+                <Button variant="outline" size="sm" onClick={fetchTransactions}>
+                  <RefreshCcw className="h-4 w-4 mr-2" />
+                  Coba Lagi
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : isLoading ? (
         <div className="flex justify-center items-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : error ? (
-        <div className="text-center py-8">
-          <p className="text-destructive font-medium mb-2">Error connecting to database</p>
-          <p className="text-muted-foreground text-sm">{error}</p>
-          <Button variant="outline" size="sm" onClick={fetchTransactions} className="mt-4">
-            <RefreshCcw className="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
         </div>
       ) : filteredTransactions.length === 0 ? (
         <div className="text-center py-8">

@@ -19,7 +19,6 @@ interface SavingsType {
   kode: string
   nama: string
   deskripsi: string
-  bagi_hasil: number
   minimum_setoran: number
   biaya_admin: number
   jangka_waktu: number | null
@@ -35,7 +34,6 @@ interface FormData {
   kode: string
   nama: string
   deskripsi: string
-  bagi_hasil: number
   minimum_setoran: number
   biaya_admin: number
   jangka_waktu: number | null
@@ -47,7 +45,11 @@ interface FormData {
   display_order: number
 }
 
-export function ManageSavingsTypes() {
+interface ManageSavingsTypesProps {
+  userId: string
+}
+
+export function ManageSavingsTypes({ userId }: ManageSavingsTypesProps) {
   const { toast } = useToast()
   const [savingsTypes, setSavingsTypes] = useState<SavingsType[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -63,7 +65,6 @@ export function ManageSavingsTypes() {
     kode: "",
     nama: "",
     deskripsi: "",
-    bagi_hasil: 0,
     minimum_setoran: 0,
     biaya_admin: 0,
     jangka_waktu: null,
@@ -85,20 +86,52 @@ export function ManageSavingsTypes() {
     }).format(amount)
   }
 
-  // Fetch savings types data
+  // Fetch savings types data for the specific user
   const fetchSavingsTypes = async () => {
     setIsLoading(true)
     try {
+      console.log('Fetching savings types for user:', userId)
+      
+      // First get the user's tabungan to find which jenis_tabungan they have
+      const { data: tabunganData, error: tabunganError } = await supabase
+        .from('tabungan_display_view')
+        .select('jenis_tabungan_id')
+        .eq('anggota_id', userId)
+      
+      if (tabunganError) {
+        console.error('Error fetching user tabungan:', tabunganError)
+        throw tabunganError
+      }
+      
+      console.log('User tabungan data:', tabunganData)
+      
+      if (!tabunganData || tabunganData.length === 0) {
+        console.log('No savings accounts found for this user')
+        setSavingsTypes([])
+        setIsLoading(false)
+        return
+      }
+      
+      // Get the unique jenis_tabungan_id values
+      const jenisTabunganIds = [...new Set(tabunganData.map(item => item.jenis_tabungan_id))]
+      console.log('Jenis tabungan IDs to fetch:', jenisTabunganIds)
+      
+      // Now fetch the complete data for these savings types
       const { data, error } = await supabase
         .from('jenis_tabungan')
         .select('*')
+        .in('id', jenisTabunganIds)
         .order('display_order', { ascending: true })
       
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching jenis tabungan details:', error)
+        throw error
+      }
       
+      console.log('Fetched savings types:', data)
       setSavingsTypes(data || [])
     } catch (error) {
-      console.error('Error fetching savings types:', error)
+      console.error('Error in fetchSavingsTypes:', error)
       toast({
         title: "Error",
         description: "Gagal memuat data jenis tabungan",
@@ -149,7 +182,6 @@ export function ManageSavingsTypes() {
       kode: "",
       nama: "",
       deskripsi: "",
-      bagi_hasil: 0,
       minimum_setoran: 0,
       biaya_admin: 0,
       jangka_waktu: null,
@@ -170,7 +202,6 @@ export function ManageSavingsTypes() {
       kode: type.kode,
       nama: type.nama,
       deskripsi: type.deskripsi,
-      bagi_hasil: type.bagi_hasil,
       minimum_setoran: type.minimum_setoran,
       biaya_admin: type.biaya_admin,
       jangka_waktu: type.jangka_waktu,
@@ -260,7 +291,6 @@ export function ManageSavingsTypes() {
             kode: formData.kode,
             nama: formData.nama,
             deskripsi: formData.deskripsi,
-            bagi_hasil: formData.bagi_hasil,
             minimum_setoran: formData.minimum_setoran,
             biaya_admin: formData.biaya_admin,
             jangka_waktu: formData.jangka_waktu,
@@ -289,7 +319,6 @@ export function ManageSavingsTypes() {
             kode: formData.kode,
             nama: formData.nama,
             deskripsi: formData.deskripsi,
-            bagi_hasil: formData.bagi_hasil,
             minimum_setoran: formData.minimum_setoran,
             biaya_admin: formData.biaya_admin,
             jangka_waktu: formData.jangka_waktu,
@@ -328,8 +357,10 @@ export function ManageSavingsTypes() {
 
   // Load data on component mount
   useEffect(() => {
-    fetchSavingsTypes()
-  }, [])
+    if (userId) {
+      fetchSavingsTypes()
+    }
+  }, [userId])
 
   return (
     <div className="space-y-4">
@@ -360,7 +391,6 @@ export function ManageSavingsTypes() {
                 <TableHead>Kode</TableHead>
                 <TableHead>Nama</TableHead>
                 <TableHead>Setoran Minimum</TableHead>
-                <TableHead>Bagi Hasil</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
@@ -371,7 +401,6 @@ export function ManageSavingsTypes() {
                   <TableCell className="font-medium">{type.kode}</TableCell>
                   <TableCell>{type.nama}</TableCell>
                   <TableCell>{formatCurrency(type.minimum_setoran)}</TableCell>
-                  <TableCell>{type.bagi_hasil}%</TableCell>
                   <TableCell>
                     <Badge
                       variant={type.is_active ? "default" : "destructive"}
@@ -547,18 +576,7 @@ export function ManageSavingsTypes() {
                     min={0}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bagi_hasil">Bagi Hasil (%)</Label>
-                  <Input
-                    id="bagi_hasil"
-                    name="bagi_hasil"
-                    type="number"
-                    value={formData.bagi_hasil}
-                    onChange={handleNumberChange}
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
+
               </div>
               
               <div className="grid grid-cols-2 gap-4">

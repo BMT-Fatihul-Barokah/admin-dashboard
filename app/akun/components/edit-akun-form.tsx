@@ -141,7 +141,10 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
           .eq('nomor_telepon', values.nomor_telepon)
           .maybeSingle()
         
-        if (checkError) throw checkError
+        if (checkError) {
+          console.error('Error checking existing phone number:', checkError)
+          throw checkError
+        }
         
         if (existingAkun) {
           form.setError('nomor_telepon', { 
@@ -155,35 +158,52 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
       
       // Check if anggota_id is already linked to another account
       if (values.anggota_id && values.anggota_id !== 'none' && values.anggota_id !== akun?.anggota_id) {
-        const { data: existingAccount, error: checkError } = await supabase
-          .from('akun')
-          .select('id')
-          .eq('anggota_id', values.anggota_id)
-          .maybeSingle()
-        
-        if (checkError) throw checkError
-        
-        if (existingAccount) {
-          form.setError('anggota_id', { 
-            type: 'manual', 
-            message: 'Anggota ini sudah terhubung dengan akun lain' 
-          })
-          setIsSubmitting(false)
-          return
+        try {
+          const { data: existingAccount, error: checkError } = await supabase
+            .from('akun')
+            .select('id')
+            .eq('anggota_id', values.anggota_id)
+            .maybeSingle()
+          
+          if (checkError) {
+            console.error('Error checking existing anggota_id:', checkError)
+            // Don't throw here, just log the error and continue
+            // This is to handle the case where anggota_id column might not exist yet
+          } else if (existingAccount) {
+            form.setError('anggota_id', { 
+              type: 'manual', 
+              message: 'Anggota ini sudah terhubung dengan akun lain' 
+            })
+            setIsSubmitting(false)
+            return
+          }
+        } catch (error) {
+          console.error('Error in anggota_id check:', error)
+          // Continue with the form submission even if this check fails
         }
       }
       
       // Prepare data for insert/update
       const akunData: any = {
         nomor_telepon: values.nomor_telepon,
-        anggota_id: values.anggota_id,
         is_verified: values.is_verified,
         is_active: values.is_active,
+      }
+      
+      // Only include anggota_id if it's provided and not 'none'
+      if (values.anggota_id && values.anggota_id !== 'none') {
+        akunData.anggota_id = values.anggota_id
+      } else {
+        // Set to null explicitly if not provided or 'none'
+        akunData.anggota_id = null
       }
       
       // Only include PIN if it's provided (for new accounts or PIN reset)
       if (values.pin && values.pin.trim() !== '') {
         akunData.pin = values.pin
+      } else if (!akun) {
+        // For new accounts, PIN is required
+        akunData.pin = '123456' // Default PIN
       }
       
       let result
@@ -204,23 +224,80 @@ export function EditAkunForm({ akun, open, onOpenChange, onAkunUpdated }: EditAk
       if (result.error) {
         console.error('Supabase error details:', result.error)
         
-        // Check for duplicate phone number error
-        if (result.error.code === '23505' && result.error.message.includes('akun_nomor_telepon_key')) {
-          form.setError('nomor_telepon', { 
-            type: 'manual', 
-            message: 'Nomor telepon sudah terdaftar' 
-          })
-          
-          toast({
-            title: "Nomor Telepon Duplikat",
-            description: "Nomor telepon ini sudah digunakan oleh akun lain",
-            variant: "destructive",
-            duration: 5000
-          })
-          setIsSubmitting(false)
-          return
+        // Check for specific error types
+        if (result.error.code === '23505') {
+          // Duplicate key error
+          if (result.error.message && result.error.message.includes('akun_nomor_telepon_key')) {
+            form.setError('nomor_telepon', { 
+              type: 'manual', 
+              message: 'Nomor telepon sudah terdaftar' 
+            })
+            
+            toast({
+              title: "Nomor Telepon Duplikat",
+              description: "Nomor telepon ini sudah digunakan oleh akun lain",
+              variant: "destructive",
+              duration: 5000
+            })
+            setIsSubmitting(false)
+            return
+          } else if (result.error.message && result.error.message.includes('unique_anggota_id')) {
+            form.setError('anggota_id', { 
+              type: 'manual', 
+              message: 'Anggota ini sudah terhubung dengan akun lain' 
+            })
+            
+            toast({
+              title: "Anggota Sudah Terhubung",
+              description: "Anggota ini sudah terhubung dengan akun lain",
+              variant: "destructive",
+              duration: 5000
+            })
+            setIsSubmitting(false)
+            return
+          }
+        } else if (result.error.code === '42703') {
+          // Column does not exist error
+          if (result.error.message && result.error.message.includes('anggota_id')) {
+            // The anggota_id column might not exist yet
+            // Try again without the anggota_id field
+            const retryData = {...akunData}
+            delete retryData.anggota_id
+            
+            console.log('Retrying without anggota_id field:', retryData)
+            
+            let retryResult
+            if (akun) {
+              retryResult = await supabase
+                .from('akun')
+                .update(retryData)
+                .eq('id', akun.id)
+            } else {
+              retryResult = await supabase
+                .from('akun')
+                .insert(retryData)
+            }
+            
+            if (retryResult.error) {
+              console.error('Retry error:', retryResult.error)
+              throw new Error(retryResult.error.message || 'Terjadi kesalahan saat menyimpan akun')
+            } else {
+              // Success with retry
+              toast({
+                title: "Berhasil",
+                description: akun 
+                  ? "Akun berhasil diperbarui" 
+                  : "Akun baru berhasil dibuat",
+              })
+              
+              onOpenChange(false)
+              onAkunUpdated()
+              return
+            }
+          }
         }
         
+        // For other errors
         throw new Error(result.error.message || 'Terjadi kesalahan saat menyimpan akun')
       }
       

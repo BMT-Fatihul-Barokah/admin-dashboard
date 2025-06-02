@@ -123,7 +123,7 @@ export default function ReportsPage() {
       }
       
       // Get the Supabase URL and access token
-      const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
+      const supabaseUrl = 'https://vszhxeamcxgqtwyaxhlu.supabase.co'
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {

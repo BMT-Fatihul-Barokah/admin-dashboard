@@ -45,29 +45,43 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     async function fetchSavingsTypes() {
       setIsLoading(true)
       try {
-        // First, get the member's existing savings accounts
+        console.log('Fetching available savings types for user ID:', userId)
+        
+        // First, get the member's existing savings accounts with detailed logging
         const { data: memberAccounts, error: memberError } = await supabase
           .from('tabungan')
-          .select('jenis_tabungan_id')
+          .select('id, jenis_tabungan_id, nomor_rekening')
           .eq('anggota_id', userId)
-          .eq('status', 'aktif')
+          .eq('status', 'active')
         
-        if (memberError) throw memberError
+        if (memberError) {
+          console.error('Error fetching member accounts:', JSON.stringify(memberError, null, 2))
+          throw memberError
+        }
+        
+        console.log('Found member accounts:', memberAccounts || [])
         
         // Extract the IDs of savings types the member already has
         const existingTypeIds = (memberAccounts || []).map(account => account.jenis_tabungan_id)
+        console.log('Member already has these savings type IDs:', existingTypeIds)
         
         // Get all active savings types
         const { data, error } = await supabase
           .from('jenis_tabungan')
           .select('*')
           .eq('is_active', true)
-          .order('display_order', { ascending: true })
+          .order('kode', { ascending: true })
         
-        if (error) throw error
+        if (error) {
+          console.error('Error fetching savings types:', JSON.stringify(error, null, 2))
+          throw error
+        }
+        
+        console.log('All active savings types:', data || [])
         
         // Filter out the savings types the member already has
         const availableTypes = (data || []).filter(type => !existingTypeIds.includes(type.id))
+        console.log('Available savings types for this member:', availableTypes)
         
         setSavingsTypes(availableTypes)
       } catch (error) {
@@ -161,34 +175,43 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
             .from('tabungan')
             .update({ is_default: false })
             .eq('anggota_id', userId)
-            .eq('status', 'aktif');
+            .eq('status', 'active'); // Changed from 'aktif' to 'active'
           
           if (updateError) {
-            console.error('Error updating other accounts:', updateError);
+            console.error('Error updating other accounts:', JSON.stringify(updateError, null, 2));
           }
         } catch (updateErr) {
           console.error('Exception updating other accounts:', updateErr);
         }
       }
       
-      // Gunakan fungsi bypass RLS yang baru dibuat
-      console.log('Attempting to insert account using bypass RLS function');
+      // Use direct insert instead of the non-existent function
+      console.log('Inserting new savings account directly');
       
-      // Panggil fungsi add_tabungan_baru untuk bypass RLS
-      const { data, error } = await supabase.rpc('add_tabungan_baru', {
-        p_nomor_rekening: accountNumber,
-        p_anggota_id: userId,
-        p_jenis_tabungan_id: selectedTypeId,
-        p_saldo: 0,
-        p_tanggal_jatuh_tempo: tanggalJatuhTempo,
-        p_tanggal_setoran_reguler: 1, // Default to 1
-        p_is_default: isDefault
-      });
+      // Prepare the data to insert
+      const tabunganData = {
+        anggota_id: userId,
+        jenis_tabungan_id: selectedTypeId,
+        nomor_rekening: accountNumber,
+        saldo: 0,
+        status: 'active',
+        is_default: isDefault,
+        tanggal_jatuh_tempo: tanggalJatuhTempo,
+        tanggal_setoran_reguler: 1 // Default to 1
+      };
+      
+      console.log('Inserting tabungan with data:', tabunganData);
+      
+      // Insert the new savings account
+      const { data, error } = await supabase
+        .from('tabungan')
+        .insert([tabunganData])
+        .select();
       
       console.log('Insert response:', { data, error });
       
       if (error) {
-        console.error('Detailed error:', JSON.stringify(error));
+        console.error('Detailed error:', JSON.stringify(error, null, 2));
         throw error;
       }
       

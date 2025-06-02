@@ -84,6 +84,24 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     setLoading(true)
     try {
+      // First check if the notifikasi table exists
+      const { data: tableCheck, error: tableCheckError } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_schema', 'public')
+        .eq('table_name', 'notifikasi')
+      
+      // If table doesn't exist or there's an error, set empty arrays
+      if (tableCheckError || !tableCheck || tableCheck.length === 0) {
+        console.log('Notifikasi table does not exist yet, using empty arrays')
+        setNotifications([])
+        setUnreadNotifications([])
+        setTransactionNotifications([])
+        setSystemNotifications([])
+        setLoading(false)
+        return
+      }
+      
       // Get all notifications
       const { data: allNotifications, error: allError } = await supabase
         .from('notifikasi')
@@ -93,7 +111,12 @@ export default function NotificationsPage() {
         `)
         .order('created_at', { ascending: false })
       
-      if (allError) throw allError
+      if (allError) {
+        console.error('Error fetching all notifications:', allError)
+        setNotifications([])
+      } else {
+        setNotifications(allNotifications || [])
+      }
       
       // Get unread notifications
       const { data: unread, error: unreadError } = await supabase
@@ -105,7 +128,12 @@ export default function NotificationsPage() {
         .eq('is_read', false)
         .order('created_at', { ascending: false })
       
-      if (unreadError) throw unreadError
+      if (unreadError) {
+        console.error('Error fetching unread notifications:', unreadError)
+        setUnreadNotifications([])
+      } else {
+        setUnreadNotifications(unread || [])
+      }
       
       // Get transaction notifications
       const { data: transactions, error: transactionsError } = await supabase
@@ -117,7 +145,12 @@ export default function NotificationsPage() {
         .eq('jenis', 'transaksi')
         .order('created_at', { ascending: false })
       
-      if (transactionsError) throw transactionsError
+      if (transactionsError) {
+        console.error('Error fetching transaction notifications:', transactionsError)
+        setTransactionNotifications([])
+      } else {
+        setTransactionNotifications(transactions || [])
+      }
       
       // Get system notifications
       const { data: system, error: systemError } = await supabase
@@ -129,12 +162,12 @@ export default function NotificationsPage() {
         .eq('jenis', 'sistem')
         .order('created_at', { ascending: false })
       
-      if (systemError) throw systemError
-      
-      setNotifications(allNotifications || [])
-      setUnreadNotifications(unread || [])
-      setTransactionNotifications(transactions || [])
-      setSystemNotifications(system || [])
+      if (systemError) {
+        console.error('Error fetching system notifications:', systemError)
+        setSystemNotifications([])
+      } else {
+        setSystemNotifications(system || [])
+      }
     } catch (error) {
       console.error("Error fetching notifications:", error)
       toast({
@@ -142,6 +175,11 @@ export default function NotificationsPage() {
         description: "Gagal memuat notifikasi. Silakan coba lagi nanti.",
         variant: "destructive",
       })
+      // Set empty arrays for all notification types
+      setNotifications([])
+      setUnreadNotifications([])
+      setTransactionNotifications([])
+      setSystemNotifications([])
     } finally {
       setLoading(false)
     }

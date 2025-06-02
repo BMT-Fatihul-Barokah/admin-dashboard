@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Loader2 } from "lucide-react"
@@ -26,18 +24,10 @@ interface SavingsAccount {
   jenis_tabungan_nama: string
   jenis_tabungan_deskripsi: string
   minimum_setoran: number
-  is_reguler: boolean
-  periode_setoran: string
   saldo: number
-  tanggal_buka: string
-  tanggal_jatuh_tempo: string | null
   status: string
-  tanggal_setoran_reguler: number | null
-  is_default: boolean
-  target_amount: number | null
-  progress_percentage: number | null
-  last_transaction_date: string | null
-  display_order: number
+  tanggal_buka: string
+  last_transaction_date?: string
 }
 
 export function SavingsDetails({ userId }: SavingsDetailsProps) {
@@ -67,31 +57,62 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
     }
   }
 
-
-
-  // Fetch savings accounts data
+  // Fetch savings accounts data using the tabungan_display_view
   const fetchSavingsAccounts = async () => {
     setIsLoading(true)
+    setError(null)
+    
     try {
+      console.log('Fetching tabungan for anggota:', userId)
+      
+      // Use tabungan_display_view to get all data in one query
       const { data, error } = await supabase
         .from('tabungan_display_view')
         .select('*')
         .eq('anggota_id', userId)
-        .order('display_order', { ascending: true })
       
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching from view:', error)
+        throw error
+      }
       
-      setSavingsAccounts(data || [])
-    } catch (error) {
+      console.log('Received tabungan data:', data)
+      
+      if (!data || data.length === 0) {
+        setSavingsAccounts([])
+        return
+      }
+      
+      // Transform data to match our component's expected format
+      const accounts = data.map(item => ({
+        id: item.id,
+        nomor_rekening: item.nomor_rekening,
+        anggota_id: item.anggota_id,
+        anggota_nama: item.anggota_nama,
+        jenis_tabungan_id: item.jenis_tabungan_id,
+        jenis_tabungan_kode: item.jenis_tabungan_kode,
+        jenis_tabungan_nama: item.jenis_tabungan_nama,
+        jenis_tabungan_deskripsi: item.jenis_tabungan_deskripsi,
+        minimum_setoran: item.minimum_setoran,
+        saldo: parseFloat(item.saldo),
+        status: item.status,
+        tanggal_buka: item.tanggal_buka,
+        last_transaction_date: item.last_transaction_date
+      }));
+      
+      setSavingsAccounts(accounts)
+    } catch (error: unknown) {
       console.error('Error fetching savings accounts:', error)
-      setError('Gagal memuat data tabungan')
+      setError('Gagal memuat data tabungan. Silakan coba lagi nanti.')
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchSavingsAccounts()
+    if (userId) {
+      fetchSavingsAccounts()
+    }
   }, [userId])
 
   if (isLoading) {
@@ -126,39 +147,24 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
       <div className="overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(80vh - 150px)' }}>
         <div className="space-y-6">
         {savingsAccounts.map((account) => (
-          <Card key={account.id} className={account.is_default ? "border-primary" : ""}>
+          <Card key={account.id}>
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle>{account.jenis_tabungan_nama}</CardTitle>
                   <CardDescription>{account.nomor_rekening}</CardDescription>
                 </div>
-                <Badge variant={account.status === 'aktif' ? 'default' : 'destructive'} className={account.is_default ? "bg-primary" : ""}>
-                  {account.is_default ? 'Utama' : account.status}
+                <Badge variant={account.status === 'active' ? 'default' : 'destructive'}>
+                  {account.status === 'active' ? 'Aktif' : account.status}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="pb-2">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <p className="text-sm font-medium">Saldo</p>
                   <p className="text-2xl font-bold">{formatCurrency(account.saldo)}</p>
                 </div>
-                {account.target_amount && (
-                  <div>
-                    <p className="text-sm font-medium">Target</p>
-                    <p className="text-lg">{formatCurrency(account.target_amount)}</p>
-                    <div className="w-full h-2 bg-muted rounded-full mt-1">
-                      <div 
-                        className="h-2 bg-primary rounded-full" 
-                        style={{ width: `${account.progress_percentage || 0}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Progress: {account.progress_percentage || 0}%
-                    </p>
-                  </div>
-                )}
               </div>
               
               <div className="mt-3 space-y-1">
@@ -174,29 +180,10 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
                   <span className="text-sm text-muted-foreground">Tanggal Buka</span>
                   <span className="text-sm font-medium">{formatDate(account.tanggal_buka)}</span>
                 </div>
-                {account.tanggal_jatuh_tempo && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Tanggal Jatuh Tempo</span>
-                    <span className="text-sm font-medium">{formatDate(account.tanggal_jatuh_tempo)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Setoran Minimum</span>
                   <span className="text-sm font-medium">{formatCurrency(account.minimum_setoran)}</span>
                 </div>
-                {account.is_reguler && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Periode Setoran</span>
-                    <span className="text-sm font-medium capitalize">{account.periode_setoran}</span>
-                  </div>
-                )}
-
-                {account.last_transaction_date && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Transaksi Terakhir</span>
-                    <span className="text-sm font-medium">{formatDate(account.last_transaction_date)}</span>
-                  </div>
-                )}
               </div>
             </CardContent>
             <CardFooter className="pt-2">

@@ -77,21 +77,19 @@ export default function AkunPage() {
   const fetchAkun = async () => {
     setIsLoading(true)
     try {
-      const { data, error } = await supabase
+      // Get all accounts with their linked member details using the direct anggota_id foreign key
+      const { data: akunData, error: akunError } = await supabase
         .from('akun')
         .select(`
           *,
-          anggota:anggota_id (
-            nama,
-            nomor_rekening
-          )
+          anggota:anggota_id(nama, nomor_rekening)
         `)
         .order('created_at', { ascending: false })
       
-      if (error) throw error
+      if (akunError) throw akunError
       
-      setAkun(data || [])
-      setFilteredAkun(data || [])
+      setAkun(akunData || [])
+      setFilteredAkun(akunData || [])
     } catch (error) {
       console.error('Error fetching akun:', error)
       toast({

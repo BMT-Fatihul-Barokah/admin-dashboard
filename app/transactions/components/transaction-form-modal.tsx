@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getAllJenisTabungan, JenisTabungan } from "@/lib/supabase"
+import { getAllJenisTabungan, JenisTabungan, supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -88,6 +88,17 @@ interface Anggota {
   id: string
   nama: string
   nomor_rekening: string
+}
+
+// Define tabungan display view type
+interface TabunganDisplayView {
+  id: string
+  anggota_id: string
+  jenis_tabungan_id: string
+  jenis_tabungan_nama: string
+  jenis_tabungan_kode: string
+  saldo: number
+  [key: string]: any // For any other fields that might be in the view
 }
 
 // Using JenisTabungan type from supabase.ts
@@ -225,16 +236,31 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       
       try {
         console.log('Fetching tabungan for anggota:', selectedAnggotaId)
-        const response = await fetch(`/api/tabungan?anggota_id=${selectedAnggotaId}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch user tabungan')
-        }
-        const data = await response.json()
+        
+        // Use the same approach as SavingsDetails component, directly querying Supabase
+        const { data, error } = await supabase
+          .from('tabungan_display_view')
+          .select('*')
+          .eq('anggota_id', selectedAnggotaId)
+        
+        if (error) throw error
+        
         console.log('Received tabungan data:', data)
-        setUserTabunganList(data)
+        
+        // Transform the data to match the expected format for the dropdown
+        const transformedData = (data || []).map((item: TabunganDisplayView) => ({
+          id: item.id,
+          jenis_tabungan_id: item.jenis_tabungan_id,
+          jenis_tabungan_nama: item.jenis_tabungan_nama,
+          saldo: item.saldo
+        }))
+        
+        setUserTabunganList(transformedData)
       } catch (error) {
         console.error('Error fetching user tabungan:', error)
         toast.error('Gagal memuat data tabungan anggota')
+        // Set empty array on error to avoid undefined issues
+        setUserTabunganList([])
       }
     }
     
@@ -249,24 +275,63 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
   }, [selectedAnggotaId, tipeTransaksi, form])
   
   // Handle form submission
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Check minimum deposit amount before submitting
-    if (values.kategori === "setoran" && minimumSetoran && values.jumlah < minimumSetoran) {
+  const onSubmit = async (values: z.infer<ReturnType<typeof createFormSchema>>) => {
+    console.log('Form values:', values);
+    
+    // Additional validation for setoran amount if needed
+    if (values.kategori === "setoran" && minimumSetoran !== null && parseFloat(values.jumlah.toString()) < minimumSetoran) {
       form.setError("jumlah", {
         type: "min",
         message: `Setoran minimum untuk ${selectedJenisTabunganNama} adalah Rp ${minimumSetoran.toLocaleString('id-ID')}`
       });
       return;
     }
+    
     setIsSubmitting(true)
     try {
+      let tabungan_id = null;
+      
+      if ((values.kategori === "setoran" || values.kategori === "penarikan") && values.jenis_tabungan_id) {
+        // Find the tabungan record from our userTabunganList
+        const selectedTabungan = userTabunganList.find(tab => tab.jenis_tabungan_id === values.jenis_tabungan_id);
+        if (selectedTabungan) {
+          tabungan_id = selectedTabungan.id;
+          console.log(`Found tabungan_id ${tabungan_id} for jenis_tabungan_id ${values.jenis_tabungan_id}`);
+        } else {
+          console.warn(`No tabungan found for jenis_tabungan_id ${values.jenis_tabungan_id}`);  
+          toast.error('Tidak ada rekening tabungan yang ditemukan untuk jenis tabungan ini');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
+      // Validate tabungan_id for setoran or penarikan
+      if ((values.kategori === "setoran" || values.kategori === "penarikan") && !tabungan_id) {
+        toast.error('Tabungan tidak ditemukan. Silakan pilih jenis tabungan yang berbeda.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Prepare data for API
+      const transactionData = {
+        ...values,
+        // Ensure numeric values are properly formatted
+        jumlah: parseFloat(values.jumlah.toString()),
+        // Include these fields to satisfy database requirements
+        saldo_sebelum: 0, // This will be calculated on the server
+        saldo_sesudah: 0,  // This will be calculated on the server
+        tabungan_id: tabungan_id // Add the tabungan_id to the request
+      };
+
+      console.log('Submitting transaction data:', transactionData);
+
       // Send data to API
       const response = await fetch('/api/transactions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify(transactionData),
       })
       
       if (!response.ok) {
@@ -435,7 +500,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                   <FormItem>
                     <FormLabel>Jenis Tabungan</FormLabel>
                     <Select 
-                      disabled={isLoadingJenisTabungan || userTabunganList.length === 0} 
+                      disabled={isLoadingJenisTabungan} 
                       onValueChange={field.onChange} 
                       value={field.value || ""}
                     >
@@ -447,7 +512,12 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                       <SelectContent>
                         {userTabunganList.length > 0 ? (
                           userTabunganList.map((tabungan) => {
-                            const jenisTabungan = jenisTabunganList.find(jt => jt.id === tabungan.jenis_tabungan_id);
+                            // Find the jenis tabungan info from the list, or use a default if not found
+                            const jenisTabungan = jenisTabunganList.find(jt => jt.id === tabungan.jenis_tabungan_id) || {
+                              id: tabungan.jenis_tabungan_id,
+                              nama: tabungan.jenis_tabungan_nama || 'Tabungan',
+                              kode: 'TAB'
+                            };
                             return (
                               <SelectItem key={tabungan.id} value={tabungan.jenis_tabungan_id}>
                                 <div className="flex flex-col">

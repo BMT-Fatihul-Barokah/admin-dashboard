@@ -1,8 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Custom error handler to properly format and log Supabase errors
+export function handleSupabaseError(error: any, context: string = 'Supabase operation'): any {
+  // If error is empty object, add more context
+  if (error && Object.keys(error).length === 0) {
+    console.error(`${context} failed with empty error object. This usually indicates a network issue or invalid credentials.`);
+    return {
+      message: 'Database connection error. Please check your network connection or contact support.',
+      code: 'CONNECTION_ERROR',
+      details: 'Empty error object received from Supabase',
+      context
+    };
+  }
+  
+  // Return the original error with added context
+  return {
+    ...error,
+    context
+  };
+}
+
 // Supabase project credentials for koperasi fatihul barokah
-const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM';
+const supabaseUrl = 'https://vszhxeamcxgqtwyaxhlu.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94';
+// Service role key - will bypass RLS policies - use carefully and only for admin operations
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0ODg0NDQ4NiwiZXhwIjoyMDY0NDIwNDg2fQ.FkK4YRjPQ0BczBelUVPCe5vEvvWEH5xtBxWVcnKGSSI';
 
 console.log('Initializing Supabase client with URL:', supabaseUrl);
 
@@ -18,12 +40,16 @@ try {
     db: {
       schema: 'public',
     },
-    // Enable debug mode in development
     global: {
       headers: {
         'x-client-info': 'admin-dashboard'
       },
     },
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
+    }
   });
   
   // Set default headers for admin access
@@ -43,6 +69,34 @@ try {
 }
 
 export const supabase = supabaseClient;
+
+// Admin client using service role key to bypass RLS policies
+// ONLY use this for admin operations where bypassing RLS is necessary
+let supabaseAdminClient;
+try {
+  supabaseAdminClient = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false
+    },
+    db: {
+      schema: 'public',
+    },
+    global: {
+      headers: {
+        'x-client-info': 'admin-dashboard-admin'
+      },
+    }
+  });
+  console.log('Supabase admin client initialized successfully');
+} catch (error) {
+  console.error('Error initializing Supabase admin client:', error);
+  // Fallback to a basic client if there's an error
+  supabaseAdminClient = createClient(supabaseUrl, supabaseServiceKey);
+}
+
+export const supabaseAdmin = supabaseAdminClient;
 
 // Types based on the database schema
 export type Notification = {
@@ -133,17 +187,18 @@ export async function getTotalAnggota(): Promise<number> {
 }
 
 export async function getTotalSimpanan(): Promise<number> {
+  // Get total from tabungan table instead of anggota.saldo
   const { data, error } = await supabase
-    .from('anggota')
+    .from('tabungan')
     .select('saldo')
-    .eq('is_active', true);
+    .eq('status', 'aktif');
   
-  if (error) {
+  if (error || !data) {
     console.error('Error fetching total simpanan:', error);
     return 0;
   }
   
-  return data.reduce((sum, anggota) => sum + parseFloat(anggota.saldo), 0);
+  return data.reduce((sum, tabungan) => sum + parseFloat(tabungan.saldo), 0);
 }
 
 export async function getTotalPinjaman(): Promise<number> {
@@ -484,12 +539,14 @@ export type JenisTabungan = {
   nama: string;
   deskripsi: string;
   minimum_setoran: number;
-  biaya_admin: number;
-  bagi_hasil: number | null;
   is_active: boolean;
-  is_required: boolean;
-  is_reguler: boolean;
-  display_order: number;
+  created_at?: Date | string;
+  updated_at?: Date | string;
+  biaya_admin?: number;
+  bagi_hasil?: number | null;
+  is_required?: boolean;
+  is_reguler?: boolean;
+  display_order?: number;
 }
 
 export async function getAllJenisTabungan(): Promise<JenisTabungan[]> {
@@ -497,12 +554,21 @@ export async function getAllJenisTabungan(): Promise<JenisTabungan[]> {
     .from('jenis_tabungan')
     .select('*')
     .eq('is_active', true)
-    .order('display_order', { ascending: true });
+    .order('kode', { ascending: true });
   
   if (error) {
     console.error('Error fetching jenis tabungan:', error);
     return [];
   }
   
-  return data || [];
+  const processedData = (data || []).map(item => ({
+    ...item,
+    biaya_admin: item.biaya_admin || 0,
+    bagi_hasil: item.bagi_hasil || null,
+    is_required: item.is_required || false,
+    is_reguler: item.is_reguler || true,
+    display_order: item.display_order || 0
+  }));
+  
+  return processedData;
 }

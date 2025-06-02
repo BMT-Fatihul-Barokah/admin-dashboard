@@ -2,8 +2,8 @@
 const { createClient } = require('@supabase/supabase-js');
 
 // Supabase connection
-const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM';
+const supabaseUrl = 'https://vszhxeamcxgqtwyaxhlu.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94';
 
 // Create Supabase client
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -64,7 +64,7 @@ async function main() {
       const { data: sqlResult, error: sqlError } = await supabase.rpc(
         'execute_sql', 
         { 
-          query: `UPDATE anggota SET saldo = ${newBalance} WHERE nomor_rekening = '${accountNumber}' RETURNING *` 
+          query: `UPDATE tabungan SET saldo = ${newBalance} WHERE nomor_rekening = '${accountNumber}' RETURNING *` 
         }
       );
       
@@ -79,7 +79,7 @@ async function main() {
     
     // Try standard update
     const { data: updateResult, error: updateError } = await supabase
-      .from('anggota')
+      .from('tabungan')
       .update({ 
         saldo: newBalance,
         updated_at: new Date().toISOString()
@@ -90,15 +90,15 @@ async function main() {
     if (updateError) {
       console.error('Error updating account:', updateError);
       
-      // Try with ID instead
-      console.log('Trying update with ID instead of account number');
+      // Try with anggota_id instead
+      console.log('Trying update with anggota_id instead of account number');
       const { data: idUpdateResult, error: idUpdateError } = await supabase
-        .from('anggota')
+        .from('tabungan')
         .update({ 
           saldo: newBalance,
           updated_at: new Date().toISOString()
         })
-        .eq('id', account.id)
+        .eq('anggota_id', account.id)
         .select();
       
       if (idUpdateError) {
@@ -113,7 +113,7 @@ async function main() {
     // Step 3: Verify the update
     console.log('Verifying update...');
     const { data: verifiedAccount, error: verifyError } = await supabase
-      .from('anggota')
+      .from('tabungan')
       .select('*')
       .eq('nomor_rekening', accountNumber)
       .maybeSingle();
@@ -142,7 +142,7 @@ async function main() {
           'Authorization': `Bearer ${supabaseAnonKey}`
         },
         body: JSON.stringify({
-          query: `UPDATE anggota SET saldo = ${newBalance} WHERE nomor_rekening = '${accountNumber}'`
+          query: `UPDATE tabungan SET saldo = ${newBalance} WHERE nomor_rekening = '${accountNumber}'`
         })
       }).catch(e => {
         console.error('Fetch error:', e);
