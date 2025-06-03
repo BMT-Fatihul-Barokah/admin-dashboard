@@ -48,95 +48,59 @@ export async function getTotalAnggota(): Promise<number> {
   }
 }
 
-/**
- * Get the total number of pending registrations
- */
-export async function getPendingRegistrations(): Promise<number> {
-  try {
-    console.log('Fetching pending registrations...');
-    const { data, count, error } = await supabase
-      .from('pendaftaran')
-      .select('*', { count: 'exact' })
-      .eq('status', 'menunggu');
-    
-    if (error) {
-      console.error('Error fetching pending registrations:', error);
-      return 0;
-    }
-    
-    // If no pending registrations are found, let's check if the table exists and has data
-    if ((count === 0 || !count) && (!data || data.length === 0)) {
-      console.log('No pending registrations found, checking if table has any data...');
-      const { data: allData, error: allError } = await supabase
-        .from('pendaftaran')
-        .select('status')
-        .limit(5);
-      
-      if (allError) {
-        console.error('Error checking pendaftaran table:', allError);
-      } else {
-        console.log('Sample pendaftaran data:', allData);
-      }
-      
-      // For testing purposes, return a placeholder value if no data is found
-      return 3; // Placeholder for testing
-    }
-    
-    console.log(`Found ${count || data?.length || 0} pending registrations`);
-    return count || data?.length || 0;
-  } catch (error) {
-    console.error('Exception in getPendingRegistrations:', error);
-    return 0;
-  }
-}
+// Removed getPendingRegistrations function as it's no longer needed
 
 /**
  * Get the total amount of all active loans
  */
 export async function getTotalActivePinjaman(): Promise<{ count: number; amount: number }> {
   try {
-    console.log('Fetching active pinjaman data...');
+    console.log('Fetching active pembiayaan data using RPC function...');
     const { data, error } = await supabase
-      .from('pinjaman')
-      .select('sisa_pembayaran, jumlah')
-      .eq('status', 'aktif');
+      .rpc('get_active_pembiayaan');
     
     if (error) {
-      console.error('Error fetching active pinjaman:', error);
+      console.error('Error fetching active pembiayaan:', error);
+      // Fallback to direct table query if RPC fails
+      console.log('Falling back to direct table query...');
+      try {
+        const { data: directData, error: directError } = await supabase
+          .from('pembiayaan')
+          .select('jumlah')
+          .eq('status', 'aktif');
+        
+        if (directError) {
+          console.error('Error in fallback query:', directError);
+          return { count: 0, amount: 0 };
+        }
+        
+        if (directData && directData.length > 0) {
+          const result = {
+            count: directData.length,
+            amount: directData.reduce((sum, item) => sum + Number(item.jumlah), 0)
+          };
+          console.log(`Fallback found ${result.count} active pembiayaan with total ${result.amount}`);
+          return result;
+        }
+      } catch (fallbackError) {
+        console.error('Exception in fallback query:', fallbackError);
+      }
+      
       return { count: 0, amount: 0 };
     }
     
     if (!data || data.length === 0) {
-      console.log('No active pinjaman found, checking if table has any data...');
-      const { data: allData, error: allError } = await supabase
-        .from('pinjaman')
-        .select('status, jumlah')
-        .limit(5);
-      
-      if (allError) {
-        console.error('Error checking pinjaman table:', allError);
-      } else {
-        console.log('Sample pinjaman data:', allData);
-        
-        // For testing purposes, return placeholder values if no active loans are found
-        if (allData && allData.length > 0) {
-          return {
-            count: allData.length,
-            amount: allData.reduce((sum, pinjaman) => sum + parseFloat(pinjaman.jumlah.toString()), 0)
-          };
-        }
-      }
-      
-      // Return placeholder values for testing
-      return { count: 4, amount: 9500000 };
+      console.log('No active pembiayaan data returned from RPC');
+      // Return reasonable defaults
+      return { count: 0, amount: 0 };
     }
     
     const result = {
-      count: data.length,
-      amount: data.reduce((sum, pinjaman) => sum + parseFloat(pinjaman.sisa_pembayaran.toString()), 0)
+      count: Number(data[0].count) || 0,
+      amount: Number(data[0].amount) || 0
     };
     
-    console.log(`Found ${result.count} active pinjaman with total amount ${result.amount}`);
+    console.log(`Found ${result.count} active pembiayaan with total amount ${result.amount}`);
     return result;
   } catch (error) {
     console.error('Exception in getTotalActivePinjaman:', error);
@@ -260,7 +224,7 @@ export async function getRecentActivities(limit: number = 5): Promise<any[]> {
     }
     
     // Transform the data from the RPC function to match the expected format
-    const activities = data.map(item => ({
+    const activities = data.map((item: any) => ({
       id: item.id,
       type: item.activity_type,
       description: item.description,

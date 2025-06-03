@@ -183,8 +183,34 @@ export default function TransactionsPage() {
         
         console.log(`Fallback successful: ${data.length} transactions fetched directly`)
         
+        // Define the type for the flattened data from RPC
+        type FlattenedTransaksi = {
+          id: string;
+          reference_number?: string;
+          anggota_id: string;
+          anggota_nama?: string;
+          tipe_transaksi: string;
+          kategori: string;
+          deskripsi?: string;
+          jumlah: number;
+          saldo_sebelum?: number;
+          saldo_sesudah?: number;
+          pembiayaan_id?: string;
+          pembiayaan_jumlah?: number;
+          pembiayaan_sisa?: number;
+          pembiayaan_jenis?: string;
+          tabungan_id?: string;
+          tabungan_nomor_rekening?: string;
+          tabungan_saldo?: number;
+          tabungan_jenis_id?: string;
+          tabungan_jenis_nama?: string;
+          tabungan_jenis_kode?: string;
+          created_at: string;
+          updated_at: string;
+        };
+        
         // Transform the flat data structure into the nested structure expected by the component
-        const transformedData = data.map(item => ({
+        const transformedData = data.map((item: FlattenedTransaksi) => ({
           id: item.id,
           reference_number: item.reference_number,
           anggota_id: item.anggota_id,
@@ -365,8 +391,18 @@ export default function TransactionsPage() {
       created_at: 'Tanggal'
     }
     
+    // Define the export format type
+    type ExportFormat = {
+      'Nama Anggota': string;
+      'Jenis Transaksi': string;
+      'Kategori': string;
+      'Jumlah': number;
+      'Rekening/Pinjaman': string;
+      'Tanggal': string;
+    }
+    
     // Format data with transformations
-    const exportData = formatDataForExport(
+    const exportData = formatDataForExport<Transaksi & { rekening_pinjaman: string }, ExportFormat>(
       filteredTransactions.map(transaction => ({
         ...transaction,
         // Add a virtual field for rekening/pinjaman
@@ -378,7 +414,7 @@ export default function TransactionsPage() {
       })),
       fieldMap,
       {
-        'Nama Anggota': (value: any, row: Transaksi) => row.anggota?.nama || 'Anggota',
+        'Nama Anggota': (value: any, row: Transaksi & { rekening_pinjaman: string }) => row.anggota?.nama || 'Anggota',
         // Export Jumlah as a number, not as formatted currency
         'Jumlah': (value: number) => Number(value),
         'Tanggal': (value: string) => formatDate(value)

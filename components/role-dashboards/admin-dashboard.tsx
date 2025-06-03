@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAdminAuth } from "@/lib/admin-auth-context";
-import { testDatabaseConnection, getTotalAnggota, getPendingRegistrations, getTotalActivePinjaman, getCurrentMonthTransactions, getRecentActivities, calculatePercentageChange } from "@/lib/dashboard-data";
+import { testDatabaseConnection, getTotalAnggota, getTotalActivePinjaman, getCurrentMonthTransactions, getRecentActivities, calculatePercentageChange } from "@/lib/dashboard-data";
 import { format, parseISO, formatDistanceToNow, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { id } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
@@ -163,16 +163,35 @@ const fetchAnalyticsData = async (timeRange: string = '6months'): Promise<Analyt
     });
   });
   
-  // 2. Fetch loan data by month
-  const { data: pinjamanData, error: pinjamanError } = await supabase
-    .from('pinjaman')
-    .select('jumlah, created_at, status, jenis_pinjaman')
-    .gte('created_at', startDate);
-  
-  if (pinjamanError) {
-    console.error('Error fetching pinjaman data:', pinjamanError);
-    throw new Error('Failed to fetch loan data');
+  // 2. Fetch loan data by month - using direct table query for reliability
+  let pinjamanData: any[] = [];
+  try {
+    console.log('Fetching pembiayaan data directly from table...');
+    const { data, error } = await supabase
+      .from('pembiayaan')
+      .select('jumlah, created_at, status, jenis_pembiayaan')
+      .gte('created_at', startDate);
+      
+    if (error) {
+      console.error('Error fetching pembiayaan data:', error);
+    } else if (data && data.length > 0) {
+      // Map the data to match expected structure
+      pinjamanData = data.map(item => ({
+        jumlah: item.jumlah,
+        created_at: item.created_at,
+        status: item.status || 'unknown',
+        jenis_pinjaman: item.jenis_pembiayaan || 'unknown'
+      }));
+      console.log(`Successfully fetched ${pinjamanData.length} pembiayaan records`);
+    } else {
+      console.log('No pembiayaan data found in the specified date range');
+    }
+  } catch (err) {
+    console.error('Exception when fetching loan data:', err);
+    // Continue with empty array
   }
+  
+  console.log(`Retrieved ${pinjamanData.length} pembiayaan records for analytics`);
   
   // Process loan data by month
   monthRanges.forEach(range => {
@@ -294,7 +313,6 @@ export function AdminDashboard() {
   const [connectionStatus, setConnectionStatus] = useState<string>('Checking connection...');
   const [dashboardData, setDashboardData] = useState({
     totalMembers: 0,
-    pendingRegistrations: 0,
     activeLoans: { count: 0, amount: 0 },
     currentMonthTransactions: 0,
     recentActivities: [] as Activity[],
@@ -463,7 +481,6 @@ export function AdminDashboard() {
 
         // Fetch dashboard data
         const totalMembers = await getTotalAnggota();
-        const pendingRegistrations = await getPendingRegistrations();
         const activeLoans = await getTotalActivePinjaman();
         const currentMonthTransactions = await getCurrentMonthTransactions();
         const recentActivities = await getRecentActivities();
@@ -483,7 +500,6 @@ export function AdminDashboard() {
 
         setDashboardData({
           totalMembers,
-          pendingRegistrations,
           activeLoans,
           currentMonthTransactions,
           recentActivities,
