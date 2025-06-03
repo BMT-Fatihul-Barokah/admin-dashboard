@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart, Calendar, Download, FileText, PieChart, Printer, Share2, Loader2 } from "lucide-react"
+import { BarChart, Calendar, ChevronLeft, ChevronRight, Download, FileText, PieChart, Printer, Share2, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FinancialTrendsChart } from "@/components/financial-trends-chart"
 import { TransactionDistributionChart } from "@/components/transaction-distribution-chart"
@@ -52,6 +52,7 @@ export default function ReportsPage() {
   const [periodType, setPeriodType] = useState<'weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly')
   const [chartType, setChartType] = useState<'pie' | 'bar'>('pie')
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [showDatePicker, setShowDatePicker] = useState(false)
   
   // Fetch all data
   useEffect(() => {
@@ -544,10 +545,79 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Laporan</h2>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <Calendar className="mr-2 h-4 w-4" />
-            Pilih Periode
-          </Button>
+          <div className="relative">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDatePicker(!showDatePicker)}
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              {format(currentDate, 'MMMM yyyy', { locale: id })}
+            </Button>
+            
+            {showDatePicker && (
+              <div className="absolute right-0 top-full z-50 mt-2 bg-background border rounded-md shadow-md p-4 w-[280px]">
+                <div className="flex flex-col space-y-4">
+                  <div className="flex justify-between items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        const newDate = new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), 1)
+                        setCurrentDate(newDate)
+                      }}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="font-medium">{currentDate.getFullYear()}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        const newDate = new Date(currentDate.getFullYear() + 1, currentDate.getMonth(), 1)
+                        setCurrentDate(newDate)
+                      }}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    {Array.from({ length: 12 }).map((_, index) => {
+                      const date = new Date(currentDate.getFullYear(), index, 1)
+                      return (
+                        <Button 
+                          key={index} 
+                          variant={currentDate.getMonth() === index ? "default" : "ghost"}
+                          size="sm"
+                          className="text-xs h-8"
+                          onClick={() => {
+                            const newDate = new Date(currentDate.getFullYear(), index, 1)
+                            setCurrentDate(newDate)
+                            setShowDatePicker(false)
+                          }}
+                        >
+                          {format(date, 'MMM', { locale: id })}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <Select value={periodType} onValueChange={(value) => handlePeriodChange(value as any)}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Pilih Periode" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="weekly">Mingguan</SelectItem>
+              <SelectItem value="monthly">Bulanan</SelectItem>
+              <SelectItem value="quarterly">Kuartalan</SelectItem>
+              <SelectItem value="yearly">Tahunan</SelectItem>
+            </SelectContent>
+          </Select>
+          
           {user?.role !== 'ketua' && (
             <Button onClick={handleExportReport} disabled={isLoading}>
               {isLoading ? (
@@ -999,6 +1069,7 @@ export default function ReportsPage() {
   )
 }
 
+// Sample data for demonstration purposes only
 export const financialReports = [
   {
     id: "report-001",

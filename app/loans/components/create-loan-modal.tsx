@@ -21,7 +21,6 @@ const LOAN_TYPES = [
   "Pembiayaan Investasi Syariah",
   "Pembiayaan Modal Kerja Syariah"
 ]
-
 // Loan durations in months
 const LOAN_DURATIONS = [
   { label: "3 Bulan", value: 3 },
