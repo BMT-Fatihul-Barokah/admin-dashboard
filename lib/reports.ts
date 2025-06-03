@@ -486,41 +486,56 @@ export async function getLoanStatistics(period: Date = new Date()): Promise<Loan
   try {
     // Get total loans
     const { count: totalLoans, error: totalError } = await supabase
-      .from('pinjaman')
+      .from('pembiayaan')
       .select('*', { count: 'exact', head: true });
     
-    if (totalError) throw totalError;
+    if (totalError) {
+      console.error('Error fetching total loans:', totalError);
+      throw totalError;
+    }
     
     // Get active loans
     const { count: activeLoans, error: activeError } = await supabase
-      .from('pinjaman')
+      .from('pembiayaan')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'aktif');
     
-    if (activeError) throw activeError;
+    if (activeError) {
+      console.error('Error fetching active loans:', activeError);
+      throw activeError;
+    }
     
     // Get completed loans
     const { count: completedLoans, error: completedError } = await supabase
-      .from('pinjaman')
+      .from('pembiayaan')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'lunas');
     
-    if (completedError) throw completedError;
+    if (completedError) {
+      console.error('Error fetching completed loans:', completedError);
+      throw completedError;
+    }
     
     // Get problematic loans
     const { count: problematicLoans, error: problematicError } = await supabase
-      .from('pinjaman')
+      .from('pembiayaan')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'bermasalah');
     
-    if (problematicError) throw problematicError;
+    if (problematicError) {
+      console.error('Error fetching problematic loans:', problematicError);
+      throw problematicError;
+    }
     
     // Get total loan amount
     const { data: amountData, error: amountError } = await supabase
-      .from('pinjaman')
+      .from('pembiayaan')
       .select('jumlah');
     
-    if (amountError) throw amountError;
+    if (amountError) {
+      console.error('Error fetching loan amounts:', amountError);
+      throw amountError;
+    }
     
     const totalAmount = amountData.reduce((sum, loan) => sum + Number(loan.jumlah), 0);
     

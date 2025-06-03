@@ -122,13 +122,9 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   const loanStatusDistribution: StatusDistribution[] = [];
   const loanTypeDistribution: StatusDistribution[] = [];
   
-  // 1. Fetch registration data by month directly from database using SQL query
-  const { data: registrationCountData, error: registrationError } = await supabase
-    .rpc('get_monthly_registrations', { start_date: startDate });
-  
-  if (registrationError) {
-    console.error('Error fetching registration data:', registrationError);
-    // Fallback to direct query
+  // 1. Fetch registration data directly from anggota table
+  try {
+    console.log('Fetching registration data from anggota table...');
     const { data: anggotaData, error: anggotaError } = await supabase
       .from('anggota')
       .select('created_at, is_active')
@@ -136,12 +132,17 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
     
     if (anggotaError) {
       console.error('Error fetching anggota data:', anggotaError);
-      throw new Error('Failed to fetch registration data');
+      throw anggotaError;
+    }
+    
+    if (!anggotaData) {
+      console.error('No anggota data returned');
+      throw new Error('No anggota data returned');
     }
     
     // Process registration data by month
     monthRanges.forEach(range => {
-      const count = anggotaData?.filter(anggota => {
+      const count = anggotaData.filter(anggota => {
         const createdAt = new Date(anggota.created_at);
         return createdAt >= range.start && createdAt <= range.end;
       }).length || 0;
@@ -153,66 +154,73 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
         count
       });
     });
-  } else {
-    // Process data from the RPC function
+  } catch (error) {
+    console.error('Error processing registration data:', error);
+    // Provide empty data if there's an error
     monthRanges.forEach(range => {
-      const monthKey = `${range.start.getFullYear()}-${String(range.start.getMonth() + 1).padStart(2, '0')}`;
-      const matchingData = registrationCountData.find((item: { month: string; count: number }) => 
-        item.month.startsWith(monthKey)
-      );
-      const count = matchingData ? matchingData.count : 0;
-      
       registrationData.push({
         month: range.label,
         name: range.label,
-        value: count,
-        count
+        value: 0,
+        count: 0
       });
     });
   }
   
-  // 2. Fetch loan data by month using the new loan_trend_view
-  const { data: loanTrendData, error: loanTrendError } = await supabase
-    .from('loan_trend_view')
-    .select('*')
-    .gte('month', startDate);
-  
-  if (loanTrendError) {
-    console.error('Error fetching loan trend data:', loanTrendError);
-    throw new Error('Failed to fetch loan trend data');
-  }
-  
-  // Process loan data by month
-  monthRanges.forEach(range => {
-    // Find matching month in the loan trend data
-    const matchingMonth = loanTrendData?.find(trend => {
-      const trendMonth = new Date(trend.month);
-      const rangeMonth = range.start.getMonth();
-      const rangeYear = range.start.getFullYear();
-      return trendMonth.getMonth() === rangeMonth && trendMonth.getFullYear() === rangeYear;
+  // 2. Fetch loan data directly from pembiayaan table
+  let pembiayaanDataForDistribution: any[] = [];
+  try {
+    console.log('Fetching loan data from pembiayaan table...');
+    const { data: pembiayaanData, error: pembiayaanError } = await supabase
+      .from('pembiayaan')
+      .select('jumlah, created_at, status, jenis_pembiayaan')
+      .gte('created_at', startDate);
+    
+    if (pembiayaanError) {
+      console.error('Error fetching pembiayaan data:', pembiayaanError);
+      throw pembiayaanError;
+    }
+    
+    if (!pembiayaanData) {
+      console.error('No pembiayaan data returned');
+      throw new Error('No pembiayaan data returned');
+    }
+    
+    // Process loan data by month
+    monthRanges.forEach(range => {
+      // Filter loans for this month
+      const monthLoans = pembiayaanData.filter((loan: any) => {
+        const loanDate = new Date(loan.created_at);
+        return loanDate >= range.start && loanDate <= range.end;
+      });
+      
+      const amount = monthLoans.reduce((sum: number, loan: any) => sum + Number(loan.jumlah), 0);
+      const count = monthLoans.length;
+      
+      loanData.push({
+        month: range.label,
+        name: range.label,
+        value: amount,
+        amount,
+        count
+      });
     });
     
-    const amount = matchingMonth ? Number(matchingMonth.total_amount) : 0;
-    const count = matchingMonth ? Number(matchingMonth.count) : 0;
-    
-    loanData.push({
-      month: range.label,
-      name: range.label,
-      value: amount,
-      amount,
-      count
+    // Use the same pembiayaan data for other calculations
+    // Store the pembiayaan data for later use in status and type distributions
+    pembiayaanDataForDistribution = pembiayaanData;
+  } catch (error) {
+    console.error('Error processing loan trend data:', error);
+    // Provide empty data if there's an error
+    monthRanges.forEach(range => {
+      loanData.push({
+        month: range.label,
+        name: range.label,
+        value: 0,
+        amount: 0,
+        count: 0
+      });
     });
-  });
-  
-  // Also fetch all loan data for other calculations
-  const { data: pinjamanData, error: pinjamanError } = await supabase
-    .from('pinjaman')
-    .select('jumlah, created_at, status, jenis_pinjaman')
-    .gte('created_at', startDate);
-  
-  if (pinjamanError) {
-    console.error('Error fetching pinjaman data:', pinjamanError);
-    throw new Error('Failed to fetch loan data');
   }
   
   // 3. Fetch transaction data by month using stored procedure
@@ -323,7 +331,7 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   }
   
   // 4. Calculate transaction totals for later use
-  let transactionTotal = transactionData.reduce((sum, item) => sum + (item.amount || 0), 0);
+  let transactionTotal = transactionData.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
   
   // Fetch anggota data for status distribution
   let anggotaDataForStatus;
@@ -351,56 +359,47 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   
   // 5. Calculate loan status distribution
   const loanStatusCounts: Record<string, number> = {};
-  pinjamanData?.forEach(pinjaman => {
-    const status = pinjaman.status;
+  pembiayaanDataForDistribution?.forEach((pembiayaan: any) => {
+    const status = pembiayaan.status;
     loanStatusCounts[status] = (loanStatusCounts[status] || 0) + 1;
   });
   
   Object.entries(loanStatusCounts).forEach(([status, count]) => {
+    const total = pembiayaanDataForDistribution?.length || 1;
+    const percentage = (count / total) * 100;
     loanStatusDistribution.push({
       name: status.charAt(0).toUpperCase() + status.slice(1),
-      value: count
+      value: count,
+      percentage
     });
   });
   
-  // 6. Calculate loan type distribution using the new loan_type_distribution_view
-  const { data: loanTypeData, error: loanTypeError } = await supabase
-    .from('loan_type_distribution_view')
-    .select('*');
+  // 6. Calculate loan type distribution
+  const loanTypeCounts: Record<string, number> = {};
+  pembiayaanDataForDistribution?.forEach((pembiayaan: any) => {
+    const type = pembiayaan.jenis_pembiayaan;
+    loanTypeCounts[type] = (loanTypeCounts[type] || 0) + 1;
+  });
   
-  if (loanTypeError) {
-    console.error('Error fetching loan type distribution:', loanTypeError);
-    // Fallback to the old calculation method if the view query fails
-    const loanTypeCounts: Record<string, number> = {};
-    pinjamanData?.forEach(pinjaman => {
-      const type = pinjaman.jenis_pinjaman;
-      loanTypeCounts[type] = (loanTypeCounts[type] || 0) + 1;
+  Object.entries(loanTypeCounts).forEach(([type, count]) => {
+    const total = pembiayaanDataForDistribution?.length || 1;
+    const percentage = (count / total) * 100;
+    loanTypeDistribution.push({
+      name: type.charAt(0).toUpperCase() + type.slice(1),
+      value: count,
+      percentage
     });
+  });
     
-    Object.entries(loanTypeCounts).forEach(([type, count]) => {
-      loanTypeDistribution.push({
-        name: type,
-        value: count
-      });
-    });
-  } else {
-    // Use the normalized data from the view
-    loanTypeData?.forEach(item => {
-      loanTypeDistribution.push({
-        name: item.name,
-        value: item.count,
-        percentage: item.count_percentage
-      });
-    });
-  }
+
   
   // Calculate summary metrics
-  const totalRegistrations = registrationData.reduce((sum, item) => sum + item.value, 0);
-  const totalLoanAmount = loanData.reduce((sum, item) => sum + item.value, 0);
-  const totalTransactionAmount = transactionTotal; // Use the previously calculated value
-  const activeLoans = pinjamanData?.filter(loan => loan.status === 'aktif').length || 0;
-  const approvedLoans = pinjamanData?.filter(loan => ['aktif', 'lunas', 'disetujui'].includes(loan.status)).length || 0;
-  const totalLoans = pinjamanData?.length || 0;
+  const totalRegistrations = registrationData.reduce((sum: number, item: any) => sum + item.value, 0);
+  const totalLoanAmount = loanData.reduce((sum: number, item: any) => sum + item.value, 0);
+  const totalTransactionAmount = transactionData.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+  const activeLoans = pembiayaanDataForDistribution?.filter((loan: any) => loan.status === 'aktif').length || 0;
+  const approvedLoans = pembiayaanDataForDistribution?.filter((loan: any) => ['aktif', 'lunas', 'disetujui'].includes(loan.status)).length || 0;
+  const totalLoans = pembiayaanDataForDistribution?.length || 0;
   const approvalRate = totalLoans > 0 ? Math.round((approvedLoans / totalLoans) * 100) : 0;
   
   return {
