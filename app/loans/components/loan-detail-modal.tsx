@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/badge"
 import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
 import { X, CalendarDays, CreditCard } from "lucide-react"
-import { Pinjaman } from "@/lib/pinjaman"
+import { Pembiayaan } from "@/lib/pembiayaan"
 
 interface LoanDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  loan: Pinjaman | null;
+  loan: Pembiayaan | null;
   onViewSchedule: () => void;
   onRecordPayment: () => void;
 }
@@ -89,7 +89,7 @@ export function LoanDetailModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Detail Pinjaman</DialogTitle>
+          <DialogTitle>Detail Pembiayaan</DialogTitle>
           <DialogDescription>
             ID: {loan.id}
           </DialogDescription>
@@ -116,8 +116,8 @@ export function LoanDetailModal({
           {/* Loan Details */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Jenis Pinjaman</p>
-              <p>{loan.jenis_pinjaman}</p>
+              <p className="text-sm font-medium text-muted-foreground">Jenis Pembiayaan</p>
+              <p>{loan.jenis_pembiayaan}</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Tanggal Pengajuan</p>
@@ -127,7 +127,7 @@ export function LoanDetailModal({
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Jumlah Pinjaman</p>
+              <p className="text-sm font-medium text-muted-foreground">Jumlah Pembiayaan</p>
               <p className="font-semibold text-lg">{formatCurrency(Number(loan.jumlah))}</p>
             </div>
             <div className="space-y-1">
@@ -144,6 +144,17 @@ export function LoanDetailModal({
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Sisa Pembayaran</p>
               <p>{formatCurrency(Number(loan.sisa_pembayaran))}</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Kategori</p>
+              <p>{loan.kategori}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Deskripsi</p>
+              <p>{loan.deskripsi || '-'}</p>
             </div>
           </div>
           

@@ -36,18 +36,12 @@ interface Transaksi {
 
 export async function GET() {
   try {
-    console.log('Fetching transactions from Supabase...')
+    console.log('Fetching transactions from Supabase using RPC function...')
     
-    // Fetch transactions with anggota, tabungan, and pinjaman information
+    // Use the RPC function to fetch transactions with all related data
     const { data, error } = await supabase
-      .from('transaksi')
-      .select(`
-        *,
-        anggota:anggota_id(nama),
-        tabungan:tabungan_id(nomor_rekening, saldo, jenis_tabungan_id, jenis_tabungan:jenis_tabungan_id(nama, kode)),
-        pinjaman:pinjaman_id(id, jumlah, sisa_pembayaran, jenis_pinjaman)
-      `)
-      .order('created_at', { ascending: false })
+      .rpc('get_all_transactions')
+      .limit(100)
     
     if (error) {
       console.error('Error fetching transactions:', error)
@@ -57,9 +51,68 @@ export async function GET() {
       )
     }
     
-    console.log(`Successfully fetched ${data?.length || 0} transactions`)
+    // Define the type for our RPC function result
+    type TransactionRPCResult = {
+      id: string;
+      reference_number: string | null;
+      anggota_id: string;
+      tipe_transaksi: string;
+      kategori: string;
+      deskripsi: string | null;
+      jumlah: number;
+      saldo_sebelum: number;
+      saldo_sesudah: number;
+      pembiayaan_id: string | null;
+      tabungan_id: string | null;
+      created_at: string;
+      updated_at: string;
+      anggota_nama: string | null;
+      tabungan_nomor_rekening: string | null;
+      tabungan_saldo: number | null;
+      tabungan_jenis_id: string | null;
+      tabungan_jenis_nama: string | null;
+      tabungan_jenis_kode: string | null;
+      pembiayaan_jumlah: number | null;
+      pembiayaan_sisa: number | null;
+      pembiayaan_jenis: string | null;
+    };
     
-    return NextResponse.json(data || [])
+    // Transform the flat data structure into the nested structure expected by the frontend
+    const transformedData = data?.map((item: TransactionRPCResult) => ({
+      id: item.id,
+      reference_number: item.reference_number,
+      anggota_id: item.anggota_id,
+      tipe_transaksi: item.tipe_transaksi,
+      kategori: item.kategori,
+      deskripsi: item.deskripsi,
+      jumlah: item.jumlah,
+      saldo_sebelum: item.saldo_sebelum,
+      saldo_sesudah: item.saldo_sesudah,
+      pembiayaan_id: item.pembiayaan_id,  // Note: frontend expects pinjaman_id
+      tabungan_id: item.tabungan_id,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      anggota: item.anggota_nama ? { nama: item.anggota_nama } : null,
+      tabungan: item.tabungan_nomor_rekening ? {
+        nomor_rekening: item.tabungan_nomor_rekening,
+        saldo: item.tabungan_saldo,
+        jenis_tabungan_id: item.tabungan_jenis_id,
+        jenis_tabungan: item.tabungan_jenis_nama ? {
+          nama: item.tabungan_jenis_nama,
+          kode: item.tabungan_jenis_kode
+        } : null
+      } : null,
+      pinjaman: item.pembiayaan_jumlah ? {  // Map pembiayaan to pinjaman for frontend compatibility
+        id: item.pembiayaan_id,
+        jumlah: item.pembiayaan_jumlah,
+        sisa_pembayaran: item.pembiayaan_sisa,
+        jenis_pinjaman: item.pembiayaan_jenis
+      } : null
+    })) || []
+    
+    console.log(`Successfully fetched ${transformedData.length} transactions`)
+    
+    return NextResponse.json(transformedData)
   } catch (error) {
     console.error('Server error:', error)
     return NextResponse.json(

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { createPinjaman, PinjamanInput } from "@/lib/pinjaman"
+import { createPembiayaan, PembiayaanInput } from "@/lib/pembiayaan"
 import { toast } from "sonner"
 import { format, addMonths } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
@@ -17,11 +17,11 @@ import { cn } from "@/lib/utils"
 
 // Loan types
 const LOAN_TYPES = [
-  "Pinjaman Umum",
-  "Pinjaman Pendidikan",
-  "Pinjaman Usaha",
-  "Pinjaman Darurat",
-  "Pinjaman Konsumtif"
+  "Pembiayaan Umum",
+  "Pembiayaan Pendidikan",
+  "Pembiayaan Usaha",
+  "Pembiayaan Darurat",
+  "Pembiayaan Konsumtif"
 ]
 
 // Loan durations in months
@@ -34,6 +34,15 @@ const LOAN_DURATIONS = [
   { label: "24 Bulan (2 Tahun)", value: 24 },
 ]
 
+// Loan categories
+const LOAN_CATEGORIES = [
+  "Produktif",
+  "Konsumtif",
+  "Pendidikan",
+  "Kesehatan",
+  "Lainnya"
+]
+
 interface Anggota {
   id: string;
   nama: string;
@@ -43,24 +52,25 @@ interface Anggota {
 interface CreateLoanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoanCreated: () => void;
+  onSuccess: () => void;
   members: Anggota[];
 }
 
 export function CreateLoanModal({
   isOpen,
   onClose,
-  onLoanCreated,
+  onSuccess,
   members
 }: CreateLoanModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState<PinjamanInput>({
+  const [formData, setFormData] = useState<PembiayaanInput>({
     anggota_id: "",
-    jenis_pinjaman: "",
+    jenis_pembiayaan: "",
+    kategori: "",
     jumlah: 0,
     jatuh_tempo: format(addMonths(new Date(), 3), 'yyyy-MM-dd'),
     durasi_bulan: 3,
-    alasan: ""
+    deskripsi: ""
   })
   const [date, setDate] = useState<Date | undefined>(addMonths(new Date(), 3))
   const [loanDuration, setLoanDuration] = useState<number>(3)
@@ -70,11 +80,12 @@ export function CreateLoanModal({
     if (isOpen) {
       setFormData({
         anggota_id: "",
-        jenis_pinjaman: "",
+        jenis_pembiayaan: "",
+        kategori: "",
         jumlah: 0,
         jatuh_tempo: format(addMonths(new Date(), 3), 'yyyy-MM-dd'),
         durasi_bulan: 3,
-        alasan: ""
+        deskripsi: ""
       })
       setDate(addMonths(new Date(), 3))
       setLoanDuration(3)
@@ -103,7 +114,7 @@ export function CreateLoanModal({
     }))
   }
 
-  const handleChange = (field: keyof PinjamanInput, value: string | number) => {
+  const handleChange = (field: keyof PembiayaanInput, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -116,12 +127,16 @@ export function CreateLoanModal({
       toast.error("Silakan pilih anggota")
       return
     }
-    if (!formData.jenis_pinjaman) {
-      toast.error("Silakan pilih jenis pinjaman")
+    if (!formData.jenis_pembiayaan) {
+      toast.error("Silakan pilih jenis pembiayaan")
+      return
+    }
+    if (!formData.kategori) {
+      toast.error("Silakan pilih kategori pembiayaan")
       return
     }
     if (!formData.jumlah || formData.jumlah <= 0) {
-      toast.error("Jumlah pinjaman harus lebih dari 0")
+      toast.error("Jumlah pembiayaan harus lebih dari 0")
       return
     }
     if (!formData.jatuh_tempo) {
@@ -139,14 +154,14 @@ export function CreateLoanModal({
       }
       
       // Create the loan
-      const result = await createPinjaman(cleanedData)
+      const result = await createPembiayaan(cleanedData)
       
       if (result.success) {
-        toast.success("Pinjaman baru berhasil dibuat")
-        onLoanCreated()
+        toast.success("Pembiayaan baru berhasil dibuat")
+        onSuccess()
         onClose()
       } else {
-        toast.error(result.error?.message || "Gagal membuat pinjaman")
+        toast.error(result.error?.message || "Gagal membuat pembiayaan")
       }
     } catch (error: any) {
       toast.error("Terjadi kesalahan: " + (error?.message || "Unknown error"))
@@ -159,9 +174,9 @@ export function CreateLoanModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Tambah Pinjaman Baru</DialogTitle>
+          <DialogTitle>Tambah Pembiayaan Baru</DialogTitle>
           <DialogDescription>
-            Isi formulir berikut untuk membuat pinjaman baru.
+            Isi formulir berikut untuk membuat pembiayaan baru.
           </DialogDescription>
         </DialogHeader>
         
@@ -189,19 +204,40 @@ export function CreateLoanModal({
           
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="loanType" className="text-right">
-              Jenis Pinjaman
+              Jenis Pembiayaan
             </Label>
             <Select 
-              value={formData.jenis_pinjaman} 
-              onValueChange={(value) => handleChange('jenis_pinjaman', value)}
+              value={formData.jenis_pembiayaan} 
+              onValueChange={(value) => handleChange('jenis_pembiayaan', value)}
             >
               <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Pilih jenis pinjaman" />
+                <SelectValue placeholder="Pilih jenis pembiayaan" />
               </SelectTrigger>
               <SelectContent>
                 {LOAN_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="category" className="text-right">
+              Kategori
+            </Label>
+            <Select 
+              value={formData.kategori} 
+              onValueChange={(value) => handleChange('kategori', value)}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Pilih kategori pembiayaan" />
+              </SelectTrigger>
+              <SelectContent>
+                {LOAN_CATEGORIES.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -224,14 +260,14 @@ export function CreateLoanModal({
           
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="loanDuration" className="text-right">
-              Durasi Pinjaman
+              Durasi Pembiayaan
             </Label>
             <Select 
               value={loanDuration.toString()} 
               onValueChange={(value) => handleDurationChange(Number(value))}
             >
               <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Pilih durasi pinjaman" />
+                <SelectValue placeholder="Pilih durasi pembiayaan" />
               </SelectTrigger>
               <SelectContent>
                 {LOAN_DURATIONS.map((duration) => (
@@ -276,14 +312,14 @@ export function CreateLoanModal({
           
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="reason" className="text-right">
-              Alasan
+              Deskripsi
             </Label>
             <Textarea
               id="reason"
               className="col-span-3"
-              placeholder="Alasan pengajuan pinjaman (opsional)"
-              value={formData.alasan || ''}
-              onChange={(e) => handleChange('alasan', e.target.value)}
+              placeholder="Deskripsi pengajuan pembiayaan (opsional)"
+              value={formData.deskripsi || ''}
+              onChange={(e) => handleChange('deskripsi', e.target.value)}
             />
           </div>
         </div>
@@ -298,7 +334,7 @@ export function CreateLoanModal({
             disabled={isSubmitting}
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Buat Pinjaman
+            Buat Pembiayaan
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { format, parseISO, addMonths } from "date-fns"
 import { id } from "date-fns/locale"
 import { X, Save, AlertCircle, CalendarIcon, Loader2 } from "lucide-react"
-import { Pinjaman } from "@/lib/pinjaman"
+import { Pembiayaan } from "@/lib/pembiayaan"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -20,7 +20,7 @@ import { Progress } from "@/components/ui/progress"
 interface RecordPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  loan: Pinjaman | null;
+  loan: Pembiayaan | null;
   onPaymentRecorded: () => void;
 }
 
@@ -152,7 +152,7 @@ export function RecordPaymentModal({
       
       // Update the loan record immediately
       const { error: directUpdateError } = await supabase
-        .from('pinjaman')
+        .from('pembiayaan')
         .update({
           sisa_pembayaran: newBalance,
           status: newStatus,
@@ -242,8 +242,18 @@ export function RecordPaymentModal({
                 </div>
                 <div className="mt-2">
                   <p className="text-sm font-medium text-muted-foreground mb-1">Progress Pembayaran</p>
-                  <Progress value={loan.progress_percentage || 0} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1 text-right">{loan.progress_percentage || 0}%</p>
+                  {loan && (
+                    <>
+                      <Progress 
+                        value={loan.total_pembayaran > 0 ? ((loan.total_pembayaran - loan.sisa_pembayaran) / loan.total_pembayaran) * 100 : 0} 
+                        className="h-2" 
+                      />
+                      <p className="text-xs text-muted-foreground mt-1 text-right">
+                        {loan.total_pembayaran > 0 ? 
+                          Math.round(((loan.total_pembayaran - loan.sisa_pembayaran) / loan.total_pembayaran) * 100) : 0}%
+                      </p>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -24,6 +24,7 @@ type FormattedLoanApplication = LoanApplication & {
   anggota_nama: string;
   tenor?: number; // For compatibility with existing code
   tujuan?: string; // For compatibility with existing code
+  alasan_penolakan?: string; // Reason for rejection
 }
 
 export default function LoanApprovalsPage() {

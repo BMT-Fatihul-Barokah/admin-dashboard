@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     }
     
     // Transform data to include jenis_tabungan_nama
-    const transformedData = data.map(item => ({
+    const transformedData = data.map((item: any) => ({
       id: item.id,
       jenis_tabungan_id: item.jenis_tabungan_id,
       jenis_tabungan_nama: item.jenis_tabungan?.nama,

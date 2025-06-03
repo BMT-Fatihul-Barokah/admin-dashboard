@@ -204,61 +204,22 @@ export async function getCurrentMonthTransactions(): Promise<number> {
  */
 export async function getRecentActivities(limit: number = 5): Promise<any[]> {
   try {
-    console.log('Fetching recent activities...');
-    // Get recent transactions
-    const { data: transactions, error: transactionError } = await supabase
-      .from('transaksi')
-      .select(`
-        *,
-        anggota:anggota_id(nama)
-      `)
-      .order('created_at', { ascending: false })
+    console.log('Fetching recent activities using RPC function...');
+    
+    // Primary approach: Use the RPC function to get recent activities
+    const { data, error } = await supabase
+      .rpc('get_recent_activities', { activity_limit: limit })
       .limit(limit);
     
-    if (transactionError) {
-      console.error('Error fetching recent transactions:', transactionError);
-      return [];
+    if (error) {
+      console.error('Error fetching recent activities with RPC:', error);
+      throw error;
     }
     
-    console.log(`Found ${transactions?.length || 0} recent transactions`);
-    
-    // Get recent registrations
-    const { data: registrations, error: registrationError } = await supabase
-      .from('pendaftaran')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    
-    if (registrationError) {
-      console.error('Error fetching recent registrations:', registrationError);
-      return [];
-    }
-    
-    console.log(`Found ${registrations?.length || 0} recent registrations`);
-    
-    // Get recent loans
-    const { data: loans, error: loanError } = await supabase
-      .from('pinjaman')
-      .select(`
-        *,
-        anggota:anggota_id(nama)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    
-    if (loanError) {
-      console.error('Error fetching recent loans:', loanError);
-      return [];
-    }
-    
-    console.log(`Found ${loans?.length || 0} recent loans`);
-    
-    // If we don't have any real data, create some placeholder activities for testing
-    if ((!transactions || transactions.length === 0) && 
-        (!registrations || registrations.length === 0) && 
-        (!loans || loans.length === 0)) {
-      console.log('No real activities found, creating placeholder data for testing');
+    if (!data || data.length === 0) {
+      console.log('No activities found from RPC, using placeholder data');
       
+      // Return placeholder data for testing
       return [
         {
           type: 'transaction',
@@ -298,42 +259,99 @@ export async function getRecentActivities(limit: number = 5): Promise<any[]> {
       ];
     }
     
-    // Combine and format all activities
-    const activities = [
-      ...(transactions || []).map(t => ({
-        type: 'transaction',
-        description: `${t.tipe_transaksi === 'masuk' ? 'Penerimaan' : 'Pengeluaran'} ${t.kategori} dari ${t.anggota?.nama || 'Anggota'}`,
-        amount: t.jumlah,
-        created_at: t.created_at,
-        id: t.id
-      })),
-      ...(registrations || []).map(r => ({
-        type: 'registration',
-        description: `Pendaftaran baru dari ${r.nama}`,
-        created_at: r.created_at,
-        id: r.id,
-        status: r.status
-      })),
-      ...(loans || []).map(l => ({
-        type: 'loan',
-        description: `Pinjaman ${l.status} untuk ${l.anggota?.nama || 'Anggota'}`,
-        amount: l.jumlah,
-        created_at: l.created_at,
-        id: l.id
-      }))
-    ];
+    // Transform the data from the RPC function to match the expected format
+    const activities = data.map(item => ({
+      id: item.id,
+      type: item.activity_type,
+      description: item.description,
+      amount: item.amount,
+      created_at: item.created_at,
+      status: item.status
+    }));
     
-    // Sort by created_at
-    activities.sort((a, b) => {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+    console.log(`Returning ${activities.length} recent activities from RPC`);
+    return activities;
     
-    const result = activities.slice(0, limit);
-    console.log(`Returning ${result.length} recent activities`);
-    return result;
   } catch (error) {
     console.error('Exception in getRecentActivities:', error);
-    return [];
+    
+    // Fallback approach: Try direct queries if RPC fails
+    try {
+      console.log('Attempting fallback for recent activities...');
+      
+      // Get recent transactions
+      const { data: transactions, error: transactionError } = await supabase
+        .from('transaksi')
+        .select('id, tipe_transaksi, kategori, jumlah, created_at, anggota_id')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (transactionError) {
+        console.error('Error in fallback transaction query:', transactionError);
+        return [];
+      }
+      
+      // Get anggota data for transactions
+      const anggotaIds = transactions?.map(t => t.anggota_id).filter(Boolean) || [];
+      let anggotaMap: Record<string, string> = {};
+      
+      if (anggotaIds.length > 0) {
+        const { data: anggotaData } = await supabase
+          .from('anggota')
+          .select('id, nama')
+          .in('id', anggotaIds);
+          
+        if (anggotaData) {
+          anggotaMap = anggotaData.reduce((map, a) => {
+            map[a.id] = a.nama;
+            return map;
+          }, {} as Record<string, string>);
+        }
+      }
+      
+      // Get recent pembiayaan (loans)
+      const { data: loans, error: loanError } = await supabase
+        .from('pembiayaan')
+        .select('id, jumlah, status, created_at, anggota_id')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (loanError) {
+        console.error('Error in fallback loan query:', loanError);
+      }
+      
+      // Format activities
+      const activities = [
+        ...(transactions || []).map(t => ({
+          id: t.id,
+          type: 'transaction',
+          description: `${t.tipe_transaksi === 'masuk' ? 'Penerimaan' : 'Pengeluaran'} ${t.kategori} dari ${anggotaMap[t.anggota_id] || 'Anggota'}`,
+          amount: t.jumlah,
+          created_at: t.created_at,
+          status: t.tipe_transaksi
+        })),
+        ...(loans || []).map(l => ({
+          id: l.id,
+          type: 'loan',
+          description: `Pembiayaan ${l.status} untuk ${anggotaMap[l.anggota_id] || 'Anggota'}`,
+          amount: l.jumlah,
+          created_at: l.created_at,
+          status: l.status
+        }))
+      ];
+      
+      // Sort by created_at
+      activities.sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      
+      const result = activities.slice(0, limit);
+      console.log(`Returning ${result.length} recent activities from fallback`);
+      return result;
+    } catch (fallbackError) {
+      console.error('Fallback approach failed:', fallbackError);
+      return [];
+    }
   }
 }
 

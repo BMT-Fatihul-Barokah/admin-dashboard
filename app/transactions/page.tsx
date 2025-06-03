@@ -38,7 +38,7 @@ interface Transaksi {
   jumlah: number;
   saldo_sebelum?: number;
   saldo_sesudah?: number;
-  pinjaman_id?: string;
+  pembiayaan_id?: string; // Database uses pembiayaan_id, not pinjaman_id
   tabungan_id?: string;
   created_at: string;
   updated_at: string;
@@ -133,20 +133,19 @@ export default function TransactionsPage() {
     }
   };
   
-  // Fetch transactions from API route
+  // Fetch transactions from API route with fallback mechanism
   const fetchTransactions = async () => {
     setIsLoading(true)
     setError(null)
     try {
       console.log('Attempting to fetch transactions from API...')
       
-      // Use the API route to fetch transactions
+      // Primary approach: Use the API route to fetch transactions
       const response = await fetch('/api/transactions')
       
       if (!response.ok) {
         const errorData = await response.json()
         console.error('Error response from API:', errorData)
-        setError(`API error: ${errorData.error || response.statusText}`)
         throw new Error(errorData.error || response.statusText)
       }
       
@@ -156,19 +155,82 @@ export default function TransactionsPage() {
       // Data is already transformed by the API
       setTransactions(data)
       setFilteredTransactions(data)
-    } catch (error) {
-      console.error('Error fetching transactions:', error)
-      let errorMessage = 'An unknown error occurred';
+    } catch (apiError) {
+      console.error('API fetch error:', apiError)
       
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        // Try to extract message from error object
-        errorMessage = (error as any).message || JSON.stringify(error);
+      // Fallback approach: Use direct Supabase RPC call from client
+      try {
+        console.log('Attempting fallback: Direct Supabase RPC call...')
+        
+        // Import supabase client dynamically to avoid SSR issues
+        const { supabase } = await import('@/lib/supabase')
+        
+        const { data, error } = await supabase
+          .rpc('get_all_transactions')
+          .limit(100)
+        
+        if (error) {
+          console.error('Supabase RPC error:', error)
+          throw error
+        }
+        
+        if (!data || data.length === 0) {
+          console.warn('No transaction data returned from fallback')
+          setTransactions([])
+          setFilteredTransactions([])
+          return
+        }
+        
+        console.log(`Fallback successful: ${data.length} transactions fetched directly`)
+        
+        // Transform the flat data structure into the nested structure expected by the component
+        const transformedData = data.map(item => ({
+          id: item.id,
+          reference_number: item.reference_number,
+          anggota_id: item.anggota_id,
+          tipe_transaksi: item.tipe_transaksi,
+          kategori: item.kategori,
+          deskripsi: item.deskripsi,
+          jumlah: item.jumlah,
+          saldo_sebelum: item.saldo_sebelum,
+          saldo_sesudah: item.saldo_sesudah,
+          pembiayaan_id: item.pembiayaan_id,
+          tabungan_id: item.tabungan_id,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          anggota: item.anggota_nama ? { nama: item.anggota_nama } : null,
+          tabungan: item.tabungan_nomor_rekening ? {
+            nomor_rekening: item.tabungan_nomor_rekening,
+            saldo: item.tabungan_saldo,
+            jenis_tabungan_id: item.tabungan_jenis_id,
+            jenis_tabungan: item.tabungan_jenis_nama ? {
+              nama: item.tabungan_jenis_nama,
+              kode: item.tabungan_jenis_kode
+            } : null
+          } : null,
+          pinjaman: item.pembiayaan_jumlah ? {
+            id: item.pembiayaan_id,
+            jumlah: item.pembiayaan_jumlah,
+            sisa_pembayaran: item.pembiayaan_sisa,
+            jenis_pinjaman: item.pembiayaan_jenis
+          } : null
+        }))
+        
+        setTransactions(transformedData)
+        setFilteredTransactions(transformedData)
+      } catch (fallbackError) {
+        console.error('Fallback approach failed:', fallbackError)
+        
+        let errorMessage = 'An unknown error occurred';
+        if (fallbackError instanceof Error) {
+          errorMessage = fallbackError.message;
+        } else if (typeof fallbackError === 'object' && fallbackError !== null) {
+          errorMessage = (fallbackError as any).message || JSON.stringify(fallbackError);
+        }
+        
+        setError(`Error: ${errorMessage}`)
+        toast.error(`Gagal memuat data transaksi: ${errorMessage}`)
       }
-      
-      setError(`Error: ${errorMessage}`)
-      toast.error(`Gagal memuat data transaksi: ${errorMessage}`)
     } finally {
       setIsLoading(false)
     }

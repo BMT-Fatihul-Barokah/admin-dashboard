@@ -19,7 +19,6 @@ type Anggota = {
   id: string
   nama: string
   nomor_rekening: string
-  saldo: number
 }
 
 type Transaksi = {

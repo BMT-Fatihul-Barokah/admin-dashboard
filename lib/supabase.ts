@@ -1,62 +1,46 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase project credentials for koperasi fatihul barokah
-const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM';
+// Supabase project credentials
+const supabaseUrl = 'https://vszhxeamcxgqtwyaxhlu.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94';
 
 console.log('Initializing Supabase client with URL:', supabaseUrl);
 
-// Create the Supabase client with debug logging and proper configuration
-let supabaseClient;
-try {
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false
+// Create the Supabase client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false
+  },
+  global: {
+    headers: {
+      'x-client-info': 'admin-dashboard'
     },
-    db: {
-      schema: 'public',
-    },
-    // Enable debug mode in development
-    global: {
-      headers: {
-        'x-client-info': 'admin-dashboard'
-      },
-    },
-  });
-  
-  // Set default headers for admin access
-  supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (session) {
-      console.log('Auth state changed:', event, 'User:', session.user?.email);
-    } else {
-      console.log('No active session');
-    }
-  });
-  
-  console.log('Supabase client initialized successfully');
-} catch (error) {
-  console.error('Error initializing Supabase client:', error);
-  // Fallback to a basic client if there's an error
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-}
+  },
+});
 
-export const supabase = supabaseClient;
+// Log auth state changes
+supabase.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    console.log('Auth state changed:', event, 'User:', session.user?.email);
+  } else {
+    console.log('No active session');
+  }
+});
+
+console.log('Supabase client initialized successfully');
 
 // Types based on the database schema
 export type Notification = {
   id: string;
-  type: string;
-  title: string;
-  message: string;
-  time: Date;
-  read: boolean;
-  action?: string | null;
-  action_link?: string | null;
+  judul: string;
+  pesan: string;
+  jenis: string;
+  is_read: boolean;
+  data?: any;
   anggota_id?: string | null;
-  pinjaman_id?: string | null;
-  transaksi_id?: string | null;
+  is_global: boolean;
   created_at: Date;
   updated_at: Date;
   anggota?: {
@@ -68,7 +52,6 @@ export type Anggota = {
   id: string;
   nama: string;
   nomor_rekening: string;
-  saldo: number;
   alamat?: string;
   kota?: string;
   tempat_lahir?: string;
@@ -100,16 +83,18 @@ export type Transaksi = {
   };
 }
 
-export type Pinjaman = {
+export type Pembiayaan = {
   id: string;
   anggota_id: string;
-  jenis_pinjaman: string;
+  jenis_pembiayaan: string;
   status: string;
   jumlah: number;
   jatuh_tempo: Date;
-  bunga_persen: number;
   total_pembayaran: number;
   sisa_pembayaran: number;
+  durasi_bulan: number;
+  kategori: string;
+  deskripsi?: string;
   created_at: Date;
   updated_at: Date;
   anggota?: {
@@ -146,18 +131,18 @@ export async function getTotalSimpanan(): Promise<number> {
   return data.reduce((sum, anggota) => sum + parseFloat(anggota.saldo), 0);
 }
 
-export async function getTotalPinjaman(): Promise<number> {
+export async function getTotalPembiayaan(): Promise<number> {
   const { data, error } = await supabase
-    .from('pinjaman')
+    .from('pembiayaan')
     .select('sisa_pembayaran')
     .eq('status', 'aktif');
   
   if (error) {
-    console.error('Error fetching total pinjaman:', error);
+    console.error('Error fetching total pembiayaan:', error);
     return 0;
   }
   
-  return data.reduce((sum, pinjaman) => sum + parseFloat(pinjaman.sisa_pembayaran), 0);
+  return data.reduce((sum, pembiayaan) => sum + parseFloat(pembiayaan.sisa_pembayaran), 0);
 }
 
 export async function getRecentTransactions(limit: number = 5): Promise<Transaksi[]> {
@@ -324,156 +309,156 @@ export async function getTransactionsByType(type: string): Promise<Transaksi[]> 
   return data || [];
 }
 
-export async function getAllPinjaman(): Promise<Pinjaman[]> {
+export async function getAllPembiayaan(): Promise<Pembiayaan[]> {
   const { data, error } = await supabase
-    .from('pinjaman')
+    .from('pembiayaan')
     .select(`
       *,
       anggota:anggota_id(nama)
     `)
     .order('created_at', { ascending: false });
-  
+
   if (error) {
-    console.error('Error fetching pinjaman:', error);
+    console.error('Error fetching pembiayaan:', error);
     return [];
   }
-  
+
   return data || [];
 }
 
-export async function searchPinjaman(query: string): Promise<Pinjaman[]> {
+export async function searchPembiayaan(query: string): Promise<Pembiayaan[]> {
   const { data, error } = await supabase
-    .from('pinjaman')
+    .from('pembiayaan')
     .select(`
       *,
       anggota:anggota_id(nama)
     `)
-    .or(`jenis_pinjaman.ilike.%${query}%`)
+    .or(`jenis_pembiayaan.ilike.%${query}%, status.ilike.%${query}%, kategori.ilike.%${query}%`)
     .order('created_at', { ascending: false });
-  
+
   if (error) {
-    console.error('Error searching pinjaman:', error);
+    console.error('Error searching pembiayaan:', error);
     return [];
   }
-  
+
   return data || [];
 }
 
-export async function getPinjamanByStatus(status: string): Promise<Pinjaman[]> {
+export async function getPembiayaanByStatus(status: string): Promise<Pembiayaan[]> {
   const { data, error } = await supabase
-    .from('pinjaman')
+    .from('pembiayaan')
     .select(`
       *,
       anggota:anggota_id(nama)
     `)
     .eq('status', status)
     .order('created_at', { ascending: false });
-  
+
   if (error) {
-    console.error('Error fetching pinjaman by status:', error);
+    console.error('Error fetching pembiayaan by status:', error);
     return [];
   }
-  
+
   return data || [];
 }
 
-export async function searchPinjamanByStatus(status: string): Promise<Pinjaman[]> {
+export async function searchPembiayaanByStatus(status: string): Promise<Pembiayaan[]> {
   const { data, error } = await supabase
-    .from('pinjaman')
+    .from('pembiayaan')
     .select(`
       *,
       anggota:anggota_id(nama)
     `)
     .eq('status', status)
     .order('created_at', { ascending: false });
-  
+
   if (error) {
-    console.error('Error searching pinjaman by status:', error);
+    console.error('Error searching pembiayaan by status:', error);
     return [];
   }
-  
+
   return data || [];
 }
 
 // Notification functions
 export async function getAllNotifications(): Promise<Notification[]> {
   const { data, error } = await supabase
-    .from('notifications')
+    .from('notifikasi')
     .select(`
       *,
       anggota:anggota_id(nama)
     `)
-    .order('time', { ascending: false });
-  
+    .order('created_at', { ascending: false });
+
   if (error) {
     console.error('Error fetching notifications:', error);
     return [];
   }
-  
+
   return data || [];
 }
 
 export async function getUnreadNotifications(): Promise<Notification[]> {
   const { data, error } = await supabase
-    .from('notifications')
+    .from('notifikasi')
     .select(`
       *,
       anggota:anggota_id(nama)
     `)
-    .eq('read', false)
-    .order('time', { ascending: false });
-  
+    .eq('is_read', false)
+    .order('created_at', { ascending: false });
+
   if (error) {
     console.error('Error fetching unread notifications:', error);
     return [];
   }
-  
+
   return data || [];
 }
 
-export async function getNotificationsByType(type: string): Promise<Notification[]> {
+export async function getNotificationsByType(jenis: string): Promise<Notification[]> {
   const { data, error } = await supabase
-    .from('notifications')
+    .from('notifikasi')
     .select(`
       *,
       anggota:anggota_id(nama)
     `)
-    .eq('type', type)
-    .order('time', { ascending: false });
-  
+    .eq('jenis', jenis)
+    .order('created_at', { ascending: false });
+
   if (error) {
     console.error('Error fetching notifications by type:', error);
     return [];
   }
-  
+
   return data || [];
 }
 
 export async function markNotificationAsRead(id: string): Promise<boolean> {
   const { error } = await supabase
-    .from('notifications')
-    .update({ read: true, updated_at: new Date() })
+    .from('notifikasi')
+    .update({ is_read: true })
     .eq('id', id);
-  
+
   if (error) {
     console.error('Error marking notification as read:', error);
     return false;
   }
-  
+
   return true;
 }
 
 export async function markAllNotificationsAsRead(): Promise<boolean> {
   const { error } = await supabase
-    .from('notifications')
-    .update({ read: true, updated_at: new Date() })
-    .eq('read', false);
-  
+    .from('notifikasi')
+    .update({ is_read: true })
+    .eq('is_read', false);
+
   if (error) {
     console.error('Error marking all notifications as read:', error);
     return false;
   }
-  
+
   return true;
 }
 

@@ -38,7 +38,6 @@ type Anggota = {
   id: string
   nama: string
   nomor_rekening: string
-  saldo: number
   alamat?: string
   kota?: string
   tempat_lahir?: string
@@ -91,24 +90,65 @@ export default function UsersPage() {
   const fetchAnggota = async () => {
     setIsLoading(true)
     try {
+      // Direct fetch from anggota table
+      console.log('Fetching anggota data directly from database...');
+      
+      // Use raw SQL query to bypass any potential issues with the Supabase client
       const { data, error } = await supabase
-        .from('anggota')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .rpc('get_all_anggota')
+        .limit(100);
       
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching anggota:', error.message);
+        throw error;
+      }
       
-      setAnggota(data || [])
-      setFilteredAnggota(data || [])
+      if (!data || data.length === 0) {
+        console.warn('No anggota data returned');
+        setAnggota([]);
+        setFilteredAnggota([]);
+      } else {
+        console.log(`Anggota data fetched successfully: ${data.length} records`);
+        console.log('First record sample:', JSON.stringify(data[0]));
+        setAnggota(data);
+        setFilteredAnggota(data);
+      }
     } catch (error) {
-      console.error('Error fetching anggota:', error)
-      toast({
-        title: "Error",
-        description: "Gagal memuat data anggota. Silakan coba lagi.",
-        variant: "destructive"
-      })
+      console.error('Error fetching anggota:', error);
+      
+      // Fallback to direct table query if RPC fails
+      try {
+        console.log('Attempting fallback query...');
+        const { data, error: fallbackError } = await supabase
+          .from('anggota')
+          .select('*')
+          .limit(100);
+          
+        if (fallbackError) {
+          throw fallbackError;
+        }
+        
+        if (data && data.length > 0) {
+          console.log(`Fallback query successful: ${data.length} records`);
+          setAnggota(data);
+          setFilteredAnggota(data);
+        } else {
+          toast({
+            title: "Error",
+            description: "Gagal memuat data anggota. Silakan coba lagi.",
+            variant: "destructive"
+          });
+        }
+      } catch (fallbackError) {
+        console.error('Fallback query failed:', fallbackError);
+        toast({
+          title: "Error",
+          description: "Gagal memuat data anggota. Silakan coba lagi.",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -134,7 +174,6 @@ export default function UsersPage() {
       pekerjaan: "Pekerjaan",
       jenis_identitas: "Jenis Identitas",
       nomor_identitas: "Nomor Identitas",
-      saldo: "Saldo",
       created_at: "Tanggal Bergabung",
       is_active: "Status"
     }
@@ -152,7 +191,6 @@ export default function UsersPage() {
         "Pekerjaan": (value: string | undefined) => value || "-",
         "Jenis Identitas": (value: string | undefined) => value || "-",
         "Nomor Identitas": (value: string | undefined) => value || "-",
-        "Saldo": (value: number) => `Rp ${Number(value).toLocaleString('id-ID')}`,
         "Status": (value: boolean) => value ? "Aktif" : "Nonaktif"
       }
     )

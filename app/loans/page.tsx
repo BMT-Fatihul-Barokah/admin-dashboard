@@ -16,7 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Download, MoreHorizontal, Plus, Search, SlidersHorizontal, RefreshCcw, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getAllPinjaman, Pinjaman } from "@/lib/pinjaman"
+import { getAllPembiayaan, Pembiayaan } from "@/lib/pembiayaan"
 import { getAllAnggota, Anggota } from "@/lib/supabase"
 import { format, parseISO, differenceInMonths } from "date-fns"
 import { downloadCSV, formatDataForExport } from "@/utils/export-data"
@@ -29,8 +29,8 @@ import { CreateLoanModal } from "./components/create-loan-modal"
 
 export default function LoansPage() {
   const { hasPermission: canCreateLoans } = usePermission('approve_loans')
-  const [pinjaman, setPinjaman] = useState<Pinjaman[]>([])
-  const [filteredPinjaman, setFilteredPinjaman] = useState<Pinjaman[]>([])
+  const [pembiayaan, setPembiayaan] = useState<Pembiayaan[]>([])
+  const [filteredPembiayaan, setFilteredPembiayaan] = useState<Pembiayaan[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -43,7 +43,7 @@ export default function LoansPage() {
   const [dateEnd, setDateEnd] = useState('')
   
   // Modal states
-  const [selectedLoan, setSelectedLoan] = useState<Pinjaman | null>(null)
+  const [selectedLoan, setSelectedLoan] = useState<Pembiayaan | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -104,21 +104,21 @@ export default function LoansPage() {
     }
   };
 
-  // Fetch pinjaman data from Supabase
-  const fetchPinjaman = async () => {
+  // Fetch pembiayaan data from Supabase
+  const fetchPembiayaan = async () => {
     setIsLoading(true)
     try {
-      console.log('Fetching pinjaman data...')
-      const data = await getAllPinjaman()
-      console.log('Pinjaman data received:', data)
-      setPinjaman(data)
-      setFilteredPinjaman(data)
+      console.log('Fetching pembiayaan data...')
+      const data = await getAllPembiayaan()
+      console.log('Pembiayaan data received:', data)
+      setPembiayaan(data)
+      setFilteredPembiayaan(data)
       if (data.length === 0) {
-        console.log('No pinjaman data returned from API')
+        console.log('No pembiayaan data returned from API')
       }
     } catch (error) {
       console.error('Error fetching loans:', error)
-      toast.error('Gagal memuat data pinjaman')
+      toast.error('Gagal memuat data pembiayaan')
     } finally {
       setIsLoading(false)
     }
@@ -126,9 +126,9 @@ export default function LoansPage() {
   
   // Apply all filters
   const applyFilters = () => {
-    if (!pinjaman.length) return
+    if (!pembiayaan.length) return
     
-    let filtered = [...pinjaman]
+    let filtered = [...pembiayaan]
     
     // Apply search filter
     if (searchQuery) {
@@ -136,7 +136,8 @@ export default function LoansPage() {
       filtered = filtered.filter(loan => 
         (loan.id && loan.id.toLowerCase().includes(query)) ||
         (loan.anggota?.nama && loan.anggota.nama.toLowerCase().includes(query)) ||
-        loan.status.toLowerCase().includes(query)
+        loan.status.toLowerCase().includes(query) ||
+        loan.kategori.toLowerCase().includes(query)
       )
     }
     
@@ -166,8 +167,6 @@ export default function LoansPage() {
       }
     }
     
-    // Interest rate filter removed as per Syariah requirements
-    
     // Apply date range filter
     if (dateStart) {
       const startDate = new Date(dateStart)
@@ -187,7 +186,7 @@ export default function LoansPage() {
       })
     }
     
-    setFilteredPinjaman(filtered)
+    setFilteredPembiayaan(filtered)
   }
   
   // Reset all filters
@@ -198,62 +197,83 @@ export default function LoansPage() {
     setAmountMax('')
     setDateStart('')
     setDateEnd('')
-    setFilteredPinjaman(pinjaman)
+    setFilteredPembiayaan(pembiayaan)
   }
   
-  // Export pinjaman data to CSV
-  const exportPinjamanData = () => {
-    if (!filteredPinjaman.length) {
-      toast.error('Tidak ada data pinjaman untuk diekspor')
+  // Export pembiayaan data to CSV
+  const exportData = () => {
+    if (filteredPembiayaan.length === 0) {
+      toast.error('Tidak ada data untuk diekspor')
       return
     }
     
-    // Create a simple array for export with the data we need
-    const exportData = filteredPinjaman.map(loan => ({
-      "ID Pinjaman": loan.id,
+    const fieldMap = {
+      id: 'ID Pembiayaan',
+      'anggota.nama': 'Nama Anggota',
+      jenis_pembiayaan: 'Jenis Pembiayaan',
+      kategori: 'Kategori',
+      status: 'Status',
+      jumlah: 'Jumlah Pembiayaan',
+      jatuh_tempo: 'Jatuh Tempo',
+      total_pembayaran: 'Total Pembayaran',
+      sisa_pembayaran: 'Sisa Pembayaran',
+      created_at: 'Tanggal Dibuat'
+    }
+
+    const exportData = filteredPembiayaan.map(loan => ({
+      "ID Pembiayaan": loan.id,
       "Nama Anggota": loan.anggota?.nama || 'Anggota',
-      "Jumlah Pinjaman": formatCurrency(Number(loan.jumlah)),
-      "Sisa Pembayaran": formatCurrency(Number(loan.sisa_pembayaran)),
+      "Jenis Pembiayaan": loan.jenis_pembiayaan,
+      "Kategori": loan.kategori,
       "Status": loan.status,
-      "Tanggal Pengajuan": formatDate(String(loan.created_at)),
-      "Jatuh Tempo": formatDate(String(loan.jatuh_tempo))
+      "Jumlah Pembiayaan": formatCurrency(Number(loan.jumlah)),
+      "Jatuh Tempo": formatDate(String(loan.jatuh_tempo)),
+      "Total Pembayaran": formatCurrency(Number(loan.total_pembayaran)),
+      "Sisa Pembayaran": formatCurrency(Number(loan.sisa_pembayaran)),
+      "Tanggal Dibuat": formatDate(String(loan.created_at)),
     }))
 
     // Download as CSV
-    downloadCSV(exportData, `pinjaman-${new Date().toISOString().split('T')[0]}`)
-    toast.success('Data pinjaman berhasil diekspor')
+    downloadCSV(exportData, `pembiayaan-${new Date().toISOString().split('T')[0]}`)
+    toast.success('Data pembiayaan berhasil diekspor')
   }
 
   // Load data on component mount
   useEffect(() => {
-    fetchPinjaman()
-    fetchMembers()
+    fetchPembiayaan()
+    
+    // Fetch members for the create loan form
+    const getMembers = async () => {
+      try {
+        const data = await getAllAnggota()
+        setMembers(data)
+      } catch (error) {
+        console.error('Error fetching members:', error)
+      }
+    }
+    
+    getMembers()
   }, [])
   
-  // Fetch members data
-  const fetchMembers = async () => {
-    try {
-      const data = await getAllAnggota()
-      setMembers(data.filter(member => member.is_active))
-    } catch (error) {
-      console.error('Error fetching members:', error)
-      toast.error('Gagal memuat data anggota')
-    }
-  }
-  
-  // Apply filters when filter values change
+  // Apply filters when search query or filters change
   useEffect(() => {
     applyFilters()
-  }, [pinjaman, searchQuery, statusFilter, amountMin, amountMax, dateStart, dateEnd])
+  }, [searchQuery, statusFilter, amountMin, amountMax, dateStart, dateEnd])
+  
+  // Refresh data
+  const handleRefresh = () => {
+    fetchPembiayaan()
+    toast.success('Data pembiayaan berhasil diperbarui')
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Manajemen Pinjaman</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Manajemen Pembiayaan</h2>
         {canCreateLoans && (
           <Button onClick={() => setShowCreateModal(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Tambah Pinjaman
+            Tambah Pembiayaan
           </Button>
         )}
       </div>
@@ -263,7 +283,7 @@ export default function LoansPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input 
             type="search" 
-            placeholder="Cari pinjaman..." 
+            placeholder="Cari pembiayaan..." 
             className="w-full pl-8" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -285,47 +305,44 @@ export default function LoansPage() {
           </Select>
         </div>
         <div className="ml-auto"></div>
-        <Button variant="outline" size="icon" onClick={fetchPinjaman}>
+        <Button variant="outline" size="icon" onClick={handleRefresh}>
           <RefreshCcw className="h-4 w-4" />
           <span className="sr-only">Refresh</span>
         </Button>
-        <Button variant="outline" size="icon" onClick={exportPinjamanData}>
+        <Button variant="outline" size="icon" onClick={exportData}>
           <Download className="h-4 w-4" />
           <span className="sr-only">Export</span>
         </Button>
       </div>
 
-
-
       {isLoading ? (
         <div className="flex justify-center items-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : filteredPinjaman.length === 0 ? (
+      ) : filteredPembiayaan.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-muted-foreground">Tidak ada pinjaman yang ditemukan</p>
+          <p className="text-muted-foreground">Tidak ada pembiayaan yang ditemukan</p>
         </div>
       ) : (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID Pinjaman</TableHead>
-                <TableHead>Nama Anggota</TableHead>
-                <TableHead>Jumlah</TableHead>
-                <TableHead>Sisa</TableHead>
+                <TableHead className="w-[180px]">Jenis Pembiayaan</TableHead>
+                <TableHead>Kategori</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Tanggal Pengajuan</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead className="text-right">Jumlah</TableHead>
+                <TableHead className="text-right">Sisa Pembayaran</TableHead>
+                <TableHead>Jatuh Tempo</TableHead>
+                <TableHead className="text-right">Tanggal Dibuat</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPinjaman.map((loan) => (
+              {filteredPembiayaan.map((loan) => (
                 <TableRow key={loan.id}>
-                  <TableCell className="font-medium">{loan.id.substring(0, 8)}</TableCell>
-                  <TableCell>{loan.anggota?.nama || 'Anggota'}</TableCell>
-                  <TableCell>{formatCurrency(Number(loan.jumlah))}</TableCell>
-                  <TableCell>{formatCurrency(Number(loan.sisa_pembayaran))}</TableCell>
+                  <TableCell className="font-medium">{loan.jenis_pembiayaan}</TableCell>
+                  <TableCell>{loan.kategori}</TableCell>
                   <TableCell>
                     <Badge
                       variant={getStatusBadgeVariant(loan.status).variant as any}
@@ -334,7 +351,10 @@ export default function LoansPage() {
                       {loan.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDate(loan.created_at.toString())}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(loan.jumlah))}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(loan.sisa_pembayaran))}</TableCell>
+                  <TableCell>{formatDate(String(loan.jatuh_tempo))}</TableCell>
+                  <TableCell className="text-right">{formatDate(String(loan.created_at))}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -350,7 +370,7 @@ export default function LoansPage() {
                           setSelectedLoan(loan);
                           setShowDetailModal(true);
                         }}>
-                          Lihat Detail
+                          Detail Pembiayaan
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => {
                           setSelectedLoan(loan);
@@ -390,7 +410,7 @@ export default function LoansPage() {
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Menampilkan {filteredPinjaman.length} dari {pinjaman.length} pinjaman
+          Menampilkan {filteredPembiayaan.length} dari {pembiayaan.length} pembiayaan
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" disabled>
@@ -433,7 +453,7 @@ export default function LoansPage() {
         loan={selectedLoan}
         onPaymentRecorded={() => {
           toast.success("Pembayaran berhasil dicatat");
-          fetchPinjaman();
+          fetchPembiayaan();
         }}
       />
 
@@ -443,17 +463,19 @@ export default function LoansPage() {
         onClose={() => setShowProblematicModal(false)}
         loan={selectedLoan}
         onMarked={() => {
-          toast.success("Pinjaman berhasil ditandai bermasalah");
-          fetchPinjaman();
+          toast.success("Pembiayaan berhasil ditandai bermasalah");
+          fetchPembiayaan();
         }}
       />
 
-      {/* Create Loan Modal */}
-      <CreateLoanModal
+      {/* Create new loan modal */}
+      <CreateLoanModal 
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onLoanCreated={() => {
-          fetchPinjaman();
+        onSuccess={() => {
+          setShowCreateModal(false)
+          fetchPembiayaan()
+          toast.success('Pembiayaan berhasil dibuat')
         }}
         members={members}
       />

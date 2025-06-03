@@ -10,7 +10,6 @@ type Anggota = {
   id: string
   nama: string
   nomor_rekening: string
-  saldo: number
   alamat?: string
   kota?: string
   tempat_lahir?: string
@@ -104,8 +103,10 @@ export function UserDetailDialog({ user, open, onOpenChange }: UserDetailDialogP
               <p>{user.nomor_identitas || '-'}</p>
             </div>
             <div>
-              <h3 className="font-medium text-sm text-muted-foreground">Saldo</h3>
-              <p className="font-semibold">Rp {Number(user.saldo).toLocaleString('id-ID')}</p>
+              <h3 className="font-medium text-sm text-muted-foreground">Status Anggota</h3>
+              <p className={user.is_active ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                {user.is_active ? 'Aktif' : 'Nonaktif'}
+              </p>
             </div>
           </div>
           

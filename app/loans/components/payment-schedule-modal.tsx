@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { format, parseISO, addMonths } from "date-fns"
 import { id } from "date-fns/locale"
 import { X, Download, Printer } from "lucide-react"
-import { Pinjaman } from "@/lib/pinjaman"
+import { Pembiayaan } from "@/lib/pembiayaan"
 import { useRef } from "react"
 import { useReactToPrint } from "react-to-print"
 import { supabase } from "@/lib/supabase"
@@ -16,13 +16,13 @@ import { useState, useEffect } from "react"
 interface PaymentScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  loan: Pinjaman | null;
+  loan: Pembiayaan | null;
 }
 
 // Define payment schedule item type
 interface PaymentScheduleItem {
   id: string;
-  pinjaman_id: string;
+  pembiayaan_id: string;
   angsuran_ke: number;
   tanggal_jatuh_tempo: string;
   jumlah_angsuran: number;
@@ -55,7 +55,7 @@ export function PaymentScheduleModal({
   };
 
   // Generate payment schedule based on loan data
-  const generatePaymentSchedule = (loan: Pinjaman) => {
+  const generatePaymentSchedule = (loan: Pembiayaan) => {
     if (!loan) return [];
     
     // Calculate number of installments (assuming 12 months for simplicity)
@@ -82,7 +82,7 @@ export function PaymentScheduleModal({
       
       schedule.push({
         id: `${loan.id}-${i}`,
-        pinjaman_id: loan.id,
+        pembiayaan_id: loan.id,
         angsuran_ke: i,
         tanggal_jatuh_tempo: dueDate.toISOString(),
         jumlah_angsuran: installmentAmount,
@@ -144,10 +144,10 @@ export function PaymentScheduleModal({
         
         <div ref={printRef} className="p-4">
           <div className="mb-6">
-            <h3 className="text-lg font-semibold">Informasi Pinjaman</h3>
+            <h3 className="text-lg font-semibold">Informasi Pembiayaan</h3>
             <div className="grid grid-cols-2 gap-4 mt-2">
               <div>
-                <p className="text-sm text-muted-foreground">ID Pinjaman</p>
+                <p className="text-sm text-muted-foreground">ID Pembiayaan</p>
                 <p>{loan.id.substring(0, 8)}</p>
               </div>
               <div>
@@ -155,7 +155,7 @@ export function PaymentScheduleModal({
                 <p>{loan.anggota?.nama || 'Anggota'}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Jumlah Pinjaman</p>
+                <p className="text-sm text-muted-foreground">Jumlah Pembiayaan</p>
                 <p>{formatCurrency(Number(loan.jumlah))}</p>
               </div>
               <div>

@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AlertTriangle, X } from "lucide-react"
-import { Pinjaman } from "@/lib/pinjaman"
+import { Pembiayaan } from "@/lib/pembiayaan"
 import { toast } from "sonner"
 
 interface MarkProblematicModalProps {
   isOpen: boolean;
   onClose: () => void;
-  loan: Pinjaman | null;
+  loan: Pembiayaan | null;
   onMarked: () => void;
 }
 
@@ -50,7 +50,7 @@ export function MarkProblematicModal({
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Show success message
-      toast.success("Pinjaman berhasil ditandai bermasalah");
+      toast.success("Pembiayaan berhasil ditandai bermasalah");
       
       // Close modal and refresh data
       resetForm();
@@ -77,10 +77,10 @@ export function MarkProblematicModal({
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
-            <span>Tandai Pinjaman Bermasalah</span>
+            <span>Tandai Pembiayaan Bermasalah</span>
           </DialogTitle>
           <DialogDescription>
-            Pinjaman: {loan.id.substring(0, 8)} - {loan.anggota?.nama || 'Anggota'}
+            Pembiayaan: {loan.id.substring(0, 8)} - {loan.anggota?.nama || 'Anggota'}
           </DialogDescription>
         </DialogHeader>
         
@@ -88,7 +88,7 @@ export function MarkProblematicModal({
           <div className="py-4">
             <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
               <p className="text-amber-800 text-sm">
-                Menandai pinjaman sebagai bermasalah akan mempengaruhi status kredit anggota. 
+                Menandai pembiayaan sebagai bermasalah akan mempengaruhi status kredit anggota. 
                 Tindakan ini hanya boleh dilakukan setelah upaya penagihan gagal.
               </p>
             </div>
@@ -99,7 +99,7 @@ export function MarkProblematicModal({
               </Label>
               <Textarea
                 id="reason"
-                placeholder="Jelaskan alasan pinjaman ini ditandai bermasalah"
+                placeholder="Jelaskan alasan pembiayaan ini ditandai bermasalah"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 required
