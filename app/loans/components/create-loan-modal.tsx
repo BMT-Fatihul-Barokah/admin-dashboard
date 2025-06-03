@@ -17,11 +17,9 @@ import { cn } from "@/lib/utils"
 
 // Loan types
 const LOAN_TYPES = [
-  "Pembiayaan Umum",
-  "Pembiayaan Pendidikan",
-  "Pembiayaan Usaha",
-  "Pembiayaan Darurat",
-  "Pembiayaan Konsumtif"
+  "Pembiayaan Konsumtif Syariah",
+  "Pembiayaan Investasi Syariah",
+  "Pembiayaan Modal Kerja Syariah"
 ]
 
 // Loan durations in months
@@ -34,14 +32,7 @@ const LOAN_DURATIONS = [
   { label: "24 Bulan (2 Tahun)", value: 24 },
 ]
 
-// Loan categories
-const LOAN_CATEGORIES = [
-  "Produktif",
-  "Konsumtif",
-  "Pendidikan",
-  "Kesehatan",
-  "Lainnya"
-]
+
 
 interface Anggota {
   id: string;
@@ -66,7 +57,6 @@ export function CreateLoanModal({
   const [formData, setFormData] = useState<PembiayaanInput>({
     anggota_id: "",
     jenis_pembiayaan: "",
-    kategori: "",
     jumlah: 0,
     jatuh_tempo: format(addMonths(new Date(), 3), 'yyyy-MM-dd'),
     durasi_bulan: 3,
@@ -78,16 +68,19 @@ export function CreateLoanModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
+      // Set jatuh tempo to next month (monthly installment)
+      const currentDate = new Date()
+      const nextMonthSameDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate())
+      
       setFormData({
         anggota_id: "",
         jenis_pembiayaan: "",
-        kategori: "",
         jumlah: 0,
-        jatuh_tempo: format(addMonths(new Date(), 3), 'yyyy-MM-dd'),
+        jatuh_tempo: format(nextMonthSameDay, 'yyyy-MM-dd'),
         durasi_bulan: 3,
         deskripsi: ""
       })
-      setDate(addMonths(new Date(), 3))
+      setDate(nextMonthSameDay)
       setLoanDuration(3)
     }
   }, [isOpen])
@@ -105,11 +98,13 @@ export function CreateLoanModal({
   // Update due date when loan duration changes
   const handleDurationChange = (durationInMonths: number) => {
     setLoanDuration(durationInMonths)
-    const newDueDate = addMonths(new Date(), durationInMonths)
-    setDate(newDueDate)
+    // Set jatuh tempo to next month (monthly installment)
+    const currentDate = new Date()
+    const nextMonthSameDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate())
+    setDate(nextMonthSameDay)
     setFormData(prev => ({
       ...prev,
-      jatuh_tempo: format(newDueDate, 'yyyy-MM-dd'),
+      jatuh_tempo: format(nextMonthSameDay, 'yyyy-MM-dd'),
       durasi_bulan: durationInMonths
     }))
   }
@@ -131,10 +126,7 @@ export function CreateLoanModal({
       toast.error("Silakan pilih jenis pembiayaan")
       return
     }
-    if (!formData.kategori) {
-      toast.error("Silakan pilih kategori pembiayaan")
-      return
-    }
+
     if (!formData.jumlah || formData.jumlah <= 0) {
       toast.error("Jumlah pembiayaan harus lebih dari 0")
       return
@@ -223,26 +215,7 @@ export function CreateLoanModal({
             </Select>
           </div>
           
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="category" className="text-right">
-              Kategori
-            </Label>
-            <Select 
-              value={formData.kategori} 
-              onValueChange={(value) => handleChange('kategori', value)}
-            >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Pilih kategori pembiayaan" />
-              </SelectTrigger>
-              <SelectContent>
-                {LOAN_CATEGORIES.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+
           
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">
@@ -281,7 +254,7 @@ export function CreateLoanModal({
           
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="dueDate" className="text-right">
-              Jatuh Tempo
+              Jatuh Tempo Pertama
             </Label>
             <div className="col-span-3">
               <Popover>
@@ -307,6 +280,7 @@ export function CreateLoanModal({
                   />
                 </PopoverContent>
               </Popover>
+              <p className="text-xs text-muted-foreground mt-1">Pembayaran akan jatuh tempo setiap tanggal yang sama di bulan berikutnya</p>
             </div>
           </div>
           

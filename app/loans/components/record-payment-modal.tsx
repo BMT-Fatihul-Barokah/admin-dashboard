@@ -13,7 +13,7 @@ import { Pembiayaan } from "@/lib/pembiayaan"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { calculateMonthlyInstallment, recordPembayaranPinjaman, generatePaymentSchedule, getPembayaranByPinjamanId, PembayaranPinjaman } from "@/lib/pembayaran-pinjaman"
+import { calculateMonthlyInstallment, recordPembayaranPembiayaan, generatePaymentSchedule, getPembayaranByPembiayaanId, PembayaranPembiayaan } from "@/lib/pembayaran-pinjaman"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 
@@ -83,7 +83,7 @@ export function RecordPaymentModal({
   const loadPreviousPayments = async (loanId: string) => {
     setIsLoadingPayments(true);
     try {
-      const payments = await getPembayaranByPinjamanId(loanId);
+      const payments = await getPembayaranByPembiayaanId(loanId);
       setPreviousPayments(payments);
       
       // Find the next unpaid month
@@ -146,45 +146,30 @@ export function RecordPaymentModal({
     setError(null);
     
     try {
-      // Directly update the loan balance first to ensure immediate UI update
-      const newBalance = Math.max(Number(loan.sisa_pembayaran) - paymentAmount, 0);
-      const newStatus = newBalance <= 0 ? 'lunas' : 'aktif';
+      // We'll let the RPC function handle the loan balance update
+      // Calculate the expected new balance for UI feedback only
+      const expectedNewBalance = Math.max(Number(loan.sisa_pembayaran) - paymentAmount, 0);
       
-      // Update the loan record immediately
-      const { error: directUpdateError } = await supabase
-        .from('pembiayaan')
-        .update({
-          sisa_pembayaran: newBalance,
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', loan.id);
-      
-      if (directUpdateError) {
-        console.error('Error directly updating loan balance:', directUpdateError);
-      }
-      
-      // Record the payment using the function
-      const result = await recordPembayaranPinjaman(
+      // Record the payment using the new RPC function
+      const result = await recordPembayaranPembiayaan(
         {
-          pinjaman_id: loan.id,
+          pembiayaan_id: loan.id,
           jumlah: paymentAmount,
           bulan_ke: selectedMonth,
+          metode_pembayaran: paymentMethod,
+          nomor_referensi: referenceNumber || undefined,
           catatan: notes || `Pembayaran angsuran bulan ke-${selectedMonth} via ${paymentMethod}${referenceNumber ? ` (${referenceNumber})` : ''}`
         },
         loan.anggota_id
       );
       
       if (result.success) {
-        // Call the backend function to update the loan balance
-        try {
-          await supabase.rpc('update_loan_balance', { loan_id: loan.id });
-        } catch (rpcError) {
-          console.error('Failed to update loan balance via RPC:', rpcError);
-        }
+        // The RPC function already updates the loan balance, so we don't need to call a separate function
+        // But we'll log the success for debugging purposes
+        console.log('Payment recorded successfully with RPC function');
         
-        // Show success message with new balance
-        toast.success(`Pembayaran berhasil dicatat. Sisa pembayaran: ${formatCurrency(newBalance)}`);
+        // Show success message with expected new balance
+        toast.success(`Pembayaran berhasil dicatat. Sisa pembayaran: ${formatCurrency(result.data?.sisa_pembayaran || expectedNewBalance)}`);
         
         // Close modal
         resetForm();

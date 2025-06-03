@@ -12,7 +12,6 @@ export type Pembiayaan = {
   durasi_bulan: number;
   created_at: Date;
   updated_at: Date;
-  kategori: string;
   deskripsi?: string;
   anggota?: {
     nama: string;
@@ -25,7 +24,6 @@ export type PembiayaanInput = {
   jumlah: number;
   jatuh_tempo: string;
   durasi_bulan: number;
-  kategori: string;
   deskripsi?: string;
 }
 
@@ -121,7 +119,6 @@ export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise
       p_jumlah: jumlah,
       p_jatuh_tempo: pembiayaanData.jatuh_tempo,
       p_durasi_bulan: pembiayaanData.durasi_bulan || 3,
-      p_kategori: pembiayaanData.kategori || 'umum',
       p_deskripsi: pembiayaanData.deskripsi || ''
     });
     

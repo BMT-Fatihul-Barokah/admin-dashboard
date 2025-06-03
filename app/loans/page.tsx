@@ -137,7 +137,7 @@ export default function LoansPage() {
         (loan.id && loan.id.toLowerCase().includes(query)) ||
         (loan.anggota?.nama && loan.anggota.nama.toLowerCase().includes(query)) ||
         loan.status.toLowerCase().includes(query) ||
-        loan.kategori.toLowerCase().includes(query)
+        loan.jenis_pembiayaan.toLowerCase().includes(query)
       )
     }
     
@@ -211,7 +211,6 @@ export default function LoansPage() {
       id: 'ID Pembiayaan',
       'anggota.nama': 'Nama Anggota',
       jenis_pembiayaan: 'Jenis Pembiayaan',
-      kategori: 'Kategori',
       status: 'Status',
       jumlah: 'Jumlah Pembiayaan',
       jatuh_tempo: 'Jatuh Tempo',
@@ -224,7 +223,6 @@ export default function LoansPage() {
       "ID Pembiayaan": loan.id,
       "Nama Anggota": loan.anggota?.nama || 'Anggota',
       "Jenis Pembiayaan": loan.jenis_pembiayaan,
-      "Kategori": loan.kategori,
       "Status": loan.status,
       "Jumlah Pembiayaan": formatCurrency(Number(loan.jumlah)),
       "Jatuh Tempo": formatDate(String(loan.jatuh_tempo)),
@@ -328,33 +326,33 @@ export default function LoansPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[180px]">Jenis Pembiayaan</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Jumlah</TableHead>
-                <TableHead className="text-right">Sisa Pembayaran</TableHead>
-                <TableHead>Jatuh Tempo</TableHead>
-                <TableHead className="text-right">Tanggal Dibuat</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-[240px]">Jenis Pembiayaan</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
+                <TableHead className="text-right w-[140px]">Jumlah</TableHead>
+                <TableHead className="text-right w-[140px]">Sisa Pembayaran</TableHead>
+                <TableHead className="w-[120px]">Jatuh Tempo</TableHead>
+                <TableHead className="text-right w-[120px]">Tanggal Dibuat</TableHead>
+                <TableHead className="w-[60px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPembiayaan.map((loan) => (
                 <TableRow key={loan.id}>
-                  <TableCell className="font-medium">{loan.jenis_pembiayaan}</TableCell>
-                  <TableCell>{loan.kategori}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium truncate max-w-[240px]" title={loan.jenis_pembiayaan}>
+                    {loan.jenis_pembiayaan}
+                  </TableCell>
+                  <TableCell className="text-center">
                     <Badge
                       variant={getStatusBadgeVariant(loan.status).variant as any}
-                      className={getStatusBadgeVariant(loan.status).className}
+                      className={`${getStatusBadgeVariant(loan.status).className} w-full justify-center`}
                     >
                       {loan.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{formatCurrency(Number(loan.jumlah))}</TableCell>
+                  <TableCell className="text-right font-medium">{formatCurrency(Number(loan.jumlah))}</TableCell>
                   <TableCell className="text-right">{formatCurrency(Number(loan.sisa_pembayaran))}</TableCell>
-                  <TableCell>{formatDate(String(loan.jatuh_tempo))}</TableCell>
-                  <TableCell className="text-right">{formatDate(String(loan.created_at))}</TableCell>
+                  <TableCell className="text-center">{formatDate(String(loan.jatuh_tempo))}</TableCell>
+                  <TableCell className="text-center">{formatDate(String(loan.created_at))}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
