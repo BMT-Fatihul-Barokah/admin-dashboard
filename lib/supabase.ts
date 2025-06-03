@@ -471,10 +471,16 @@ export type JenisTabungan = {
   minimum_setoran: number;
   biaya_admin: number;
   bagi_hasil: number | null;
+  jangka_waktu?: number | null;
   is_active: boolean;
   is_required: boolean;
   is_reguler: boolean;
+  periode_setoran?: string | null;
+  denda_keterlambatan?: number | null;
   display_order: number;
+  initial_deposit?: number | null;
+  created_at?: Date | string;
+  updated_at?: Date | string;
 }
 
 export async function getAllJenisTabungan(): Promise<JenisTabungan[]> {

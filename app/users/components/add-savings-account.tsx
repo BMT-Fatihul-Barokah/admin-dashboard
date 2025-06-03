@@ -123,39 +123,8 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     }
   }, [selectedTypeId, savingsTypes])
 
-  // Generate account number
-  const generateAccountNumber = async (): Promise<string> => {
-    try {
-      // Get the last account number from the database
-      const { data, error } = await supabase
-        .from('tabungan')
-        .select('nomor_rekening')
-        .order('created_at', { ascending: false })
-        .limit(1)
-      
-      if (error) throw error
-      
-      let lastNumber = 0
-      if (data && data.length > 0) {
-        const lastAccountNumber = data[0].nomor_rekening
-        // Extract the numeric part of the account number (assuming format like 'TAB-00001')
-        const match = lastAccountNumber.match(/\d+$/)
-        if (match) {
-          lastNumber = parseInt(match[0], 10)
-        }
-      }
-      
-      // Generate new account number with incremented number
-      const newNumber = lastNumber + 1
-      const paddedNumber = newNumber.toString().padStart(5, '0')
-      return `TAB-${paddedNumber}`
-    } catch (error) {
-      console.error('Error generating account number:', error)
-      // Fallback to timestamp-based number if there's an error
-      const timestamp = new Date().getTime().toString().slice(-5)
-      return `TAB-${timestamp}`
-    }
-  }
+  // We no longer need to generate account numbers as the server will do it
+  // based on the savings type code
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -173,15 +142,11 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     setIsSubmitting(true)
     
     try {
-      // Generate account number
-      const accountNumber = await generateAccountNumber()
-      
-      // Simplified call to the updated RPC function that matches the actual database schema
+      // Use the updated add_tabungan_baru function that generates account numbers automatically
       console.log('Attempting to insert account using bypass RLS function');
       
-      // Call the simplified add_tabungan_baru function with only the parameters that exist in the schema
+      // Call the updated add_tabungan_baru function without providing a nomor_rekening
       const { data, error } = await supabase.rpc('add_tabungan_baru', {
-        p_nomor_rekening: accountNumber,
         p_anggota_id: userId,
         p_jenis_tabungan_id: selectedTypeId,
         p_saldo: 0

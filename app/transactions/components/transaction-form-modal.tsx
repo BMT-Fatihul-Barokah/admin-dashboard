@@ -45,7 +45,8 @@ const formSchema = z.object({
     invalid_type_error: "Jumlah harus berupa angka",
   }).positive("Jumlah harus lebih dari 0"),
   deskripsi: z.string().optional(),
-  pinjaman_id: z.string().optional(),
+  pinjaman_id: z.string().optional(), // Keep for frontend compatibility
+  pembiayaan_id: z.string().optional(), // Add for database compatibility
   jenis_tabungan_id: z.string().optional(),
 })
 
@@ -275,12 +276,19 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
     setIsSubmitting(true)
     try {
       // Send data to API
+      // Map form values to match the database schema
+      const formData = {
+        ...values,
+        // Map pinjaman_id to pembiayaan_id for database compatibility
+        pembiayaan_id: values.pinjaman_id
+      };
+      
       const response = await fetch('/api/transactions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify(formData),
       })
       
       if (!response.ok) {
