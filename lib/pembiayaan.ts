@@ -99,7 +99,7 @@ export async function getPembiayaanByStatus(status: string): Promise<Pembiayaan[
 }
 
 /**
- * Create a new pembiayaan with active status
+ * Create a new pembiayaan with active status using the RPC function
  */
 export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise<{ success: boolean; error?: any; data?: any }> {
   try {
@@ -114,22 +114,16 @@ export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise
     // Prepare the loan data
     const jumlah = Number(pembiayaanData.jumlah);
     
-    // Insert with fields matching the new pembiayaan table structure
-    const { data, error } = await supabase
-      .from('pembiayaan')
-      .insert({
-        anggota_id: pembiayaanData.anggota_id,
-        jenis_pembiayaan: pembiayaanData.jenis_pembiayaan,
-        jumlah: jumlah,
-        jatuh_tempo: pembiayaanData.jatuh_tempo,
-        durasi_bulan: pembiayaanData.durasi_bulan || 3,
-        status: 'aktif',
-        total_pembayaran: jumlah,
-        sisa_pembayaran: jumlah,
-        kategori: pembiayaanData.kategori || 'umum',
-        deskripsi: pembiayaanData.deskripsi || ''
-      })
-      .select();
+    // Use the RPC function to add the pembiayaan
+    const { data, error } = await supabase.rpc('add_pembiayaan', {
+      p_anggota_id: pembiayaanData.anggota_id,
+      p_jenis_pembiayaan: pembiayaanData.jenis_pembiayaan,
+      p_jumlah: jumlah,
+      p_jatuh_tempo: pembiayaanData.jatuh_tempo,
+      p_durasi_bulan: pembiayaanData.durasi_bulan || 3,
+      p_kategori: pembiayaanData.kategori || 'umum',
+      p_deskripsi: pembiayaanData.deskripsi || ''
+    });
     
     if (error) {
       console.error('Error creating pembiayaan:', error);
@@ -139,14 +133,40 @@ export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise
       };
     }
     
-    if (!data || data.length === 0) {
+    if (!data) {
       return {
         success: false,
-        error: { message: 'Tidak ada data yang dikembalikan dari operasi insert' }
+        error: { message: 'Tidak ada data yang dikembalikan dari RPC function' }
       };
     }
     
-    return { success: true, data: data[0] };
+    // Type check the response
+    const rpcResponse = data as { success: boolean; pembiayaan_id?: string; error?: string };
+    
+    if (!rpcResponse.success) {
+      return {
+        success: false,
+        error: { message: rpcResponse.error || 'Gagal membuat pembiayaan' }
+      };
+    }
+    
+    // Fetch the newly created pembiayaan data
+    const { data: newPembiayaan, error: fetchError } = await supabase
+      .from('pembiayaan')
+      .select('*')
+      .eq('id', rpcResponse.pembiayaan_id)
+      .single();
+      
+    if (fetchError) {
+      console.error('Error fetching created pembiayaan:', fetchError);
+      // Still return success since the creation was successful
+      return { 
+        success: true, 
+        data: { id: rpcResponse.pembiayaan_id }
+      };
+    }
+    
+    return { success: true, data: newPembiayaan };
   } catch (e: any) {
     console.error('Exception in createPembiayaan:', e);
     return {
