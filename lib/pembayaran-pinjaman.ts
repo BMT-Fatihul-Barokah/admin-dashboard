@@ -37,41 +37,23 @@ export async function getPembayaranByPinjamanId(pinjamanId: string): Promise<Pem
  */
 export async function getPembayaranByPembiayaanId(pembiayaanId: string): Promise<PembayaranPembiayaan[]> {
   try {
-    // First try the new table
-    const { data, error } = await supabase
-      .from('pembayaran_pembiayaan')
-      .select('*')
-      .eq('pembiayaan_id', pembiayaanId)
-      .order('tanggal_pembayaran', { ascending: false });
+    // Query the database for payment records
+    const { data: payments, error } = await supabase.rpc('get_pembayaran_by_pembiayaan_id', {
+      p_pembiayaan_id: pembiayaanId
+    });
     
     if (error) {
       console.error('Error fetching pembayaran pembiayaan:', error);
-      
-      // Fallback to old table if needed
-      try {
-        const { data: oldData, error: oldError } = await supabase
-          .from('pembayaran_pinjaman')
-          .select('*')
-          .eq('pinjaman_id', pembiayaanId)
-          .order('tanggal_pembayaran', { ascending: false });
-        
-        if (oldError) {
-          console.error('Error fetching from old table:', oldError);
-          return [];
-        }
-        
-        // Map old data to new structure
-        return (oldData || []).map(item => ({
-          ...item,
-          pembiayaan_id: item.pinjaman_id
-        }));
-      } catch (fallbackError) {
-        console.error('Exception in fallback query:', fallbackError);
-        return [];
-      }
+      return [];
     }
     
-    return data || [];
+    // Format the dates and return the data
+    return (payments || []).map((payment: any) => ({
+      ...payment,
+      tanggal_pembayaran: new Date(payment.tanggal_pembayaran),
+      created_at: new Date(payment.created_at),
+      updated_at: new Date(payment.updated_at)
+    }));
   } catch (e) {
     console.error('Exception in getPembayaranByPembiayaanId:', e);
     return [];
