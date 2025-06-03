@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getAllJenisTabungan, JenisTabungan } from "@/lib/supabase"
+import { getAllJenisTabungan, JenisTabungan, supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -225,16 +225,30 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       
       try {
         console.log('Fetching tabungan for anggota:', selectedAnggotaId)
+        
+        // Try using RPC function first
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_anggota_tabungan', { p_anggota_id: selectedAnggotaId })
+        
+        if (!rpcError && rpcData) {
+          console.log('Received tabungan data from RPC:', rpcData)
+          setUserTabunganList(rpcData)
+          return
+        }
+        
+        // Fallback to API endpoint
         const response = await fetch(`/api/tabungan?anggota_id=${selectedAnggotaId}`)
         if (!response.ok) {
           throw new Error('Failed to fetch user tabungan')
         }
         const data = await response.json()
-        console.log('Received tabungan data:', data)
+        console.log('Received tabungan data from API:', data)
         setUserTabunganList(data)
       } catch (error) {
         console.error('Error fetching user tabungan:', error)
         toast.error('Gagal memuat data tabungan anggota')
+        // Set empty array to prevent undefined errors
+        setUserTabunganList([])
       }
     }
     
@@ -435,7 +449,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                   <FormItem>
                     <FormLabel>Jenis Tabungan</FormLabel>
                     <Select 
-                      disabled={isLoadingJenisTabungan || userTabunganList.length === 0} 
+                      disabled={isLoadingJenisTabungan} 
                       onValueChange={field.onChange} 
                       value={field.value || ""}
                     >

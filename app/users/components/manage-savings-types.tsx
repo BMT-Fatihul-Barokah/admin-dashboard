@@ -29,6 +29,7 @@ interface SavingsType {
   periode_setoran: string | null
   denda_keterlambatan: number
   display_order: number
+  initial_deposit?: number
 }
 
 interface FormData {
@@ -45,6 +46,7 @@ interface FormData {
   periode_setoran: string | null
   denda_keterlambatan: number
   display_order: number
+  initial_deposit: number
 }
 
 export function ManageSavingsTypes() {
@@ -72,7 +74,8 @@ export function ManageSavingsTypes() {
     is_reguler: false,
     periode_setoran: null,
     denda_keterlambatan: 0,
-    display_order: 0
+    display_order: 0,
+    initial_deposit: 0
   })
 
   // Format currency function
@@ -105,7 +108,8 @@ export function ManageSavingsTypes() {
         is_reguler: item.is_reguler || false,
         periode_setoran: item.periode_setoran || null,
         denda_keterlambatan: item.denda_keterlambatan || 0,
-        display_order: item.display_order || 0
+        display_order: item.display_order || 0,
+        initial_deposit: item.initial_deposit || 0
       }))
       
       setSavingsTypes(mappedData)
@@ -131,7 +135,8 @@ export function ManageSavingsTypes() {
           is_reguler: item.is_reguler || false,
           periode_setoran: item.periode_setoran || null,
           denda_keterlambatan: item.denda_keterlambatan || 0,
-          display_order: item.display_order || 0
+          display_order: item.display_order || 0,
+          initial_deposit: item.initial_deposit || 0
         }))
         
         setSavingsTypes(mappedData)
@@ -182,7 +187,7 @@ export function ManageSavingsTypes() {
     }))
   }
 
-  // Reset form
+  // Reset form to default values
   const resetForm = () => {
     setFormData({
       kode: "",
@@ -197,7 +202,8 @@ export function ManageSavingsTypes() {
       is_reguler: false,
       periode_setoran: null,
       denda_keterlambatan: 0,
-      display_order: 0
+      display_order: 0,
+      initial_deposit: 0
     })
     setEditMode(false)
     setSelectedTypeId(null)
@@ -218,7 +224,8 @@ export function ManageSavingsTypes() {
       is_reguler: type.is_reguler,
       periode_setoran: type.periode_setoran,
       denda_keterlambatan: type.denda_keterlambatan,
-      display_order: type.display_order
+      display_order: type.display_order,
+      initial_deposit: type.initial_deposit || 0 // Default value for existing records
     })
     setEditMode(true)
     setSelectedTypeId(type.id)
@@ -271,7 +278,6 @@ export function ManageSavingsTypes() {
       
       // Check for duplicates
       if (filteredKodes && filteredKodes.length > 0) {
-
         toast({
           title: "⚠️ Duplikasi Kode",
           description: `Kode tabungan '${formData.kode}' sudah digunakan oleh jenis tabungan lain`,
@@ -309,6 +315,7 @@ export function ManageSavingsTypes() {
             periode_setoran: formData.periode_setoran,
             denda_keterlambatan: formData.denda_keterlambatan,
             display_order: formData.display_order,
+            initial_deposit: formData.initial_deposit,
             updated_at: new Date().toISOString()
           })
           .eq('id', selectedTypeId)
@@ -337,7 +344,8 @@ export function ManageSavingsTypes() {
             is_reguler: formData.is_reguler,
             periode_setoran: formData.periode_setoran,
             denda_keterlambatan: formData.denda_keterlambatan,
-            display_order: formData.display_order
+            display_order: formData.display_order,
+            initial_deposit: formData.initial_deposit
           })
 
         if (error) throw error
@@ -416,7 +424,7 @@ export function ManageSavingsTypes() {
                       variant={type.is_active ? "default" : "destructive"}
                       className={type.is_active ? "bg-green-500 hover:bg-green-600" : ""}
                     >
-                      {type.is_active ? 'Aktif' : 'Nonaktif'}
+                      {type.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -545,9 +553,12 @@ export function ManageSavingsTypes() {
                     name="kode"
                     value={formData.kode}
                     onChange={handleInputChange}
-                    placeholder="SIBAROKAH"
+                    placeholder="SB-001"
+                    className="uppercase"
+                    pattern="[A-Z0-9-]+"
                     required
                   />
+                  <p className="text-xs text-muted-foreground">Format: XX-000</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="nama">Nama Tabungan</Label>
@@ -576,6 +587,17 @@ export function ManageSavingsTypes() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label htmlFor="initial_deposit">Setoran Awal (Rp)</Label>
+                  <Input
+                    id="initial_deposit"
+                    name="initial_deposit"
+                    type="number"
+                    value={formData.initial_deposit}
+                    onChange={handleNumberChange}
+                    min={0}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="minimum_setoran">Setoran Minimum (Rp)</Label>
                   <Input
                     id="minimum_setoran"
@@ -586,6 +608,9 @@ export function ManageSavingsTypes() {
                     min={0}
                   />
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="bagi_hasil">Bagi Hasil (%)</Label>
                   <Input
@@ -598,9 +623,6 @@ export function ManageSavingsTypes() {
                     step={0.01}
                   />
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="biaya_admin">Biaya Admin (Rp)</Label>
                   <Input
@@ -612,6 +634,9 @@ export function ManageSavingsTypes() {
                     min={0}
                   />
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="jangka_waktu">Jangka Waktu (Bulan)</Label>
                   <Input
@@ -624,9 +649,6 @@ export function ManageSavingsTypes() {
                     placeholder="Opsional"
                   />
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="denda_keterlambatan">Denda Keterlambatan (Rp)</Label>
                   <Input
@@ -638,6 +660,9 @@ export function ManageSavingsTypes() {
                     min={0}
                   />
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="display_order">Urutan Tampilan</Label>
                   <Input
@@ -649,18 +674,6 @@ export function ManageSavingsTypes() {
                     min={0}
                   />
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_reguler"
-                    checked={formData.is_reguler}
-                    onCheckedChange={(checked) => handleSwitchChange('is_reguler', checked)}
-                  />
-                  <Label htmlFor="is_reguler">Tabungan Reguler</Label>
-                </div>
-                
                 {formData.is_reguler && (
                   <div className="space-y-2">
                     <Label htmlFor="periode_setoran">Periode Setoran</Label>
@@ -681,7 +694,15 @@ export function ManageSavingsTypes() {
                 )}
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is_reguler"
+                    checked={formData.is_reguler}
+                    onCheckedChange={(checked) => handleSwitchChange('is_reguler', checked)}
+                  />
+                  <Label htmlFor="is_reguler">Tabungan Reguler</Label>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="is_required"
@@ -696,7 +717,7 @@ export function ManageSavingsTypes() {
                     checked={formData.is_active}
                     onCheckedChange={(checked) => handleSwitchChange('is_active', checked)}
                   />
-                  <Label htmlFor="is_active">Aktif</Label>
+                  <Label htmlFor="is_active">Active</Label>
                 </div>
               </div>
             </div>

@@ -478,16 +478,44 @@ export type JenisTabungan = {
 }
 
 export async function getAllJenisTabungan(): Promise<JenisTabungan[]> {
-  const { data, error } = await supabase
-    .from('jenis_tabungan')
-    .select('*')
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
-  
-  if (error) {
-    console.error('Error fetching jenis tabungan:', error);
-    return [];
+  try {
+    // First try using the RPC function
+    const { data, error } = await supabase
+      .rpc('get_all_jenis_tabungan');
+    
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching jenis tabungan with RPC:', error);
+    
+    // Fallback to direct query if RPC fails
+    try {
+      const { data, error: fallbackError } = await supabase
+        .from('jenis_tabungan')
+        .select('*')
+        .eq('is_active', true)
+        .order('kode', { ascending: true });
+      
+      if (fallbackError) {
+        console.error('Fallback query also failed:', fallbackError);
+        return [];
+      }
+      
+      // Map the results to include any missing fields with default values
+      const mappedData = (data || []).map((item: any) => ({
+        ...item,
+        biaya_admin: item.biaya_admin || 0,
+        bagi_hasil: item.bagi_hasil || 0,
+        is_required: item.is_required || false,
+        is_reguler: item.is_reguler || false,
+        display_order: item.display_order || 0
+      }));
+      
+      return mappedData;
+    } catch (fallbackError) {
+      console.error('Error in fallback query:', fallbackError);
+      return [];
+    }
   }
-  
-  return data || [];
 }
