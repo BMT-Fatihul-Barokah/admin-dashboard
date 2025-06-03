@@ -10,9 +10,9 @@ import { format, parseISO } from "date-fns"
 import { id } from "date-fns/locale"
 import { ArrowDownIcon, ArrowUpIcon, Loader2 } from "lucide-react"
 
-// Create a direct Supabase client instance
-const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5aXdoY2t4d3JuZ2Vnc3dhZ3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0OTY4MzcsImV4cCI6MjA2MTA3MjgzN30.bpDSX9CUEA0F99x3cwNbeTVTVq-NHw5GC5jmp2QqnNM'
+// Create a direct Supabase client instance using environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 type Anggota = {
@@ -31,7 +31,8 @@ type Transaksi = {
   jumlah: number
   saldo_sebelum: number
   saldo_sesudah: number
-  pinjaman_id?: string
+  pembiayaan_id?: string
+  tabungan_id?: string
   created_at: string
   updated_at: string
 }
@@ -67,18 +68,33 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
     
     setIsLoading(true)
     try {
+      // Use the RPC function to get transactions
       const { data, error } = await supabase
-        .from('transaksi')
-        .select('*')
-        .eq('anggota_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
+        .rpc('get_anggota_transactions', {
+          anggota_id_param: user.id
+        })
       
       if (error) throw error
       
       setTransactions(data || [])
     } catch (error) {
       console.error('Error fetching transactions:', error)
+      
+      // Fallback to direct query if RPC fails
+      try {
+        const { data, error: fallbackError } = await supabase
+          .from('transaksi')
+          .select('*')
+          .eq('anggota_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        
+        if (fallbackError) throw fallbackError
+        
+        setTransactions(data || [])
+      } catch (fallbackError) {
+        console.error('Fallback query also failed:', fallbackError)
+      }
     } finally {
       setIsLoading(false)
     }

@@ -89,21 +89,60 @@ export function ManageSavingsTypes() {
   const fetchSavingsTypes = async () => {
     setIsLoading(true)
     try {
+      // Use the RPC function to get savings types
       const { data, error } = await supabase
-        .from('jenis_tabungan')
-        .select('*')
-        .order('display_order', { ascending: true })
+        .rpc('get_jenis_tabungan')
       
       if (error) throw error
       
-      setSavingsTypes(data || [])
+      // Map the results to include any missing fields with default values
+      const mappedData = (data || []).map((item: any) => ({
+        ...item,
+        bagi_hasil: item.bagi_hasil || 0,
+        biaya_admin: item.biaya_admin || 0,
+        jangka_waktu: item.jangka_waktu || null,
+        is_required: item.is_required || false,
+        is_reguler: item.is_reguler || false,
+        periode_setoran: item.periode_setoran || null,
+        denda_keterlambatan: item.denda_keterlambatan || 0,
+        display_order: item.display_order || 0
+      }))
+      
+      setSavingsTypes(mappedData)
     } catch (error) {
       console.error('Error fetching savings types:', error)
-      toast({
-        title: "Error",
-        description: "Gagal memuat data jenis tabungan",
-        variant: "destructive"
-      })
+      
+      // Fallback to direct query if RPC fails
+      try {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('jenis_tabungan')
+          .select('*')
+          .order('kode', { ascending: true })
+        
+        if (fallbackError) throw fallbackError
+        
+        // Map the results to include any missing fields with default values
+        const mappedData = (fallbackData || []).map((item: any) => ({
+          ...item,
+          bagi_hasil: item.bagi_hasil || 0,
+          biaya_admin: item.biaya_admin || 0,
+          jangka_waktu: item.jangka_waktu || null,
+          is_required: item.is_required || false,
+          is_reguler: item.is_reguler || false,
+          periode_setoran: item.periode_setoran || null,
+          denda_keterlambatan: item.denda_keterlambatan || 0,
+          display_order: item.display_order || 0
+        }))
+        
+        setSavingsTypes(mappedData)
+      } catch (fallbackError) {
+        console.error('Fallback query also failed:', fallbackError)
+        toast({
+          title: "Error",
+          description: "Gagal memuat data jenis tabungan",
+          variant: "destructive"
+        })
+      }
     } finally {
       setIsLoading(false)
     }

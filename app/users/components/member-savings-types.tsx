@@ -54,46 +54,74 @@ export function MemberSavingsTypes({ userId, userName }: MemberSavingsTypesProps
   const fetchMemberSavingsTypes = async () => {
     setIsLoading(true)
     try {
-      // Pertama, ambil semua jenis tabungan yang aktif
-      const { data: allTypes, error: typesError } = await supabase
-        .from('jenis_tabungan')
-        .select('*')
-        .eq('is_active', true)
-        .order('display_order', { ascending: true })
+      // Use the RPC function to get member savings types
+      const { data, error } = await supabase
+        .rpc('get_member_savings_types', {
+          anggota_id_param: userId
+        })
       
-      if (typesError) throw typesError
+      if (error) throw error
       
-      if (!allTypes || allTypes.length === 0) {
-        setSavingsTypes([])
-        return
-      }
-      
-      // Kedua, ambil tabungan yang dimiliki anggota
-      const { data: memberAccounts, error: accountsError } = await supabase
-        .from('tabungan')
-        .select('id, jenis_tabungan_id')
-        .eq('anggota_id', userId)
-        .eq('status', 'aktif')
-      
-      if (accountsError) throw accountsError
-      
-      // Buat map dari jenis tabungan yang dimiliki anggota
-      const memberAccountMap = new Map();
-      (memberAccounts || []).forEach(account => {
-        memberAccountMap.set(account.jenis_tabungan_id, account.id);
-      });
-      
-      // Gabungkan informasi
-      const typesWithAccountInfo = allTypes.map(type => ({
-        ...type,
-        has_account: memberAccountMap.has(type.id),
-        account_id: memberAccountMap.get(type.id)
+      // Map the results to include any missing fields with default values
+      const mappedData = (data || []).map((item: any) => ({
+        ...item,
+        bagi_hasil: item.bagi_hasil || 0,
+        is_reguler: item.is_reguler || false,
+        periode_setoran: item.periode_setoran || null,
+        jangka_waktu: item.jangka_waktu || null
       }))
       
-      setSavingsTypes(typesWithAccountInfo)
+      setSavingsTypes(mappedData)
     } catch (error) {
       console.error('Error fetching member savings types:', error)
-      setError('Gagal memuat data jenis tabungan')
+      
+      // Fallback to manual join if RPC fails
+      try {
+        // Pertama, ambil semua jenis tabungan yang aktif
+        const { data: allTypes, error: typesError } = await supabase
+          .from('jenis_tabungan')
+          .select('*')
+          .eq('is_active', true)
+          .order('kode', { ascending: true })
+        
+        if (typesError) throw typesError
+        
+        if (!allTypes || allTypes.length === 0) {
+          setSavingsTypes([])
+          return
+        }
+        
+        // Kedua, ambil tabungan yang dimiliki anggota
+        const { data: memberAccounts, error: accountsError } = await supabase
+          .from('tabungan')
+          .select('id, jenis_tabungan_id')
+          .eq('anggota_id', userId)
+          .eq('status', 'aktif')
+        
+        if (accountsError) throw accountsError
+        
+        // Buat map dari jenis tabungan yang dimiliki anggota
+        const memberAccountMap = new Map();
+        (memberAccounts || []).forEach(account => {
+          memberAccountMap.set(account.jenis_tabungan_id, account.id);
+        });
+        
+        // Gabungkan informasi
+        const typesWithAccountInfo = allTypes.map((type: any) => ({
+          ...type,
+          has_account: memberAccountMap.has(type.id),
+          account_id: memberAccountMap.get(type.id),
+          bagi_hasil: type.bagi_hasil || 0,
+          is_reguler: type.is_reguler || false,
+          periode_setoran: type.periode_setoran || null,
+          jangka_waktu: type.jangka_waktu || null
+        }))
+        
+        setSavingsTypes(typesWithAccountInfo)
+      } catch (fallbackError) {
+        console.error('Fallback query also failed:', fallbackError)
+        setError('Gagal memuat data jenis tabungan')
+      }
     } finally {
       setIsLoading(false)
     }
