@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 /**
  * Debug function to test database connection

@@ -4,18 +4,21 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { BarChart3, CreditCard, Wallet, FileText, Bell, DollarSign, Calculator, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { 
+  BarChart3, CreditCard, Wallet, FileText, Bell, DollarSign, Calculator, 
+  ArrowUpRight, ArrowDownRight, Loader2, TrendingUp, TrendingDown, 
+  PieChart, Activity, BarChart, CircleDollarSign, Landmark, PiggyBank
+} from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { 
-  testDatabaseConnection,
   getTotalAnggota, 
-  getPendingRegistrations, 
   getTotalActivePinjaman, 
-  getCurrentMonthTransactions, 
   getRecentActivities 
 } from '@/lib/dashboard-data';
+import { getFinancialSummary } from '@/lib/financial-data';
 import { supabase } from '@/lib/supabase';
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
@@ -30,66 +33,35 @@ type Activity = {
   status?: string;
 };
 
-// Transaction summary type
-type TransactionSummary = {
-  income: number;
-  expenses: number;
-  balance: number;
-  incomeChange: number;
-  expensesChange: number;
-};
-
-// Function to get transaction summary for the current month
-async function getTransactionSummary(): Promise<TransactionSummary> {
-  try {
-    console.log('Fetching transaction summary...');
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
-    
-    // Get income transactions
-    const { data: incomeData, error: incomeError } = await supabase
-      .from('transaksi')
-      .select('jumlah')
-      .eq('tipe_transaksi', 'masuk')
-      .gte('created_at', firstDay)
-      .lte('created_at', lastDay);
-    
-    if (incomeError) {
-      console.error('Error fetching income transactions:', incomeError);
-      return { income: 0, expenses: 0, balance: 0, incomeChange: 0, expensesChange: 0 };
-    }
-    
-    // Get expense transactions
-    const { data: expenseData, error: expenseError } = await supabase
-      .from('transaksi')
-      .select('jumlah')
-      .eq('tipe_transaksi', 'keluar')
-      .gte('created_at', firstDay)
-      .lte('created_at', lastDay);
-    
-    if (expenseError) {
-      console.error('Error fetching expense transactions:', expenseError);
-      return { income: 0, expenses: 0, balance: 0, incomeChange: 0, expensesChange: 0 };
-    }
-    
-    // Calculate totals
-    const income = incomeData?.reduce((sum, transaction) => sum + parseFloat(transaction.jumlah.toString()), 0) || 0;
-    const expenses = expenseData?.reduce((sum, transaction) => sum + parseFloat(transaction.jumlah.toString()), 0) || 0;
-    const balance = income - expenses;
-    
-    // For demonstration purposes, use placeholder values for changes
-    // In a real app, you would compare with previous month's data
-    const incomeChange = 12;
-    const expensesChange = 8;
-    
-    console.log('Transaction summary:', { income, expenses, balance, incomeChange, expensesChange });
-    
-    return { income, expenses, balance, incomeChange, expensesChange };
-  } catch (error) {
-    console.error('Error calculating transaction summary:', error);
-    return { income: 0, expenses: 0, balance: 0, incomeChange: 0, expensesChange: 0 };
-  }
+// Financial summary type
+type FinancialSummary = {
+  current_month: {
+    income: number;
+    expenses: number;
+    balance: number;
+    income_change: number;
+    expenses_change: number;
+  };
+  previous_month: {
+    income: number;
+    expenses: number;
+    balance: number;
+  };
+  total_savings: number;
+  total_loans: {
+    amount: number;
+    count: number;
+  };
+  top_income_categories?: Array<{
+    kategori: string;
+    total: number;
+  }>;
+  monthly_trend?: Array<{
+    month: string;
+    income: number;
+    expenses: number;
+    balance: number;
+  }>;
 }
 
 export function BendaraDashboard() {
@@ -98,7 +70,14 @@ export function BendaraDashboard() {
   const [dashboardData, setDashboardData] = useState({
     totalMembers: 0,
     activeLoans: { count: 0, amount: 0 },
-    transactions: { income: 0, expenses: 0, balance: 0, incomeChange: 0, expensesChange: 0 },
+    financialSummary: {
+      current_month: { income: 0, expenses: 0, balance: 0, income_change: 0, expenses_change: 0 },
+      previous_month: { income: 0, expenses: 0, balance: 0 },
+      total_savings: 0,
+      total_loans: { amount: 0, count: 0 },
+      top_income_categories: [],
+      monthly_trend: []
+    } as FinancialSummary,
     recentActivities: [] as Activity[]
   });
   
@@ -121,29 +100,54 @@ export function BendaraDashboard() {
     }
   };
   
+  // Format category name for display
+  const formatCategory = (category: string) => {
+    const categoryMap: Record<string, string> = {
+      'setoran_awal': 'Setoran Awal',
+      'setoran_rutin': 'Setoran Rutin',
+      'biaya_admin': 'Biaya Admin',
+      'pembayaran_pembiayaan': 'Pembayaran Pembiayaan',
+      'bagi_hasil': 'Bagi Hasil',
+      'penarikan_tunai': 'Penarikan Tunai',
+      'biaya_umroh': 'Biaya Umroh',
+      'biaya_nikah': 'Biaya Nikah',
+      'biaya_pendidikan': 'Biaya Pendidikan',
+      'penarikan': 'Penarikan'
+    };
+    
+    return categoryMap[category] || category.replace(/_/g, ' ');
+  };
+  
+  // Get trend icon based on percentage change
+  const getTrendIcon = (change: number) => {
+    if (change > 0) return <TrendingUp className="h-4 w-4 text-green-500" />;
+    if (change < 0) return <TrendingDown className="h-4 w-4 text-red-500" />;
+    return null;
+  };
+  
   useEffect(() => {
     async function fetchDashboardData() {
       setIsLoading(true);
       try {
         console.log('Fetching bendahara dashboard data...');
-        const [members, loans, transactions, activities] = await Promise.all([
+        const [members, loans, financialSummary, activities] = await Promise.all([
           getTotalAnggota(),
           getTotalActivePinjaman(),
-          getTransactionSummary(),
+          getFinancialSummary(),
           getRecentActivities(5)
         ]);
         
         console.log('Bendahara dashboard data fetched:', {
           members,
           loans,
-          transactions,
+          financialSummary,
           activitiesCount: activities.length
         });
         
         setDashboardData({
           totalMembers: members,
           activeLoans: loans,
-          transactions,
+          financialSummary,
           recentActivities: activities.filter(a => a.type === 'transaction')
         });
       } catch (error) {
@@ -184,47 +188,77 @@ export function BendaraDashboard() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="bg-gradient-to-br from-green-400 to-green-500 text-white">
+              {/* Income Card */}
+              <Card className="bg-gradient-to-br from-green-400 to-green-600 text-white shadow-lg hover:shadow-xl transition-shadow duration-300">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pendapatan Bulan Ini</CardTitle>
-                  <ArrowUpRight className="h-4 w-4 text-white" />
+                  <div className="p-1 bg-white/20 rounded-full">
+                    <PiggyBank className="h-4 w-4 text-white" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(dashboardData.transactions.income)}</div>
-                  <p className="text-xs text-green-100">+{dashboardData.transactions.incomeChange}% dari bulan lalu</p>
+                  <div className="text-2xl font-bold">{formatCurrency(dashboardData.financialSummary.current_month.income)}</div>
+                  <div className="flex items-center mt-1">
+                    {dashboardData.financialSummary.current_month.income_change > 0 ? (
+                      <ArrowUpRight className="h-3 w-3 text-green-100 mr-1" />
+                    ) : (
+                      <ArrowDownRight className="h-3 w-3 text-red-100 mr-1" />
+                    )}
+                    <p className="text-xs text-green-100">
+                      {Math.abs(dashboardData.financialSummary.current_month.income_change).toFixed(1)}% dari bulan lalu
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
               
-              <Card className="bg-gradient-to-br from-red-400 to-red-500 text-white">
+              {/* Expenses Card */}
+              <Card className="bg-gradient-to-br from-red-400 to-red-600 text-white shadow-lg hover:shadow-xl transition-shadow duration-300">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pengeluaran Bulan Ini</CardTitle>
-                  <ArrowDownRight className="h-4 w-4 text-white" />
+                  <div className="p-1 bg-white/20 rounded-full">
+                    <Calculator className="h-4 w-4 text-white" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(dashboardData.transactions.expenses)}</div>
-                  <p className="text-xs text-red-100">+{dashboardData.transactions.expensesChange}% dari bulan lalu</p>
+                  <div className="text-2xl font-bold">{formatCurrency(dashboardData.financialSummary.current_month.expenses)}</div>
+                  <div className="flex items-center mt-1">
+                    {dashboardData.financialSummary.current_month.expenses_change > 0 ? (
+                      <ArrowUpRight className="h-3 w-3 text-red-100 mr-1" />
+                    ) : (
+                      <ArrowDownRight className="h-3 w-3 text-green-100 mr-1" />
+                    )}
+                    <p className="text-xs text-red-100">
+                      {Math.abs(dashboardData.financialSummary.current_month.expenses_change).toFixed(1)}% dari bulan lalu
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
               
-              <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-white">
+              {/* Balance Card */}
+              <Card className="bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-lg hover:shadow-xl transition-shadow duration-300">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Saldo Keuangan</CardTitle>
-                  <DollarSign className="h-4 w-4 text-white" />
+                  <CardTitle className="text-sm font-medium">Saldo Bulan Ini</CardTitle>
+                  <div className="p-1 bg-white/20 rounded-full">
+                    <Wallet className="h-4 w-4 text-white" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(dashboardData.transactions.balance)}</div>
-                  <p className="text-xs text-blue-100">Saldo saat ini</p>
+                  <div className="text-2xl font-bold">{formatCurrency(dashboardData.financialSummary.current_month.balance)}</div>
+                  <p className="text-xs text-blue-100">Selisih pendapatan dan pengeluaran</p>
                 </CardContent>
               </Card>
               
-              <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-white">
+              {/* Total Savings Card */}
+              <Card className="bg-gradient-to-br from-purple-400 to-purple-600 text-white shadow-lg hover:shadow-xl transition-shadow duration-300">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pinjaman Aktif</CardTitle>
-                  <Wallet className="h-4 w-4 text-white" />
+                  <CardTitle className="text-sm font-medium">Total Tabungan</CardTitle>
+                  <div className="p-1 bg-white/20 rounded-full">
+                    <Landmark className="h-4 w-4 text-white" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.activeLoans.count}</div>
-                  <p className="text-xs text-purple-100">{formatCurrency(dashboardData.activeLoans.amount)}</p>
+                  <div className="text-2xl font-bold">{formatCurrency(dashboardData.financialSummary.total_savings)}</div>
+                  <p className="text-xs text-purple-100">Seluruh tabungan anggota aktif</p>
                 </CardContent>
               </Card>
             </div>
@@ -238,14 +272,72 @@ export function BendaraDashboard() {
                   Ringkasan keuangan koperasi bulan ini
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-[300px] flex items-center justify-center">
-                  <div className="text-center">
-                    <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-medium">Grafik Keuangan</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Perbandingan pendapatan dan pengeluaran 6 bulan terakhir
-                    </p>
+              <CardContent className="space-y-6">
+                {/* Savings and Loans Progress */}
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">Total Tabungan</span>
+                      <span className="text-sm font-medium">{formatCurrency(dashboardData.financialSummary.total_savings)}</span>
+                    </div>
+                    <Progress value={75} className="h-2 bg-blue-100" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">Total Pinjaman</span>
+                      <span className="text-sm font-medium">{formatCurrency(dashboardData.financialSummary.total_loans.amount)}</span>
+                    </div>
+                    <Progress value={40} className="h-2 bg-red-100" />
+                  </div>
+                </div>
+                
+                {/* Top Income Categories */}
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Kategori Pemasukan Teratas</h4>
+                  <div className="space-y-2">
+                    {dashboardData.financialSummary.top_income_categories && dashboardData.financialSummary.top_income_categories.length > 0 ? (
+                      dashboardData.financialSummary.top_income_categories.slice(0, 3).map((category, index) => (
+                        <div key={index} className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className={`w-3 h-3 rounded-full mr-2 ${
+                              index === 0 ? 'bg-green-500' : 
+                              index === 1 ? 'bg-blue-500' : 'bg-purple-500'
+                            }`}></div>
+                            <span className="text-sm">{formatCategory(category.kategori)}</span>
+                          </div>
+                          <span className="text-sm font-medium">{formatCurrency(category.total)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Tidak ada data kategori</div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Monthly Trend */}
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Tren Bulanan</h4>
+                  <div className="space-y-2">
+                    {dashboardData.financialSummary.monthly_trend && dashboardData.financialSummary.monthly_trend.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {dashboardData.financialSummary.monthly_trend.slice(-3).map((month, index) => (
+                          <div key={index} className="p-2 border rounded-md">
+                            <div className="text-xs text-muted-foreground">{month.month}</div>
+                            <div className="flex items-center mt-1">
+                              <PiggyBank className="h-3 w-3 text-green-500 mr-1" />
+                              <span className="text-xs">{formatCurrency(month.income)}</span>
+                            </div>
+                            <div className="flex items-center mt-1">
+                              <Calculator className="h-3 w-3 text-red-500 mr-1" />
+                              <span className="text-xs">{formatCurrency(month.expenses)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Tidak ada data tren</div>
+                    )}
                   </div>
                 </div>
               </CardContent>
