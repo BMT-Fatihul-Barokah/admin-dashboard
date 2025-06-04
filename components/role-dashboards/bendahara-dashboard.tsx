@@ -325,7 +325,7 @@ export function BendaraDashboard() {
                           <div key={index} className="p-2 border rounded-md">
                             <div className="text-xs text-muted-foreground">{month.month}</div>
                             <div className="flex items-center mt-1">
-                              <PiggyBank className="h-3 w-3 text-green-500 mr-1" />
+                              <DollarSign className="h-3 w-3 text-green-500 mr-1" />
                               <span className="text-xs">{formatCurrency(month.income)}</span>
                             </div>
                             <div className="flex items-center mt-1">
