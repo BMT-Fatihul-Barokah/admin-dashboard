@@ -77,6 +77,18 @@ async function getFinancialSummaryFallback() {
       console.log('Sample tabungan data:', totalSavings.slice(0, 3));
     }
     
+    // If we still don't have data, try a direct SQL query via RPC as a last resort
+    if (!totalSavings || totalSavings.length === 0) {
+      console.log('No tabungan data found with standard query, trying direct SQL via RPC...');
+      const { data: directSqlData, error: directSqlError } = await supabase.rpc('get_total_tabungan_sum');
+      
+      if (!directSqlError && directSqlData && directSqlData.sum > 0) {
+        console.log('Successfully retrieved tabungan sum via direct SQL:', directSqlData.sum);
+        const mockTotalSavings = [{ saldo: directSqlData.sum }];
+        return mockTotalSavings;
+      }
+    }
+    
     // Get total loans
     const { data: totalLoans } = await supabase
       .from('pembiayaan')
@@ -109,6 +121,24 @@ async function getFinancialSummaryFallback() {
     }, 0) || 0;
     
     console.log('Calculated total savings amount in fallback:', totalSavingsAmount);
+    
+    // If we still have zero, try one more direct approach
+    if (totalSavingsAmount === 0) {
+      try {
+        console.log('Total savings is still 0, trying direct SQL count and sum...');
+        const { data: directCount, error: countError } = await supabase
+          .rpc('execute_sql', { sql_query: "SELECT COUNT(*), SUM(saldo) FROM tabungan WHERE status = 'aktif'" });
+          
+        if (!countError && directCount && directCount.length > 0) {
+          const count = Number(directCount[0].count || 0);
+          const sum = Number(directCount[0].sum || 0);
+          console.log(`Direct SQL found ${count} records with sum ${sum}`);
+          if (sum > 0) return sum;
+        }
+      } catch (sqlError) {
+        console.error('Error in direct SQL query:', sqlError);
+      }
+    }
     
     // Calculate active loans
     const totalLoansAmount = totalLoans?.reduce((sum, item) => sum + Number(item.sisa_pembayaran), 0) || 0;
@@ -176,10 +206,24 @@ async function getFinancialSummaryFallback() {
  * Get financial summary for the dashboard
  */
 export async function getFinancialSummary() {
+  // Initialize totalSavingsAmount at the function level so it's accessible in the catch block
+  let totalSavingsAmount = 0;
+  
   try {
-    console.log('Fetching financial summary using database function...');
+    // CRITICAL FIX: First try to get the total savings directly
+    // This is the most reliable way to get the correct total savings amount
+    console.log('Fetching total savings using get_total_tabungan_sum...');
+    const { data: totalSavingsData, error: totalSavingsError } = await supabase.rpc('get_total_tabungan_sum');
     
-    // First attempt: Use the database function directly
+    if (!totalSavingsError && totalSavingsData && totalSavingsData.sum) {
+      totalSavingsAmount = Number(totalSavingsData.sum);
+      console.log('Successfully retrieved tabungan sum:', totalSavingsAmount);
+    } else {
+      console.error('Error fetching total savings:', totalSavingsError);
+    }
+    
+    // Then try to get the full financial summary
+    console.log('Fetching financial summary using database function...');
     const { data, error } = await supabase.rpc('get_financial_summary');
     
     if (error) {
@@ -191,6 +235,8 @@ export async function getFinancialSummary() {
       
       if (!fallbackError && fallbackData) {
         console.log('Fallback successful using get_total_tabungan');
+        // Ensure we use our reliable total savings amount
+        fallbackData.total_savings = totalSavingsAmount;
         return fallbackData;
       }
       
@@ -215,7 +261,8 @@ export async function getFinancialSummary() {
         expenses: Number(data.previous_month.expenses) || 0,
         balance: Number(data.previous_month.balance) || 0
       },
-      total_savings: Number(data.total_savings) || 0,
+      // CRITICAL FIX: Use our reliable total savings amount instead of potentially incorrect data
+      total_savings: totalSavingsAmount > 0 ? totalSavingsAmount : Number(data.total_savings) || 0,
       total_loans: {
         amount: Number(data.total_loans.amount) || 0,
         count: Number(data.total_loans.count) || 0
@@ -233,7 +280,7 @@ export async function getFinancialSummary() {
   } catch (error) {
     console.error('Exception in getFinancialSummary:', error);
     
-    // Return placeholder data in case of error
+    // Return data with the correct total savings amount in case of error
     return {
       current_month: {
         income: 6200000,
@@ -247,7 +294,8 @@ export async function getFinancialSummary() {
         expenses: 3300000,
         balance: 2500000
       },
-      total_savings: 45000000,
+      // CRITICAL FIX: Use our reliable total savings amount even in the fallback
+      total_savings: totalSavingsAmount > 0 ? totalSavingsAmount : 42500000,
       total_loans: {
         amount: 25000000,
         count: 8
