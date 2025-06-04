@@ -48,7 +48,32 @@ export async function getTotalAnggota(): Promise<number> {
   }
 }
 
-// Removed getPendingRegistrations function as it's no longer needed
+/**
+ * Get the number of pending registrations
+ */
+export async function getPendingRegistrations(): Promise<number> {
+  try {
+    console.log('Fetching pending registrations...');
+    
+    // Query anggota table for pending registrations
+    const { data, error, count } = await supabase
+      .from('anggota')
+      .select('id', { count: 'exact' })
+      .eq('is_active', false)
+      .is('closed_at', null);
+    
+    if (error) {
+      console.error('Error fetching pending registrations:', error);
+      return 0;
+    }
+    
+    console.log(`Found ${count || data?.length || 0} pending registrations`);
+    return count || data?.length || 0;
+  } catch (error) {
+    console.error('Exception in getPendingRegistrations:', error);
+    return 0;
+  }
+}
 
 /**
  * Get the total amount of all active loans
@@ -168,155 +193,132 @@ export async function getCurrentMonthTransactions(): Promise<number> {
  */
 export async function getRecentActivities(limit: number = 5): Promise<any[]> {
   try {
-    console.log('Fetching recent activities using RPC function...');
+    console.log('Fetching recent activities...');
     
-    // Primary approach: Use the RPC function to get recent activities
-    const { data, error } = await supabase
-      .rpc('get_recent_activities', { activity_limit: limit })
+    // Skip RPC and directly use the working approach
+    // Get recent transactions
+    const { data: transactions, error: transactionError } = await supabase
+      .from('transaksi')
+      .select('id, tipe_transaksi, kategori, jumlah, created_at, anggota_id')
+      .order('created_at', { ascending: false })
       .limit(limit);
     
-    if (error) {
-      console.error('Error fetching recent activities with RPC:', error);
-      throw error;
+    if (transactionError) {
+      console.error('Error in transaction query:', transactionError);
+      // Return placeholder data if there's an error
+      return getPlaceholderActivities();
     }
     
-    if (!data || data.length === 0) {
-      console.log('No activities found from RPC, using placeholder data');
-      
-      // Return placeholder data for testing
-      return [
-        {
-          type: 'transaction',
-          description: 'Penerimaan setoran dari M.sabilul M.QQ H.N',
-          amount: 1000000,
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-          id: '9053a534-bf33-41cd-9a95-8db09d86d84d'
-        },
-        {
-          type: 'loan',
-          description: 'Pinjaman aktif untuk Ahmad Fauzi',
-          amount: 4000000,
-          created_at: new Date(Date.now() - 7200000).toISOString(),
-          id: '2e15af0c-fa46-4582-b8f2-413b1ec6d598'
-        },
-        {
-          type: 'registration',
-          description: 'Pendaftaran baru dari Iqbal Isya Fathurrohman',
-          created_at: new Date(Date.now() - 10800000).toISOString(),
-          id: '449dd262-ae64-4efc-bafb-77bfe673f214',
-          status: 'diterima'
-        },
-        {
-          type: 'transaction',
-          description: 'Pengeluaran penarikan dari Safarina M QQ.Huda',
-          amount: 500000,
-          created_at: new Date(Date.now() - 14400000).toISOString(),
-          id: '7952a185-0d4e-4835-9845-09319f4c2e01'
-        },
-        {
-          type: 'loan',
-          description: 'Pinjaman lunas dari Amrina QQ Choirudin',
-          amount: 3000000,
-          created_at: new Date(Date.now() - 18000000).toISOString(),
-          id: '31053a4c-9e66-4f8e-9484-49c55bbc0d9d'
-        }
-      ];
+    // Get anggota data for transactions
+    const anggotaIds = transactions?.map(t => t.anggota_id).filter(Boolean) || [];
+    let anggotaMap: Record<string, string> = {};
+    
+    if (anggotaIds.length > 0) {
+      const { data: anggotaData } = await supabase
+        .from('anggota')
+        .select('id, nama')
+        .in('id', anggotaIds);
+        
+      if (anggotaData) {
+        anggotaMap = anggotaData.reduce((map, a) => {
+          map[a.id] = a.nama;
+          return map;
+        }, {} as Record<string, string>);
+      }
     }
     
-    // Transform the data from the RPC function to match the expected format
-    const activities = data.map((item: any) => ({
-      id: item.id,
-      type: item.activity_type,
-      description: item.description,
-      amount: item.amount,
-      created_at: item.created_at,
-      status: item.status
-    }));
+    // Get recent pembiayaan (loans)
+    const { data: loans, error: loanError } = await supabase
+      .from('pembiayaan')
+      .select('id, jumlah, status, created_at, anggota_id')
+      .order('created_at', { ascending: false })
+      .limit(limit);
     
-    console.log(`Returning ${activities.length} recent activities from RPC`);
-    return activities;
+    if (loanError) {
+      console.error('Error in loan query:', loanError);
+    }
     
+    // Format activities
+    const activities = [
+      ...(transactions || []).map(t => ({
+        id: t.id,
+        type: 'transaction',
+        description: `${t.tipe_transaksi === 'masuk' ? 'Penerimaan' : 'Pengeluaran'} ${t.kategori} dari ${anggotaMap[t.anggota_id] || 'Anggota'}`,
+        amount: t.jumlah,
+        created_at: t.created_at,
+        status: t.tipe_transaksi
+      })),
+      ...(loans || []).map(l => ({
+        id: l.id,
+        type: 'loan',
+        description: `Pembiayaan ${l.status} untuk ${anggotaMap[l.anggota_id] || 'Anggota'}`,
+        amount: l.jumlah,
+        created_at: l.created_at,
+        status: l.status
+      }))
+    ];
+    
+    // Sort by created_at
+    activities.sort((a, b) => {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+    
+    const result = activities.slice(0, limit);
+    console.log(`Returning ${result.length} recent activities`);
+    
+    // If no activities found, return placeholder data
+    if (result.length === 0) {
+      return getPlaceholderActivities();
+    }
+    
+    return result;
   } catch (error) {
     console.error('Exception in getRecentActivities:', error);
-    
-    // Fallback approach: Try direct queries if RPC fails
-    try {
-      console.log('Attempting fallback for recent activities...');
-      
-      // Get recent transactions
-      const { data: transactions, error: transactionError } = await supabase
-        .from('transaksi')
-        .select('id, tipe_transaksi, kategori, jumlah, created_at, anggota_id')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      if (transactionError) {
-        console.error('Error in fallback transaction query:', transactionError);
-        return [];
-      }
-      
-      // Get anggota data for transactions
-      const anggotaIds = transactions?.map(t => t.anggota_id).filter(Boolean) || [];
-      let anggotaMap: Record<string, string> = {};
-      
-      if (anggotaIds.length > 0) {
-        const { data: anggotaData } = await supabase
-          .from('anggota')
-          .select('id, nama')
-          .in('id', anggotaIds);
-          
-        if (anggotaData) {
-          anggotaMap = anggotaData.reduce((map, a) => {
-            map[a.id] = a.nama;
-            return map;
-          }, {} as Record<string, string>);
-        }
-      }
-      
-      // Get recent pembiayaan (loans)
-      const { data: loans, error: loanError } = await supabase
-        .from('pembiayaan')
-        .select('id, jumlah, status, created_at, anggota_id')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      if (loanError) {
-        console.error('Error in fallback loan query:', loanError);
-      }
-      
-      // Format activities
-      const activities = [
-        ...(transactions || []).map(t => ({
-          id: t.id,
-          type: 'transaction',
-          description: `${t.tipe_transaksi === 'masuk' ? 'Penerimaan' : 'Pengeluaran'} ${t.kategori} dari ${anggotaMap[t.anggota_id] || 'Anggota'}`,
-          amount: t.jumlah,
-          created_at: t.created_at,
-          status: t.tipe_transaksi
-        })),
-        ...(loans || []).map(l => ({
-          id: l.id,
-          type: 'loan',
-          description: `Pembiayaan ${l.status} untuk ${anggotaMap[l.anggota_id] || 'Anggota'}`,
-          amount: l.jumlah,
-          created_at: l.created_at,
-          status: l.status
-        }))
-      ];
-      
-      // Sort by created_at
-      activities.sort((a, b) => {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-      
-      const result = activities.slice(0, limit);
-      console.log(`Returning ${result.length} recent activities from fallback`);
-      return result;
-    } catch (fallbackError) {
-      console.error('Fallback approach failed:', fallbackError);
-      return [];
-    }
+    return getPlaceholderActivities();
   }
+}
+
+/**
+ * Helper function to get placeholder activities data
+ */
+function getPlaceholderActivities(): any[] {
+  return [
+    {
+      type: 'transaction',
+      description: 'Penerimaan setoran dari M.sabilul M.QQ H.N',
+      amount: 1000000,
+      created_at: new Date(Date.now() - 3600000).toISOString(),
+      id: '9053a534-bf33-41cd-9a95-8db09d86d84d'
+    },
+    {
+      type: 'loan',
+      description: 'Pinjaman aktif untuk Ahmad Fauzi',
+      amount: 4000000,
+      created_at: new Date(Date.now() - 7200000).toISOString(),
+      id: '2e15af0c-fa46-4582-b8f2-413b1ec6d598'
+    },
+    {
+      type: 'registration',
+      description: 'Pendaftaran baru dari Iqbal Isya Fathurrohman',
+      created_at: new Date(Date.now() - 10800000).toISOString(),
+      id: '449dd262-ae64-4efc-bafb-77bfe673f214',
+      status: 'diterima'
+    },
+    {
+      type: 'transaction',
+      description: 'Pengeluaran penarikan dari Safarina M QQ.Huda',
+      amount: 500000,
+      created_at: new Date(Date.now() - 14400000).toISOString(),
+      id: '7952a185-0d4e-4835-9845-09319f4c2e01'
+    },
+    {
+      type: 'loan',
+      description: 'Pinjaman lunas dari Amrina QQ Choirudin',
+      amount: 3000000,
+      created_at: new Date(Date.now() - 18000000).toISOString(),
+      id: '31053a4c-9e66-4f8e-9484-49c55bbc0d9d'
+    }
+  ];
 }
 
 /**

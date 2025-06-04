@@ -227,7 +227,7 @@ export function KetuaDashboard() {
       
       // 3. Check for problematic loans
       const { data: problematicLoans, error: problematicError } = await supabase
-        .from('pinjaman')
+        .from('pembiayaan')
         .select('id')
         .eq('status', 'bermasalah');
       
@@ -304,7 +304,7 @@ export function KetuaDashboard() {
         
         // Fetch new loans for current month
         const { data: currentMonthLoans, error: currentLoansError } = await supabase
-          .from('pinjaman')
+          .from('pembiayaan')
           .select('jumlah')
           .gte('created_at', startOfMonth(currentDate).toISOString())
           .lte('created_at', endOfMonth(currentDate).toISOString());
@@ -313,7 +313,7 @@ export function KetuaDashboard() {
         
         // Fetch new loans for previous month for comparison
         const { data: prevMonthLoans, error: prevLoansError } = await supabase
-          .from('pinjaman')
+          .from('pembiayaan')
           .select('jumlah')
           .gte('created_at', startOfMonth(lastMonth).toISOString())
           .lte('created_at', endOfMonth(lastMonth).toISOString());
