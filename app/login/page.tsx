@@ -111,7 +111,7 @@ function LoginUI() {
             type="button"
             variant="outline"
             className="w-full gap-2"
-            onClick={() => window.location.href = '/download'}
+            onClick={() => window.open('https://expo.dev/accounts/bmtfatihulbarokah/projects/koperasi-fatihul-barokah-mobile-apps/builds/9e2644bd-6b62-4329-bf8d-e4fee18e810e', '_blank')}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
