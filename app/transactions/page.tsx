@@ -36,8 +36,8 @@ interface Transaksi {
   kategori: string;
   deskripsi?: string;
   jumlah: number;
-  saldo_sebelum?: number;
-  saldo_sesudah?: number;
+  sebelum?: number;
+  sesudah?: number;
   pembiayaan_id?: string; // Database uses pembiayaan_id, not pinjaman_id
   tabungan_id?: string;
   created_at: string;
@@ -193,8 +193,8 @@ export default function TransactionsPage() {
           kategori: string;
           deskripsi?: string;
           jumlah: number;
-          saldo_sebelum?: number;
-          saldo_sesudah?: number;
+          sebelum?: number;
+          sesudah?: number;
           pembiayaan_id?: string;
           pembiayaan_jumlah?: number;
           pembiayaan_sisa?: number;
@@ -218,8 +218,8 @@ export default function TransactionsPage() {
           kategori: item.kategori,
           deskripsi: item.deskripsi,
           jumlah: item.jumlah,
-          saldo_sebelum: item.saldo_sebelum,
-          saldo_sesudah: item.saldo_sesudah,
+          sebelum: item.sebelum,
+          sesudah: item.sesudah,
           pembiayaan_id: item.pembiayaan_id,
           tabungan_id: item.tabungan_id,
           created_at: item.created_at,

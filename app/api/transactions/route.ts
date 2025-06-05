@@ -10,8 +10,8 @@ interface Transaksi {
   kategori: string;
   deskripsi?: string;
   jumlah: number;
-  saldo_sebelum?: number;
-  saldo_sesudah?: number;
+  sebelum?: number;
+  sesudah?: number;
   pinjaman_id?: string;
   tabungan_id?: string;
   created_at: string;
@@ -60,8 +60,8 @@ export async function GET() {
       kategori: string;
       deskripsi: string | null;
       jumlah: number;
-      saldo_sebelum: number;
-      saldo_sesudah: number;
+      sebelum: number;
+      sesudah: number;
       pembiayaan_id: string | null;
       tabungan_id: string | null;
       created_at: string;
@@ -86,8 +86,8 @@ export async function GET() {
       kategori: item.kategori,
       deskripsi: item.deskripsi,
       jumlah: item.jumlah,
-      saldo_sebelum: item.saldo_sebelum,
-      saldo_sesudah: item.saldo_sesudah,
+      sebelum: item.sebelum,
+      sesudah: item.sesudah,
       pembiayaan_id: item.pembiayaan_id,  // Note: frontend expects pinjaman_id
       tabungan_id: item.tabungan_id,
       created_at: item.created_at,

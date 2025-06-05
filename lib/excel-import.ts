@@ -748,8 +748,8 @@ export async function importTransactionData(
             kategori: kategori,
             jumlah: amount,
             deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} ${kategori} - ${accountOrLoanName}`,
-            saldo_sebelum: pinjamanData.sisa_pembayaran,
-            saldo_sesudah: newRemainingBalance,
+            sebelum: pinjamanData.sisa_pembayaran,
+            sesudah: newRemainingBalance,
             created_at: transactionDate.toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -808,8 +808,8 @@ export async function importTransactionData(
             kategori: kategori,
             jumlah: amount,
             deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} ${kategori} - ${accountOrLoanName}`,
-            saldo_sebelum: tabunganData.saldo,
-            saldo_sesudah: newBalance,
+            sebelum: tabunganData.saldo,
+            sesudah: newBalance,
             created_at: transactionDate.toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -980,8 +980,8 @@ export async function testInsertTransaction(): Promise<any> {
       tipe_transaksi: 'masuk',
       kategori: 'setoran',
       jumlah: amount,
-      saldo_sebelum: currentBalance,
-      saldo_sesudah: newBalance,
+      sebelum: currentBalance,
+      sesudah: newBalance,
       created_at: transactionDate.toISOString()
     });
     
@@ -996,8 +996,8 @@ export async function testInsertTransaction(): Promise<any> {
         kategori: 'setoran',
         jumlah: amount,
         deskripsi: 'Test transaction',
-        saldo_sebelum: currentBalance,
-        saldo_sesudah: newBalance,
+        sebelum: currentBalance,
+        sesudah: newBalance,
         created_at: transactionDate.toISOString(),
         updated_at: transactionDate.toISOString()
       })

@@ -73,8 +73,8 @@ export type Transaksi = {
   deskripsi?: string;
   reference_number?: string;
   jumlah: number;
-  saldo_sebelum: number;
-  saldo_sesudah: number;
+  sebelum: number;
+  sesudah: number;
   pinjaman_id?: string;
   created_at: Date;
   updated_at: Date;

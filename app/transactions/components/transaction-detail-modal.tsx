@@ -19,8 +19,8 @@ interface Transaksi {
   kategori: string;
   deskripsi?: string;
   jumlah: number;
-  saldo_sebelum?: number;
-  saldo_sesudah?: number;
+  sebelum?: number;
+  sesudah?: number;
   pinjaman_id?: string;
   tabungan_id?: string;
   created_at: string;
@@ -145,10 +145,10 @@ export function TransactionDetailModal({
                 {formatCurrency(Number(transaction.jumlah))}
               </p>
             </div>
-            {transaction.saldo_sesudah !== undefined && (
+            {transaction.sesudah !== undefined && (
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Saldo Akhir</p>
-                <p>{formatCurrency(Number(transaction.saldo_sesudah))}</p>
+                <p>{formatCurrency(Number(transaction.sesudah))}</p>
               </div>
             )}
           </div>

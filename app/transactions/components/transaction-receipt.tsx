@@ -19,8 +19,8 @@ interface Transaksi {
   kategori: string;
   deskripsi?: string;
   jumlah: number;
-  saldo_sebelum?: number;
-  saldo_sesudah?: number;
+  sebelum?: number;
+  sesudah?: number;
   pinjaman_id?: string;
   created_at: string;
   updated_at: string;
@@ -152,17 +152,17 @@ export function TransactionReceipt({
               </p>
             </div>
             
-            {transaction.saldo_sebelum !== undefined && (
+            {transaction.sebelum !== undefined && (
               <div className="flex justify-between items-center mb-1">
                 <p className="text-sm">Saldo Sebelum:</p>
-                <p className="text-sm">{formatCurrency(Number(transaction.saldo_sebelum))}</p>
+                <p className="text-sm">{formatCurrency(Number(transaction.sebelum))}</p>
               </div>
             )}
             
-            {transaction.saldo_sesudah !== undefined && (
+            {transaction.sesudah !== undefined && (
               <div className="flex justify-between items-center">
                 <p className="text-sm font-medium">Saldo Akhir:</p>
-                <p className="text-sm font-medium">{formatCurrency(Number(transaction.saldo_sesudah))}</p>
+                <p className="text-sm font-medium">{formatCurrency(Number(transaction.sesudah))}</p>
               </div>
             )}
           </div>

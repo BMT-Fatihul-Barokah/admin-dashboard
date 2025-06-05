@@ -147,11 +147,7 @@ export function LoanDetailModal({
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Kategori</p>
-              <p>{loan.kategori}</p>
-            </div>
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Deskripsi</p>
               <p>{loan.deskripsi || '-'}</p>

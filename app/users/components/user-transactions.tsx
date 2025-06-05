@@ -29,8 +29,8 @@ type Transaksi = {
   deskripsi?: string
   reference_number?: string
   jumlah: number
-  saldo_sebelum: number
-  saldo_sesudah: number
+  sebelum: number
+  sesudah: number
   pembiayaan_id?: string
   tabungan_id?: string
   created_at: string
@@ -164,7 +164,7 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        Rp {Number(transaction.saldo_sesudah).toLocaleString('id-ID')}
+                        Rp {Number(transaction.sesudah).toLocaleString('id-ID')}
                       </TableCell>
                     </TableRow>
                   ))}
