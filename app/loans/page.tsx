@@ -326,7 +326,8 @@ export default function LoansPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[240px]">Jenis Pembiayaan</TableHead>
+                <TableHead className="w-[180px]">Nama Anggota</TableHead>
+                <TableHead className="w-[200px]">Jenis Pembiayaan</TableHead>
                 <TableHead className="w-[100px]">Status</TableHead>
                 <TableHead className="text-right w-[140px]">Jumlah</TableHead>
                 <TableHead className="text-right w-[140px]">Sisa Pembayaran</TableHead>
@@ -338,7 +339,10 @@ export default function LoansPage() {
             <TableBody>
               {filteredPembiayaan.map((loan) => (
                 <TableRow key={loan.id}>
-                  <TableCell className="font-medium truncate max-w-[240px]" title={loan.jenis_pembiayaan}>
+                  <TableCell className="font-medium truncate max-w-[180px]" title={loan.anggota?.nama || 'Tidak ada nama'}>
+                    {loan.anggota?.nama || 'Tidak ada nama'}
+                  </TableCell>
+                  <TableCell className="truncate max-w-[200px]" title={loan.jenis_pembiayaan}>
                     {loan.jenis_pembiayaan}
                   </TableCell>
                   <TableCell className="text-center">
