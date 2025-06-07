@@ -16,7 +16,6 @@ interface Transaksi {
     nama: string;
   } | null;
   tipe_transaksi: string;
-  kategori: string;
   deskripsi?: string;
   jumlah: number;
   sebelum?: number;
@@ -54,25 +53,7 @@ export function TransactionReceipt({
     return `Rp ${amount.toLocaleString('id-ID')}`;
   };
 
-  // Map kategori to display name
-  const getKategoriDisplay = (kategori: string) => {
-    switch (kategori?.toLowerCase()) {
-      case 'setoran':
-        return 'Setoran';
-      case 'penarikan':
-        return 'Penarikan';
-      case 'pembayaran_pinjaman':
-        return 'Angsuran';
-      case 'pencairan_pinjaman':
-        return 'Pinjaman';
-      case 'biaya_admin':
-        return 'Biaya Admin';
-      case 'lainnya':
-        return 'Lainnya';
-      default:
-        return kategori;
-    }
-  };
+
 
   const handlePrint = useReactToPrint({
     documentTitle: `Bukti_Transaksi_${transaction?.reference_number || transaction?.id}`,
@@ -128,10 +109,7 @@ export function TransactionReceipt({
                 <p className="text-sm font-medium">Jenis Transaksi:</p>
                 <p className="text-sm">{transaction.tipe_transaksi === 'masuk' ? 'Masuk' : 'Keluar'}</p>
               </div>
-              <div>
-                <p className="text-sm font-medium">Kategori:</p>
-                <p className="text-sm">{getKategoriDisplay(transaction.kategori)}</p>
-              </div>
+
             </div>
             
             {transaction.deskripsi && (

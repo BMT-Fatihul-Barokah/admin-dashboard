@@ -51,21 +51,6 @@ export function LoanDetailModal({
           variant: 'outline',
           className: 'border-green-500 text-green-500'
         };
-      case 'diajukan':
-        return {
-          variant: 'secondary',
-          className: ''
-        };
-      case 'disetujui':
-        return {
-          variant: 'default',
-          className: 'bg-blue-500'
-        };
-      case 'ditolak':
-        return {
-          variant: 'destructive',
-          className: ''
-        };
       default:
         return {
           variant: 'default',
@@ -182,7 +167,7 @@ export function LoanDetailModal({
               variant="default" 
               className="flex-1"
               onClick={onRecordPayment}
-              disabled={loan.status === 'lunas' || loan.status === 'ditolak'}
+              disabled={loan.status === 'lunas'}
             >
               <CreditCard className="mr-2 h-4 w-4" />
               Catat Pembayaran

@@ -200,7 +200,7 @@ export async function getRecentActivities(limit: number = 5): Promise<any[]> {
     // Get recent transactions
     const { data: transactions, error: transactionError } = await supabase
       .from('transaksi')
-      .select('id, tipe_transaksi, kategori, jumlah, created_at, anggota_id')
+      .select('id, tipe_transaksi, jumlah, created_at, anggota_id')
       .order('created_at', { ascending: false })
       .limit(limit);
     
@@ -244,7 +244,7 @@ export async function getRecentActivities(limit: number = 5): Promise<any[]> {
       ...(transactions || []).map(t => ({
         id: t.id,
         type: 'transaction',
-        description: `${t.tipe_transaksi === 'masuk' ? 'Penerimaan' : 'Pengeluaran'} ${t.kategori} dari ${anggotaMap[t.anggota_id] || 'Anggota'}`,
+        description: `${t.tipe_transaksi === 'masuk' ? 'Penerimaan' : 'Pengeluaran'} dari ${anggotaMap[t.anggota_id] || 'Anggota'}`,
         amount: t.jumlah,
         created_at: t.created_at,
         status: t.tipe_transaksi

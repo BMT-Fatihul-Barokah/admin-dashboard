@@ -797,45 +797,8 @@ export function AdminDashboard() {
                     onChange={(e) => setAnalyticsTimeRange(e.target.value)}
                   >
                     <option value="6months">6 Bulan Terakhir</option>
-                    <option value="12months">12 Bulan Terakhir</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Anggota Baru</CardTitle>
-                    <UserPlus className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analyticsData?.totalRegistrations || 0}</div>
-                    <p className="text-xs text-muted-foreground">+{analyticsData?.registrationData?.[analyticsData?.registrationData?.length - 1]?.value || 0} bulan ini</p>
-                  </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Pinjaman</CardTitle>
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analyticsData?.totalLoanAmount || 0)}</div>
-                    <p className="text-xs text-muted-foreground">+{formatCurrency(analyticsData?.loanData?.[analyticsData?.loanData?.length - 1]?.value || 0)} bulan ini</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Transaksi</CardTitle>
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analyticsData?.totalTransactionAmount || 0)}</div>
-                    <p className="text-xs text-muted-foreground">+{formatCurrency(analyticsData?.transactionData?.[analyticsData?.transactionData?.length - 1]?.value || 0)} bulan ini</p>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 mb-4">
+                
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium">Statistik Transaksi</CardTitle>
@@ -859,24 +822,6 @@ export function AdminDashboard() {
                 </Card>
               </div>
             </>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Analitik</CardTitle>
-                <CardDescription>
-                  Grafik dan statistik kinerja koperasi
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[400px] flex items-center justify-center">
-                <div className="text-center">
-                  <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-4 text-lg font-medium">Tidak Ada Data Analitik</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Terjadi kesalahan saat memuat data analitik
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           )}
         </TabsContent>
         

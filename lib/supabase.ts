@@ -69,13 +69,12 @@ export type Transaksi = {
   id: string;
   anggota_id: string;
   tipe_transaksi: string;
-  kategori: string;
   deskripsi?: string;
-  reference_number?: string;
   jumlah: number;
   sebelum: number;
   sesudah: number;
-  pinjaman_id?: string;
+  pembiayaan_id?: string;
+  tabungan_id?: string;
   created_at: Date;
   updated_at: Date;
   anggota?: {

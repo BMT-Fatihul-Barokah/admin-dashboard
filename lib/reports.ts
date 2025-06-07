@@ -78,7 +78,7 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
     const { data: incomeData, error: incomeError } = await supabase
       .from('transaksi')
       .select('jumlah')
-      .in('kategori', ['setoran', 'pembayaran_pinjaman'])
+      .in('tipe_transaksi', ['setoran', 'pembayaran_pinjaman'])
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
     
@@ -88,7 +88,8 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
     const { data: expenseData, error: expenseError } = await supabase
       .from('transaksi')
       .select('jumlah')
-      .in('kategori', ['penarikan', 'pencairan_pinjaman', 'biaya_admin'])
+      .in('tipe_transaksi', ['penarikan', 'pencairan_pinjaman'])
+      .or(`tipe_transaksi.eq('keluar').ilike('deskripsi', '%biaya admin%')`)
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
     
@@ -282,7 +283,7 @@ export async function getFinancialTrends(periodType: 'weekly' | 'monthly' | 'qua
       const { data: incomeData, error: incomeError } = await supabase
         .from('transaksi')
         .select('jumlah')
-        .in('kategori', ['setoran', 'pembayaran_pinjaman'])
+        .in('tipe_transaksi', ['setoran', 'pembayaran_pinjaman'])
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
       
@@ -297,7 +298,8 @@ export async function getFinancialTrends(periodType: 'weekly' | 'monthly' | 'qua
       const { data: expenseData, error: expenseError } = await supabase
         .from('transaksi')
         .select('jumlah')
-        .in('kategori', ['penarikan', 'pencairan_pinjaman', 'biaya_admin'])
+        .in('tipe_transaksi', ['penarikan', 'pencairan_pinjaman'])
+        .or(`tipe_transaksi.eq('keluar').ilike('deskripsi', '%biaya admin%')`)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
       
@@ -547,7 +549,8 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     const { count: totalDeposits, error: depositsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('kategori', 'setoran')
+      .eq('tipe_transaksi', 'masuk')
+      .is('pembiayaan_id', null)
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
     
@@ -562,7 +565,8 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     const { count: totalWithdrawals, error: withdrawalsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('kategori', 'penarikan')
+      .eq('tipe_transaksi', 'keluar')
+      .is('pembiayaan_id', null)
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
     
@@ -577,7 +581,8 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     const { count: totalLoanDisbursements, error: disbursementsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('kategori', 'pencairan_pinjaman')
+      .eq('tipe_transaksi', 'masuk')
+      .not('pembiayaan_id', 'is', null)
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
     
@@ -592,7 +597,8 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     const { count: totalLoanPayments, error: paymentsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('kategori', 'pembayaran_pinjaman')
+      .eq('tipe_transaksi', 'keluar')
+      .not('pembiayaan_id', 'is', null)
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
     

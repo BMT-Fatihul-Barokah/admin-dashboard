@@ -16,7 +16,6 @@ interface Transaksi {
     nama: string;
   } | null;
   tipe_transaksi: string;
-  kategori: string;
   deskripsi?: string;
   jumlah: number;
   sebelum?: number;
@@ -70,26 +69,6 @@ export function TransactionDetailModal({
     return `Rp ${amount.toLocaleString('id-ID')}`;
   };
 
-  // Map kategori to display name
-  const getKategoriDisplay = (kategori: string) => {
-    switch (kategori.toLowerCase()) {
-      case 'setoran':
-        return 'Setoran';
-      case 'penarikan':
-        return 'Penarikan';
-      case 'pembayaran_pinjaman':
-        return 'Angsuran';
-      case 'pencairan_pinjaman':
-        return 'Pinjaman';
-      case 'biaya_admin':
-        return 'Biaya Admin';
-      case 'lainnya':
-        return 'Lainnya';
-      default:
-        return kategori;
-    }
-  };
-
   if (!transaction) return null;
 
   return (
@@ -126,10 +105,7 @@ export function TransactionDetailModal({
                 {transaction.tipe_transaksi === 'masuk' ? 'Masuk' : 'Keluar'}
               </Badge>
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Kategori</p>
-              <p>{getKategoriDisplay(transaction.kategori)}</p>
-            </div>
+
           </div>
           
           <div className="space-y-1">

@@ -10,6 +10,7 @@ export type Pembiayaan = {
   total_pembayaran: number;
   sisa_pembayaran: number;
   durasi_bulan: number;
+  sisa_bulan?: number;
   created_at: Date;
   updated_at: Date;
   deskripsi?: string;

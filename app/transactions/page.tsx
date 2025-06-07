@@ -33,7 +33,6 @@ interface Transaksi {
     nama: string;
   } | null;
   tipe_transaksi: string;
-  kategori: string;
   deskripsi?: string;
   jumlah: number;
   sebelum?: number;
@@ -98,40 +97,16 @@ export default function TransactionsPage() {
   };
   
   // Map transaction type to status for display
-  const getStatusFromType = (type: string, kategori: string) => {
+  const getStatusFromType = (type: string) => {
     if (type.toLowerCase() === 'masuk') {
       return 'Berhasil';
     } else if (type.toLowerCase() === 'keluar') {
-      if (kategori.toLowerCase() === 'pencairan_pinjaman') {
-        return 'Diproses';
-      } else {
-        return 'Berhasil';
-      }
+      return 'Berhasil';
     }
     return 'Berhasil';
   };
   
-  // Map kategori to display name
-  const getKategoriDisplay = (kategori: string) => {
-    switch (kategori.toLowerCase()) {
-      case 'setoran':
-        return 'Setoran';
-      case 'penarikan':
-        return 'Penarikan';
-      case 'pembayaran_pinjaman':
-        return 'Angsuran';
-      case 'pencairan_pinjaman':
-        return 'Pinjaman';
-      case 'biaya_admin':
-        return 'Biaya Admin';
-      case 'bunga':
-        return 'Bunga';
-      case 'lainnya':
-        return 'Lainnya';
-      default:
-        return kategori;
-    }
-  };
+
   
   // Fetch transactions from API route with fallback mechanism
   const fetchTransactions = async () => {
@@ -190,7 +165,6 @@ export default function TransactionsPage() {
           anggota_id: string;
           anggota_nama?: string;
           tipe_transaksi: string;
-          kategori: string;
           deskripsi?: string;
           jumlah: number;
           sebelum?: number;
@@ -215,7 +189,6 @@ export default function TransactionsPage() {
           reference_number: item.reference_number,
           anggota_id: item.anggota_id,
           tipe_transaksi: item.tipe_transaksi,
-          kategori: item.kategori,
           deskripsi: item.deskripsi,
           jumlah: item.jumlah,
           sebelum: item.sebelum,
@@ -292,7 +265,6 @@ export default function TransactionsPage() {
         (transaction.reference_number && transaction.reference_number.toLowerCase().includes(query)) ||
         (transaction.anggota?.nama && transaction.anggota.nama.toLowerCase().includes(query)) ||
         transaction.tipe_transaksi.toLowerCase().includes(query) ||
-        transaction.kategori.toLowerCase().includes(query) ||
         (transaction.deskripsi && transaction.deskripsi.toLowerCase().includes(query))
       )
     }
@@ -304,12 +276,7 @@ export default function TransactionsPage() {
       )
     }
     
-    // Apply category filter
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter(transaction => 
-        transaction.kategori.toLowerCase() === categoryFilter.toLowerCase()
-      )
-    }
+
     
     // Apply date range filter
     if (dateStart) {
@@ -356,7 +323,6 @@ export default function TransactionsPage() {
   const resetFilters = () => {
     setSearchQuery('')
     setTypeFilter('all')
-    setCategoryFilter('all')
     setDateStart('')
     setDateEnd('')
     setAmountMin('')
@@ -367,7 +333,7 @@ export default function TransactionsPage() {
   // Handle search and filters
   useEffect(() => {
     applyFilters()
-  }, [transactions, searchQuery, typeFilter, categoryFilter, dateStart, dateEnd, amountMin, amountMax])
+  }, [transactions, searchQuery, typeFilter, dateStart, dateEnd, amountMin, amountMax])
   
   // Handle pagination changes
   useEffect(() => {
@@ -385,7 +351,6 @@ export default function TransactionsPage() {
     const fieldMap = {
       'anggota.nama': 'Nama Anggota',
       tipe_transaksi: 'Jenis Transaksi',
-      kategori: 'Kategori',
       jumlah: 'Jumlah',
       'rekening_pinjaman': 'Rekening/Pinjaman',
       created_at: 'Tanggal'
@@ -395,7 +360,6 @@ export default function TransactionsPage() {
     type ExportFormat = {
       'Nama Anggota': string;
       'Jenis Transaksi': string;
-      'Kategori': string;
       'Jumlah': number;
       'Rekening/Pinjaman': string;
       'Tanggal': string;
@@ -528,18 +492,7 @@ export default function TransactionsPage() {
               <SelectItem value="keluar">Keluar</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Kategori</SelectItem>
-              <SelectItem value="setoran">Setoran</SelectItem>
-              <SelectItem value="penarikan">Penarikan</SelectItem>
-              <SelectItem value="pembayaran_pinjaman">Angsuran</SelectItem>
-              <SelectItem value="lainnya">Lainnya</SelectItem>
-            </SelectContent>
-          </Select>
+
         </div>
         <div className="ml-auto"></div>
         <Button variant="outline" size="icon" onClick={fetchTransactions}>
@@ -579,7 +532,6 @@ export default function TransactionsPage() {
                 <TableHead>ID Transaksi</TableHead>
                 <TableHead>Nama Anggota</TableHead>
                 <TableHead>Jenis</TableHead>
-                <TableHead>Kategori</TableHead>
                 <TableHead>Jumlah</TableHead>
                 <TableHead>Rekening/Pinjaman</TableHead>
                 <TableHead>Tanggal</TableHead>
@@ -598,7 +550,6 @@ export default function TransactionsPage() {
                       {transaction.tipe_transaksi === 'masuk' ? 'Masuk' : 'Keluar'}
                     </Badge>
                   </TableCell>
-                  <TableCell>{getKategoriDisplay(transaction.kategori)}</TableCell>
                   <TableCell>
                     {transaction.tipe_transaksi === 'masuk' ? '+ ' : '- '}
                     {formatCurrency(Number(transaction.jumlah))}

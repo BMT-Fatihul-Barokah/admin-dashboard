@@ -53,7 +53,7 @@ type FinancialSummary = {
     count: number;
   };
   top_income_categories?: Array<{
-    kategori: string;
+    transaction_type: string;
     total: number;
   }>;
   monthly_trend?: Array<{
@@ -100,22 +100,9 @@ export function BendaraDashboard() {
     }
   };
   
-  // Format category name for display
-  const formatCategory = (category: string) => {
-    const categoryMap: Record<string, string> = {
-      'setoran_awal': 'Setoran Awal',
-      'setoran_rutin': 'Setoran Rutin',
-      'biaya_admin': 'Biaya Admin',
-      'pembayaran_pembiayaan': 'Pembayaran Pembiayaan',
-      'bagi_hasil': 'Bagi Hasil',
-      'penarikan_tunai': 'Penarikan Tunai',
-      'biaya_umroh': 'Biaya Umroh',
-      'biaya_nikah': 'Biaya Nikah',
-      'biaya_pendidikan': 'Biaya Pendidikan',
-      'penarikan': 'Penarikan'
-    };
-    
-    return categoryMap[category] || category.replace(/_/g, ' ');
+  // Transaction type formatter
+  const formatTransactionType = (type: string) => {
+    return type === 'masuk' ? 'Penerimaan' : 'Pengeluaran';
   };
   
   // Get trend icon based on percentage change
@@ -304,7 +291,7 @@ export function BendaraDashboard() {
                               index === 0 ? 'bg-green-500' : 
                               index === 1 ? 'bg-blue-500' : 'bg-purple-500'
                             }`}></div>
-                            <span className="text-sm">{formatCategory(category.kategori)}</span>
+                            <span className="text-sm">{category.transaction_type === 'masuk' ? 'Penerimaan' : 'Pengeluaran'}</span>
                           </div>
                           <span className="text-sm font-medium">{formatCurrency(category.total)}</span>
                         </div>

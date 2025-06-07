@@ -95,10 +95,10 @@ async function getFinancialSummaryFallback() {
       .select('sisa_pembayaran, status')
       .eq('status', 'aktif');
     
-    // Get top income categories
-    const { data: topCategories } = await supabase
+    // Get top income transactions
+    const { data: topTransactions } = await supabase
       .from('transaksi')
-      .select('kategori, jumlah')
+      .select('jumlah, anggota_id, tipe_transaksi')
       .eq('tipe_transaksi', 'masuk')
       .gte('created_at', currentMonthStart)
       .lte('created_at', currentMonthEnd)
@@ -143,9 +143,9 @@ async function getFinancialSummaryFallback() {
     // Calculate active loans
     const totalLoansAmount = totalLoans?.reduce((sum, item) => sum + Number(item.sisa_pembayaran), 0) || 0;
     
-    // Process top categories
-    const processedCategories = topCategories?.map(item => ({
-      kategori: item.kategori,
+    // Process top transactions (grouped by transaction type instead of kategori)
+    const processedTransactions = topTransactions?.map(item => ({
+      transaction_type: item.tipe_transaksi,
       total: Number(item.jumlah)
     })) || [];
     
@@ -182,7 +182,7 @@ async function getFinancialSummaryFallback() {
         amount: totalLoansAmount,
         count: totalLoans?.length || 0
       },
-      top_income_categories: processedCategories,
+      top_income_categories: processedTransactions,
       monthly_trend: monthlyTrend
     };
     
