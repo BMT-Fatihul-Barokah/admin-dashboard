@@ -375,7 +375,7 @@ export async function importTransactionData(
     // Check for existing transactions today to avoid duplicates
     const { data: existingTransactions, error: fetchError } = await supabase
       .from('transaksi')
-      .select('reference_number, anggota_id, tipe_transaksi, kategori, jumlah, created_at')
+      .select('id, anggota_id, tipe_transaksi, source_type, jumlah, created_at')
       .gte('created_at', startOfDay.toISOString())
       .lte('created_at', endOfDay.toISOString());
 
@@ -539,10 +539,10 @@ export async function importTransactionData(
           
           // Normalize transaction type and category first (moved up to avoid reference errors)
           const tipeTransaksi = row['Jenis Transaksi'].toLowerCase() === 'keluar' ? 'keluar' : 'masuk';
-          let kategori = row['Kategori'].toLowerCase();
+          let source_type = row['Kategori'].toLowerCase();
 
-          // Map common categories
-          const kategoriMap: {[key: string]: string} = {
+          // Map common source types
+          const sourceTypeMap: {[key: string]: string} = {
             'setoran': 'setoran',
             'penarikan': 'penarikan',
             'bunga': 'bunga',
@@ -567,7 +567,7 @@ export async function importTransactionData(
             'lainnya': 'lainnya'
           };
 
-          kategori = kategoriMap[kategori] || 'lainnya';
+          source_type = sourceTypeMap[source_type] || 'lainnya';
           
           // If no active loan found, try to find the most recent loan of this type regardless of status
           if (loanError || !loanData || loanData.length === 0) {
@@ -585,7 +585,7 @@ export async function importTransactionData(
               console.error(`No loan found for member: ${anggotaData.nama}, loan type: ${accountOrLoanName}, error:`, anyLoanError);
               
               // If this is a loan payment and no loan is found, we'll create a special error record
-              if (kategori === 'pembayaran_pinjaman') {
+              if (source_type === 'pembayaran_pinjaman') {
                 result.errors.push({
                   row: result.processed,
                   data: row,
@@ -606,7 +606,7 @@ export async function importTransactionData(
           console.log(`Using loan: ${pinjamanData.id} with status ${pinjamanData.status} and remaining balance ${pinjamanData.sisa_pembayaran}`);
           
           // If the loan is already paid off (status = 'lunas') and this is a payment, warn about it
-          if (pinjamanData.status === 'lunas' && kategori === 'pembayaran_pinjaman') {
+          if (pinjamanData.status === 'lunas' && source_type === 'pembayaran_pinjaman') {
             console.warn(`Warning: Payment for an already paid off loan: ${pinjamanData.id} for member ${anggotaData.nama}`);
           }
           console.log(`Found loan: ${pinjamanData.id} with remaining balance ${pinjamanData.sisa_pembayaran}`);
@@ -669,10 +669,10 @@ export async function importTransactionData(
 
         // Normalize transaction type and category
         const tipeTransaksi = row['Jenis Transaksi'].toLowerCase() === 'keluar' ? 'keluar' : 'masuk';
-        let kategori = row['Kategori'].toLowerCase();
+        let source_type = row['Kategori'].toLowerCase();
 
-        // Map common categories
-        const kategoriMap: {[key: string]: string} = {
+        // Map common source types
+        const sourceTypeMap: {[key: string]: string} = {
           'setoran': 'setoran',
           'penarikan': 'penarikan',
           'bunga': 'bunga',
@@ -697,26 +697,21 @@ export async function importTransactionData(
           'lainnya': 'lainnya'
         };
 
-        kategori = kategoriMap[kategori] || 'lainnya';
+        source_type = sourceTypeMap[source_type] || 'lainnya';
 
         // Check for potential duplicates
         const isDuplicate = existingTransactions?.some(t => {
-          // Check if there's already a transaction with same member, type, category, and amount today
+          // Check if there's already a transaction with same member, type, source_type, and amount today
           return t.anggota_id === anggotaData.id &&
                  t.tipe_transaksi === tipeTransaksi &&
-                 t.kategori === kategori &&
+                 t.source_type === (isLoanTransaction ? 'pembiayaan' : 'tabungan') &&
                  Math.abs(Number(t.jumlah) - amount) < 0.01; // Allow for small floating point differences
         });
 
         if (isDuplicate) {
-          console.log(`Potential duplicate transaction detected for ${row['Nama Anggota']}, ${tipeTransaksi}, ${kategori}, ${amount}`);
+          console.log(`Potential duplicate transaction detected for ${row['Nama Anggota']}, ${tipeTransaksi}, ${source_type}, ${amount}`);
           // We'll still add it, but log the warning
         }
-
-        // Generate reference number
-        const dateStr = transactionDate.toISOString().split('T')[0].replace(/-/g, '');
-        const randomStr = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        const referenceNumber = `TRX-${dateStr}-${randomStr}`;
 
         // Prepare transaction data based on whether it's a savings or loan transaction
         let transactionData: any;
@@ -725,11 +720,11 @@ export async function importTransactionData(
           // For loan transactions
           // Calculate new remaining balance for the loan
           let newRemainingBalance = Number(pinjamanData.sisa_pembayaran);
-          if (tipeTransaksi === 'masuk' && kategori === 'pembayaran_pinjaman') {
+          if (tipeTransaksi === 'masuk' && source_type === 'pembayaran_pinjaman') {
             // Payment towards the loan reduces the remaining balance
             newRemainingBalance -= amount;
             if (newRemainingBalance < 0) newRemainingBalance = 0; // Prevent negative balance
-          } else if (tipeTransaksi === 'keluar' && kategori === 'pencairan_pinjaman') {
+          } else if (tipeTransaksi === 'keluar' && source_type === 'pencairan_pinjaman') {
             // Loan disbursement increases the remaining balance
             newRemainingBalance += amount;
           }
@@ -742,12 +737,11 @@ export async function importTransactionData(
           // Prepare transaction data for loan
           transactionData = {
             anggota_id: anggotaData.id,
-            pinjaman_id: pinjamanData.id,
-            reference_number: referenceNumber,
+            pembiayaan_id: pinjamanData.id,
             tipe_transaksi: tipeTransaksi,
-            kategori: kategori,
+            source_type: 'pembiayaan',
             jumlah: amount,
-            deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} ${kategori} - ${accountOrLoanName}`,
+            deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} pembiayaan - ${accountOrLoanName}`,
             sebelum: pinjamanData.sisa_pembayaran,
             sesudah: newRemainingBalance,
             created_at: transactionDate.toISOString(),
@@ -803,11 +797,10 @@ export async function importTransactionData(
           transactionData = {
             anggota_id: anggotaData.id,
             tabungan_id: tabunganData.id,
-            reference_number: referenceNumber,
             tipe_transaksi: tipeTransaksi,
-            kategori: kategori,
+            source_type: 'tabungan',
             jumlah: amount,
-            deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} ${kategori} - ${accountOrLoanName}`,
+            deskripsi: row['Deskripsi'] || `${tipeTransaksi.charAt(0).toUpperCase() + tipeTransaksi.slice(1)} tabungan - ${accountOrLoanName}`,
             sebelum: tabunganData.saldo,
             sesudah: newBalance,
             created_at: transactionDate.toISOString(),
@@ -969,16 +962,12 @@ export async function testInsertTransaction(): Promise<any> {
     const currentBalance = Number(tabunganData.saldo);
     const newBalance = currentBalance + amount;
     const transactionDate = new Date();
-    const dateStr = transactionDate.toISOString().split('T')[0].replace(/-/g, '');
-    const randomStr = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const referenceNumber = `TRX-${dateStr}-${randomStr}`;
     
     console.log('Attempting to insert test transaction:', {
       anggota_id: anggotaData.id,
       tabungan_id: tabunganData.id,
-      reference_number: referenceNumber,
       tipe_transaksi: 'masuk',
-      kategori: 'setoran',
+      source_type: 'tabungan',
       jumlah: amount,
       sebelum: currentBalance,
       sesudah: newBalance,
@@ -991,9 +980,8 @@ export async function testInsertTransaction(): Promise<any> {
       .insert({
         anggota_id: anggotaData.id,
         tabungan_id: tabunganData.id,
-        reference_number: referenceNumber,
         tipe_transaksi: 'masuk',
-        kategori: 'setoran',
+        source_type: 'tabungan',
         jumlah: amount,
         deskripsi: 'Test transaction',
         sebelum: currentBalance,

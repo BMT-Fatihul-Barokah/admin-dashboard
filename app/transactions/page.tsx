@@ -27,12 +27,13 @@ import { TransactionFormModal } from "./components/transaction-form-modal"
 // Define transaction type
 interface Transaksi {
   id: string;
-  reference_number?: string;
   anggota_id: string;
   anggota?: {
     nama: string;
+    nomor_rekening: string;
   } | null;
   tipe_transaksi: string;
+  source_type?: string;
   deskripsi?: string;
   jumlah: number;
   sebelum?: number;
@@ -42,7 +43,6 @@ interface Transaksi {
   created_at: string;
   updated_at: string;
   tabungan?: { 
-    nomor_rekening: string;
     saldo: number;
     jenis_tabungan_id: string;
     jenis_tabungan?: {
@@ -161,7 +161,6 @@ export default function TransactionsPage() {
         // Define the type for the flattened data from RPC
         type FlattenedTransaksi = {
           id: string;
-          reference_number?: string;
           anggota_id: string;
           anggota_nama?: string;
           tipe_transaksi: string;
@@ -174,7 +173,6 @@ export default function TransactionsPage() {
           pembiayaan_sisa?: number;
           pembiayaan_jenis?: string;
           tabungan_id?: string;
-          tabungan_nomor_rekening?: string;
           tabungan_saldo?: number;
           tabungan_jenis_id?: string;
           tabungan_jenis_nama?: string;
@@ -186,7 +184,6 @@ export default function TransactionsPage() {
         // Transform the flat data structure into the nested structure expected by the component
         const transformedData = data.map((item: FlattenedTransaksi) => ({
           id: item.id,
-          reference_number: item.reference_number,
           anggota_id: item.anggota_id,
           tipe_transaksi: item.tipe_transaksi,
           deskripsi: item.deskripsi,
@@ -198,8 +195,7 @@ export default function TransactionsPage() {
           created_at: item.created_at,
           updated_at: item.updated_at,
           anggota: item.anggota_nama ? { nama: item.anggota_nama } : null,
-          tabungan: item.tabungan_nomor_rekening ? {
-            nomor_rekening: item.tabungan_nomor_rekening,
+          tabungan: item.tabungan_jenis_id ? {
             saldo: item.tabungan_saldo,
             jenis_tabungan_id: item.tabungan_jenis_id,
             jenis_tabungan: item.tabungan_jenis_nama ? {
@@ -211,7 +207,7 @@ export default function TransactionsPage() {
             id: item.pembiayaan_id,
             jumlah: item.pembiayaan_jumlah,
             sisa_pembayaran: item.pembiayaan_sisa,
-            jenis_pinjaman: item.pembiayaan_jenis
+            jenis_pinjaman: item.pembiayaan_jenis || 'Unknown'
           } : null
         }))
         
@@ -262,7 +258,7 @@ export default function TransactionsPage() {
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(transaction => 
-        (transaction.reference_number && transaction.reference_number.toLowerCase().includes(query)) ||
+        (transaction.id && transaction.id.toLowerCase().includes(query)) ||
         (transaction.anggota?.nama && transaction.anggota.nama.toLowerCase().includes(query)) ||
         transaction.tipe_transaksi.toLowerCase().includes(query) ||
         (transaction.deskripsi && transaction.deskripsi.toLowerCase().includes(query))
@@ -542,7 +538,7 @@ export default function TransactionsPage() {
               {getCurrentPageData().map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell className="font-medium">
-                    {transaction.reference_number || transaction.id.substring(0, 8)}
+                    {transaction.id.substring(0, 8)}
                   </TableCell>
                   <TableCell>{transaction.anggota?.nama || 'Anggota'}</TableCell>
                   <TableCell>
@@ -558,7 +554,7 @@ export default function TransactionsPage() {
                     {transaction.tabungan ? (
                       <div className="flex flex-col">
                         <span className="text-xs font-medium">{transaction.tabungan.jenis_tabungan?.nama || 'Tabungan'}</span>
-                        <span className="text-xs text-muted-foreground">{transaction.tabungan.nomor_rekening}</span>
+                        <span className="text-xs text-muted-foreground">Saldo: {formatCurrency(Number(transaction.tabungan.saldo || 0))}</span>
                       </div>
                     ) : transaction.pinjaman ? (
                       <div className="flex flex-col">

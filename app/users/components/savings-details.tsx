@@ -18,7 +18,6 @@ interface SavingsDetailsProps {
 
 interface SavingsAccount {
   id: string
-  nomor_rekening: string
   anggota_id: string
   anggota_nama: string
   jenis_tabungan_id: string
@@ -131,7 +130,7 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle>{account.jenis_tabungan_nama}</CardTitle>
-                  <CardDescription>{account.nomor_rekening}</CardDescription>
+                  <CardDescription>ID: {account.id.substring(0, 8)}</CardDescription>
                 </div>
                 <Badge variant={account.status === 'aktif' ? 'default' : 'destructive'} className={account.is_default ? "bg-primary" : ""}>
                   {account.is_default ? 'Utama' : account.status}
@@ -223,9 +222,7 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
         <UserTransactions 
           user={{
             id: userId,
-            nama: selectedAccount.anggota_nama,
-            nomor_rekening: selectedAccount.nomor_rekening,
-            saldo: selectedAccount.saldo
+            nama: selectedAccount.anggota_nama
           }}
           open={transactionsOpen}
           onOpenChange={setTransactionsOpen}

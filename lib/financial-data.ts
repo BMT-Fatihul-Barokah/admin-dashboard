@@ -301,9 +301,9 @@ export async function getFinancialSummary() {
         count: 8
       },
       top_income_categories: [
-        { kategori: 'setoran_rutin', total: 3500000 },
-        { kategori: 'setoran_awal', total: 1500000 },
-        { kategori: 'pembayaran_pembiayaan', total: 1200000 }
+        { source_type: 'tabungan', total: 3500000 },
+        { source_type: 'tabungan', total: 1500000 },
+        { source_type: 'pembiayaan', total: 1200000 }
       ],
       monthly_trend: [
         { month: 'Jan', income: 5000000, expenses: 3000000, balance: 2000000 },

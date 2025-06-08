@@ -42,6 +42,7 @@ const formSchema = z.object({
     invalid_type_error: "Jumlah harus berupa angka",
   }).positive("Jumlah harus lebih dari 0"),
   deskripsi: z.string().optional(),
+  source_type: z.string().optional(),
   pinjaman_id: z.string().optional(), // Keep for frontend compatibility
   pembiayaan_id: z.string().optional(), // Add for database compatibility
   jenis_tabungan_id: z.string().optional(),
@@ -107,6 +108,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       tipe_transaksi: "",
       jumlah: undefined,
       deskripsi: "",
+      source_type: "",
       jenis_tabungan_id: "",
       pinjaman_id: "",
     },
@@ -275,7 +277,11 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       const formData = {
         ...values,
         // Map pinjaman_id to pembiayaan_id for database compatibility
-        pembiayaan_id: values.pinjaman_id
+        pembiayaan_id: values.pinjaman_id,
+        // Set source_type based on transaction type
+        source_type: values.tipe_transaksi === "masuk" ? 
+          (values.pinjaman_id ? "pembiayaan" : "tabungan") : 
+          (values.pinjaman_id ? "pembiayaan" : "tabungan")
       };
       
       const response = await fetch('/api/transactions', {

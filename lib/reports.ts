@@ -175,10 +175,10 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
   }
 }
 
-// Get transaction distribution by category
+// Get transaction distribution by source type
 export async function getTransactionDistribution(period: Date = new Date()): Promise<TransactionDistribution[]> {
-  // Define category colors for visualization - using more vibrant colors
-  const categoryColors: Record<string, string> = {
+  // Define source type colors for visualization - using more vibrant colors
+  const sourceTypeColors: Record<string, string> = {
     'Setoran': '#3b82f6', // blue
     'Penarikan': '#ef4444', // red
     'Pembayaran Pinjaman': '#10b981', // green
@@ -199,58 +199,58 @@ export async function getTransactionDistribution(period: Date = new Date()): Pro
   switch (monthIndex) {
     case 0: // January
       sampleData = [
-        { category: 'Setoran', amount: 3800000, percentage: 48, color: categoryColors['Setoran'] },
-        { category: 'Penarikan', amount: 1800000, percentage: 23, color: categoryColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1600000, percentage: 20, color: categoryColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 700000, percentage: 9, color: categoryColors['Pencairan Pinjaman'] }
+        { category: 'Setoran', amount: 3800000, percentage: 48, color: sourceTypeColors['Setoran'] },
+        { category: 'Penarikan', amount: 1800000, percentage: 23, color: sourceTypeColors['Penarikan'] },
+        { category: 'Pembayaran Pinjaman', amount: 1600000, percentage: 20, color: sourceTypeColors['Pembayaran Pinjaman'] },
+        { category: 'Pencairan Pinjaman', amount: 700000, percentage: 9, color: sourceTypeColors['Pencairan Pinjaman'] }
       ];
       break;
     case 1: // February
       sampleData = [
-        { category: 'Setoran', amount: 3200000, percentage: 42, color: categoryColors['Setoran'] },
-        { category: 'Penarikan', amount: 2200000, percentage: 29, color: categoryColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1400000, percentage: 18, color: categoryColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 850000, percentage: 11, color: categoryColors['Pencairan Pinjaman'] }
+        { category: 'Setoran', amount: 3200000, percentage: 42, color: sourceTypeColors['Setoran'] },
+        { category: 'Penarikan', amount: 2200000, percentage: 29, color: sourceTypeColors['Penarikan'] },
+        { category: 'Pembayaran Pinjaman', amount: 1400000, percentage: 18, color: sourceTypeColors['Pembayaran Pinjaman'] },
+        { category: 'Pencairan Pinjaman', amount: 850000, percentage: 11, color: sourceTypeColors['Pencairan Pinjaman'] }
       ];
       break;
     case 2: // March
       sampleData = [
-        { category: 'Setoran', amount: 3600000, percentage: 43, color: categoryColors['Setoran'] },
-        { category: 'Penarikan', amount: 2100000, percentage: 25, color: categoryColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1700000, percentage: 20, color: categoryColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 950000, percentage: 12, color: categoryColors['Pencairan Pinjaman'] }
+        { category: 'Setoran', amount: 3600000, percentage: 43, color: sourceTypeColors['Setoran'] },
+        { category: 'Penarikan', amount: 2100000, percentage: 25, color: sourceTypeColors['Penarikan'] },
+        { category: 'Pembayaran Pinjaman', amount: 1700000, percentage: 20, color: sourceTypeColors['Pembayaran Pinjaman'] },
+        { category: 'Pencairan Pinjaman', amount: 950000, percentage: 12, color: sourceTypeColors['Pencairan Pinjaman'] }
       ];
       break;
     case 3: // April
       sampleData = [
-        { category: 'Setoran', amount: 4100000, percentage: 47, color: categoryColors['Setoran'] },
-        { category: 'Penarikan', amount: 2300000, percentage: 26, color: categoryColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1500000, percentage: 17, color: categoryColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 850000, percentage: 10, color: categoryColors['Pencairan Pinjaman'] }
+        { category: 'Setoran', amount: 4100000, percentage: 47, color: sourceTypeColors['Setoran'] },
+        { category: 'Penarikan', amount: 2300000, percentage: 26, color: sourceTypeColors['Penarikan'] },
+        { category: 'Pembayaran Pinjaman', amount: 1500000, percentage: 17, color: sourceTypeColors['Pembayaran Pinjaman'] },
+        { category: 'Pencairan Pinjaman', amount: 850000, percentage: 10, color: sourceTypeColors['Pencairan Pinjaman'] }
       ];
       break;
     case 4: // May
       sampleData = [
-        { category: 'Setoran', amount: 3900000, percentage: 44, color: categoryColors['Setoran'] },
-        { category: 'Penarikan', amount: 2500000, percentage: 28, color: categoryColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1600000, percentage: 18, color: categoryColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 900000, percentage: 10, color: categoryColors['Pencairan Pinjaman'] }
+        { category: 'Setoran', amount: 3900000, percentage: 44, color: sourceTypeColors['Setoran'] },
+        { category: 'Penarikan', amount: 2500000, percentage: 28, color: sourceTypeColors['Penarikan'] },
+        { category: 'Pembayaran Pinjaman', amount: 1600000, percentage: 18, color: sourceTypeColors['Pembayaran Pinjaman'] },
+        { category: 'Pencairan Pinjaman', amount: 900000, percentage: 10, color: sourceTypeColors['Pencairan Pinjaman'] }
       ];
       break;
     case 5: // June
       sampleData = [
-        { category: 'Setoran', amount: 4200000, percentage: 46, color: categoryColors['Setoran'] },
-        { category: 'Penarikan', amount: 2400000, percentage: 26, color: categoryColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1700000, percentage: 19, color: categoryColors['Pembayaran Pinjaman'] },
-        { category: 'Biaya Admin', amount: 800000, percentage: 9, color: categoryColors['Biaya Admin'] }
+        { category: 'Setoran', amount: 4200000, percentage: 46, color: sourceTypeColors['Setoran'] },
+        { category: 'Penarikan', amount: 2400000, percentage: 26, color: sourceTypeColors['Penarikan'] },
+        { category: 'Pembayaran Pinjaman', amount: 1700000, percentage: 19, color: sourceTypeColors['Pembayaran Pinjaman'] },
+        { category: 'Biaya Admin', amount: 800000, percentage: 9, color: sourceTypeColors['Biaya Admin'] }
       ];
       break;
     default: // Default/fallback for other months
       sampleData = [
-        { category: 'Setoran', amount: 3500000, percentage: 45, color: categoryColors['Setoran'] },
-        { category: 'Penarikan', amount: 2000000, percentage: 25, color: categoryColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1500000, percentage: 20, color: categoryColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 800000, percentage: 10, color: categoryColors['Pencairan Pinjaman'] }
+        { category: 'Setoran', amount: 3500000, percentage: 45, color: sourceTypeColors['Setoran'] },
+        { category: 'Penarikan', amount: 2000000, percentage: 25, color: sourceTypeColors['Penarikan'] },
+        { category: 'Pembayaran Pinjaman', amount: 1500000, percentage: 20, color: sourceTypeColors['Pembayaran Pinjaman'] },
+        { category: 'Pencairan Pinjaman', amount: 800000, percentage: 10, color: sourceTypeColors['Pencairan Pinjaman'] }
       ];
   }
   

@@ -3,28 +3,34 @@ import { supabase } from './supabase';
 export type Pembiayaan = {
   id: string;
   anggota_id: string;
-  jenis_pembiayaan: string;
+  jenis_pembiayaan_id: string;
   status: string;
   jumlah: number;
   jatuh_tempo: Date;
   total_pembayaran: number;
   sisa_pembayaran: number;
-  durasi_bulan: number;
+  jangka_waktu: number;
   sisa_bulan?: number;
   created_at: Date;
   updated_at: Date;
   deskripsi?: string;
   anggota?: {
     nama: string;
+    nomor_rekening: string;
+  };
+  jenis_pembiayaan?: {
+    nama: string;
+    kode: string;
+    deskripsi?: string;
   };
 }
 
 export type PembiayaanInput = {
   anggota_id: string;
-  jenis_pembiayaan: string;
+  jenis_pembiayaan_id: string;
   jumlah: number;
   jatuh_tempo: string;
-  durasi_bulan: number;
+  jangka_waktu: number;
   deskripsi?: string;
 }
 
@@ -39,7 +45,8 @@ export async function getAllPembiayaan(): Promise<Pembiayaan[]> {
       .from('pembiayaan')
       .select(`
         *,
-        anggota:anggota_id(nama)
+        anggota:anggota_id(nama, nomor_rekening),
+        jenis_pembiayaan:jenis_pembiayaan_id(nama, kode, deskripsi)
       `)
       .order('created_at', { ascending: false });
     
@@ -63,9 +70,10 @@ export async function searchPembiayaan(query: string): Promise<Pembiayaan[]> {
     .from('pembiayaan')
     .select(`
       *,
-      anggota:anggota_id(nama)
+      anggota:anggota_id(nama, nomor_rekening),
+      jenis_pembiayaan:jenis_pembiayaan_id(nama, kode, deskripsi)
     `)
-    .or(`jenis_pembiayaan.ilike.%${query}%, status.ilike.%${query}%, kategori.ilike.%${query}%`)
+    .or(`status.ilike.%${query}%, deskripsi.ilike.%${query}%`)
     .order('created_at', { ascending: false });
   
   if (error) {
@@ -84,7 +92,8 @@ export async function getPembiayaanByStatus(status: string): Promise<Pembiayaan[
     .from('pembiayaan')
     .select(`
       *,
-      anggota:anggota_id(nama)
+      anggota:anggota_id(nama, nomor_rekening),
+      jenis_pembiayaan:jenis_pembiayaan_id(nama, kode, deskripsi)
     `)
     .eq('status', status)
     .order('created_at', { ascending: false });
@@ -103,7 +112,7 @@ export async function getPembiayaanByStatus(status: string): Promise<Pembiayaan[
 export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise<{ success: boolean; error?: any; data?: any }> {
   try {
     // Basic validation
-    if (!pembiayaanData.anggota_id || !pembiayaanData.jenis_pembiayaan || !pembiayaanData.jatuh_tempo || !pembiayaanData.jumlah) {
+    if (!pembiayaanData.anggota_id || !pembiayaanData.jenis_pembiayaan_id || !pembiayaanData.jatuh_tempo || !pembiayaanData.jumlah) {
       return {
         success: false,
         error: { message: 'Semua field wajib diisi' }
@@ -116,10 +125,10 @@ export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise
     // Use the RPC function to add the pembiayaan
     const { data, error } = await supabase.rpc('add_pembiayaan', {
       p_anggota_id: pembiayaanData.anggota_id,
-      p_jenis_pembiayaan: pembiayaanData.jenis_pembiayaan,
+      p_jenis_pembiayaan_id: pembiayaanData.jenis_pembiayaan_id,
       p_jumlah: jumlah,
       p_jatuh_tempo: pembiayaanData.jatuh_tempo,
-      p_durasi_bulan: pembiayaanData.durasi_bulan || 3,
+      p_jangka_waktu: pembiayaanData.jangka_waktu || 3,
       p_deskripsi: pembiayaanData.deskripsi || ''
     });
     

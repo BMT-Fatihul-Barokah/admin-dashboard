@@ -32,21 +32,53 @@ supabase.auth.onAuthStateChange((event, session) => {
 console.log('Supabase client initialized successfully');
 
 // Types based on the database schema
-export type Notification = {
+
+// Global notification type
+export type GlobalNotification = {
   id: string;
   judul: string;
   pesan: string;
   jenis: string;
-  is_read: boolean;
   data?: any;
-  anggota_id?: string | null;
-  is_global: boolean;
   created_at: Date;
   updated_at: Date;
+};
+
+// Global notification read status type
+export type GlobalNotificationRead = {
+  id: string;
+  global_notifikasi_id: string;
+  anggota_id: string;
+  is_read: boolean;
+  created_at: Date;
+  updated_at: Date;
+  global_notifikasi?: GlobalNotification;
   anggota?: {
     nama: string;
   };
-}
+};
+
+// Transaction notification type
+export type TransactionNotification = {
+  id: string;
+  transaksi_id: string;
+  judul: string;
+  pesan: string;
+  jenis: string;
+  data?: any;
+  is_read: boolean;
+  created_at: Date;
+  updated_at: Date;
+  transaksi?: {
+    anggota_id: string;
+    anggota?: {
+      nama: string;
+    };
+  };
+};
+
+// Legacy notification type for backward compatibility
+export type Notification = GlobalNotificationRead | TransactionNotification;
 
 export type Anggota = {
   id: string;
@@ -63,6 +95,11 @@ export type Anggota = {
   updated_at: Date;
   closed_at?: Date;
   is_active: boolean;
+  // Relationship fields
+  tabungan?: {
+    id: string;
+    saldo: number;
+  }[];
 }
 
 export type Transaksi = {
@@ -75,29 +112,52 @@ export type Transaksi = {
   sesudah: number;
   pembiayaan_id?: string;
   tabungan_id?: string;
+  source_type: 'tabungan' | 'pembiayaan';
   created_at: Date;
   updated_at: Date;
   anggota?: {
     nama: string;
+    nomor_rekening: string;
+  };
+  tabungan?: {
+    id: string;
+    jenis_tabungan_id: string;
+    jenis_tabungan?: {
+      nama: string;
+      kode: string;
+    };
+  };
+  pembiayaan?: {
+    id: string;
+    jenis_pembiayaan_id: string;
+    jenis_pembiayaan?: {
+      nama: string;
+      kode: string;
+    };
   };
 }
 
 export type Pembiayaan = {
   id: string;
   anggota_id: string;
-  jenis_pembiayaan: string;
+  jenis_pembiayaan_id: string;
   status: string;
   jumlah: number;
   jatuh_tempo: Date;
   total_pembayaran: number;
   sisa_pembayaran: number;
-  durasi_bulan: number;
-  kategori: string;
+  jangka_waktu: number;
+  tanggal_jatuh_tempo_bulanan?: Date;
+  sisa_bulan?: number;
   deskripsi?: string;
   created_at: Date;
   updated_at: Date;
   anggota?: {
     nama: string;
+  };
+  jenis_pembiayaan?: {
+    nama: string;
+    kode: string;
   };
 }
 
@@ -118,16 +178,16 @@ export async function getTotalAnggota(): Promise<number> {
 
 export async function getTotalSimpanan(): Promise<number> {
   const { data, error } = await supabase
-    .from('anggota')
+    .from('tabungan')
     .select('saldo')
-    .eq('is_active', true);
+    .eq('status', 'aktif');
   
   if (error) {
     console.error('Error fetching total simpanan:', error);
     return 0;
   }
   
-  return data.reduce((sum, anggota) => sum + parseFloat(anggota.saldo), 0);
+  return data.reduce((sum, tabungan) => sum + parseFloat(tabungan.saldo.toString()), 0);
 }
 
 export async function getTotalPembiayaan(): Promise<number> {
@@ -168,8 +228,7 @@ export async function getMonthlyFinancialData(): Promise<any[]> {
   // Get all transaction data for the current year
   const { data: transactionData, error: transactionError } = await supabase
     .from('transaksi')
-    .select('jumlah, created_at, kategori, tipe_transaksi')
-    .or('kategori.eq.setoran,kategori.eq.penarikan,kategori.eq.pinjaman,kategori.eq.pembayaran_pinjaman')
+    .select('jumlah, created_at, source_type, tipe_transaksi')
     .gte('created_at', `${currentYear}-01-01`)
     .lte('created_at', `${currentYear}-12-31`);
   
@@ -188,23 +247,23 @@ export async function getMonthlyFinancialData(): Promise<any[]> {
     
     // Calculate monthly simpanan (deposits)
     const monthSimpanan = monthTransactions
-      .filter(item => item.kategori === 'setoran')
-      .reduce((sum, item) => sum + parseFloat(item.jumlah), 0);
+      .filter(item => item.source_type === 'tabungan' && item.tipe_transaksi === 'setoran')
+      .reduce((sum, item) => sum + parseFloat(item.jumlah.toString()), 0);
     
     // Calculate monthly penarikan (withdrawals) as negative values
     const monthPenarikan = monthTransactions
-      .filter(item => item.kategori === 'penarikan')
-      .reduce((sum, item) => sum + parseFloat(item.jumlah), 0);
+      .filter(item => item.source_type === 'tabungan' && item.tipe_transaksi === 'penarikan')
+      .reduce((sum, item) => sum + parseFloat(item.jumlah.toString()), 0);
     
     // Calculate monthly pinjaman (loans)
     const monthPinjaman = monthTransactions
-      .filter(item => item.kategori === 'pinjaman')
-      .reduce((sum, item) => sum + parseFloat(item.jumlah), 0);
+      .filter(item => item.source_type === 'pembiayaan' && item.tipe_transaksi === 'pencairan')
+      .reduce((sum, item) => sum + parseFloat(item.jumlah.toString()), 0);
     
     // Calculate monthly pembayaran pinjaman (loan payments)
     const monthPembayaranPinjaman = monthTransactions
-      .filter(item => item.kategori === 'pembayaran_pinjaman')
-      .reduce((sum, item) => sum + parseFloat(item.jumlah), 0);
+      .filter(item => item.source_type === 'pembiayaan' && item.tipe_transaksi === 'pembayaran')
+      .reduce((sum, item) => sum + parseFloat(item.jumlah.toString()), 0);
     
     return {
       name: monthNames[index],
@@ -277,9 +336,9 @@ export async function searchTransactions(query: string): Promise<Transaksi[]> {
     .from('transaksi')
     .select(`
       *,
-      anggota:anggota_id(nama)
+      anggota:anggota_id(nama, nomor_rekening)
     `)
-    .or(`reference_number.ilike.%${query}%, deskripsi.ilike.%${query}%`)
+    .or(`deskripsi.ilike.%${query}%, tipe_transaksi.ilike.%${query}%`)
     .order('created_at', { ascending: false });
   
   if (error) {
@@ -330,9 +389,10 @@ export async function searchPembiayaan(query: string): Promise<Pembiayaan[]> {
     .from('pembiayaan')
     .select(`
       *,
-      anggota:anggota_id(nama)
+      anggota:anggota_id(nama),
+      jenis_pembiayaan:jenis_pembiayaan_id(nama, kode)
     `)
-    .or(`jenis_pembiayaan.ilike.%${query}%, status.ilike.%${query}%, kategori.ilike.%${query}%`)
+    .or(`status.ilike.%${query}%, deskripsi.ilike.%${query}%`)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -381,84 +441,227 @@ export async function searchPembiayaanByStatus(status: string): Promise<Pembiaya
 
 // Notification functions
 export async function getAllNotifications(): Promise<Notification[]> {
-  const { data, error } = await supabase
-    .from('notifikasi')
+  // Get global notifications with read status
+  const { data: globalData, error: globalError } = await supabase
+    .from('global_notifikasi_read')
     .select(`
       *,
+      global_notifikasi(*),
       anggota:anggota_id(nama)
     `)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching notifications:', error);
-    return [];
+  if (globalError) {
+    console.error('Error fetching global notifications:', globalError);
+  }
+  
+  // Get transaction notifications
+  const { data: transactionData, error: transactionError } = await supabase
+    .from('transaksi_notifikasi')
+    .select(`
+      *,
+      transaksi(anggota_id, anggota:anggota_id(nama))
+    `)
+    .order('created_at', { ascending: false });
+
+  if (transactionError) {
+    console.error('Error fetching transaction notifications:', transactionError);
   }
 
-  return data || [];
+  // Combine both types of notifications
+  const combinedData = [
+    ...(globalData || []),
+    ...(transactionData || [])
+  ].sort((a, b) => {
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  return combinedData;
 }
 
 export async function getUnreadNotifications(): Promise<Notification[]> {
-  const { data, error } = await supabase
-    .from('notifikasi')
+  // Get unread global notifications
+  const { data: globalData, error: globalError } = await supabase
+    .from('global_notifikasi_read')
     .select(`
       *,
+      global_notifikasi(*),
       anggota:anggota_id(nama)
     `)
     .eq('is_read', false)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching unread notifications:', error);
-    return [];
+  if (globalError) {
+    console.error('Error fetching unread global notifications:', globalError);
+  }
+  
+  // Get unread transaction notifications
+  const { data: transactionData, error: transactionError } = await supabase
+    .from('transaksi_notifikasi')
+    .select(`
+      *,
+      transaksi(anggota_id, anggota:anggota_id(nama))
+    `)
+    .eq('is_read', false)
+    .order('created_at', { ascending: false });
+
+  if (transactionError) {
+    console.error('Error fetching unread transaction notifications:', transactionError);
   }
 
-  return data || [];
+  // Combine both types of unread notifications
+  const combinedData = [
+    ...(globalData || []),
+    ...(transactionData || [])
+  ].sort((a, b) => {
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  return combinedData;
 }
 
 export async function getNotificationsByType(jenis: string): Promise<Notification[]> {
-  const { data, error } = await supabase
-    .from('notifikasi')
+  // Get global notifications of specific type
+  const { data: globalData, error: globalError } = await supabase
+    .from('global_notifikasi_read')
     .select(`
       *,
+      global_notifikasi(*),
       anggota:anggota_id(nama)
+    `)
+    .eq('global_notifikasi.jenis', jenis)
+    .order('created_at', { ascending: false });
+
+  if (globalError) {
+    console.error('Error fetching global notifications by type:', globalError);
+  }
+  
+  // Get transaction notifications of specific type
+  const { data: transactionData, error: transactionError } = await supabase
+    .from('transaksi_notifikasi')
+    .select(`
+      *,
+      transaksi(anggota_id, anggota:anggota_id(nama))
     `)
     .eq('jenis', jenis)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching notifications by type:', error);
-    return [];
+  if (transactionError) {
+    console.error('Error fetching transaction notifications by type:', transactionError);
   }
 
-  return data || [];
+  // Combine both types of notifications
+  const combinedData = [
+    ...(globalData || []),
+    ...(transactionData || [])
+  ].sort((a, b) => {
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  return combinedData;
 }
 
-export async function markNotificationAsRead(id: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('notifikasi')
-    .update({ is_read: true })
-    .eq('id', id);
+export async function markNotificationAsRead(id: string, type: 'global' | 'transaction' = 'global'): Promise<boolean> {
+  let error;
+  
+  if (type === 'global') {
+    // Mark global notification as read
+    const response = await supabase
+      .from('global_notifikasi_read')
+      .update({ is_read: true })
+      .eq('id', id);
+    error = response.error;
+  } else {
+    // Mark transaction notification as read
+    const response = await supabase
+      .from('transaksi_notifikasi')
+      .update({ is_read: true })
+      .eq('id', id);
+    error = response.error;
+  }
 
   if (error) {
-    console.error('Error marking notification as read:', error);
+    console.error(`Error marking ${type} notification as read:`, error);
     return false;
   }
 
   return true;
 }
 
-export async function markAllNotificationsAsRead(): Promise<boolean> {
-  const { error } = await supabase
-    .from('notifikasi')
+export async function markAllNotificationsAsRead(anggotaId?: string): Promise<boolean> {
+  let hasError = false;
+  
+  // Mark all global notifications as read
+  const globalQuery = supabase
+    .from('global_notifikasi_read')
     .update({ is_read: true })
     .eq('is_read', false);
-
-  if (error) {
-    console.error('Error marking all notifications as read:', error);
-    return false;
+    
+  // If anggota_id is provided, only mark notifications for that member
+  if (anggotaId) {
+    globalQuery.eq('anggota_id', anggotaId);
+  }
+  
+  const { error: globalError } = await globalQuery;
+  
+  if (globalError) {
+    console.error('Error marking all global notifications as read:', globalError);
+    hasError = true;
+  }
+  
+  // Mark all transaction notifications as read
+  const transactionQuery = supabase
+    .from('transaksi_notifikasi')
+    .update({ is_read: true })
+    .eq('is_read', false);
+  
+  // If anggota_id is provided, only mark notifications for transactions of that member
+  if (anggotaId) {
+    // We need to join with transaksi to filter by anggota_id
+    // This is a limitation of Supabase, so we'll need to fetch the IDs first
+    
+    // First get all transaction IDs for the member
+    const { data: memberTransactions } = await supabase
+      .from('transaksi')
+      .select('id')
+      .eq('anggota_id', anggotaId);
+      
+    if (!memberTransactions || memberTransactions.length === 0) {
+      return !hasError; // No transactions to process
+    }
+    
+    const transactionIds = memberTransactions.map(t => t.id);
+    
+    // Then get notification IDs for those transactions
+    const { data: notificationIds } = await supabase
+      .from('transaksi_notifikasi')
+      .select('id')
+      .eq('is_read', false)
+      .in('transaksi_id', transactionIds);
+      
+    if (notificationIds && notificationIds.length > 0) {
+      const ids = notificationIds.map(item => item.id);
+      const { error: transactionError } = await supabase
+        .from('transaksi_notifikasi')
+        .update({ is_read: true })
+        .in('id', ids);
+        
+      if (transactionError) {
+        console.error('Error marking transaction notifications as read:', transactionError);
+        hasError = true;
+      }
+    }
+  } else {
+    // Mark all transaction notifications as read
+    const { error: transactionError } = await transactionQuery;
+    
+    if (transactionError) {
+      console.error('Error marking all transaction notifications as read:', transactionError);
+      hasError = true;
+    }
   }
 
-  return true;
+  return !hasError;
 }
 
 // Jenis Tabungan functions
@@ -467,19 +670,6 @@ export type JenisTabungan = {
   kode: string;
   nama: string;
   deskripsi: string;
-  minimum_setoran: number;
-  biaya_admin: number;
-  bagi_hasil: number | null;
-  jangka_waktu?: number | null;
-  is_active: boolean;
-  is_required: boolean;
-  is_reguler: boolean;
-  periode_setoran?: string | null;
-  denda_keterlambatan?: number | null;
-  display_order: number;
-  initial_deposit?: number | null;
-  created_at?: Date | string;
-  updated_at?: Date | string;
 }
 
 export async function getAllJenisTabungan(): Promise<JenisTabungan[]> {

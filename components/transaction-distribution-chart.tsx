@@ -258,7 +258,7 @@ export function TransactionDistributionChart({
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="pb-2">
         <CardTitle>Distribusi Transaksi</CardTitle>
-        <CardDescription>Distribusi transaksi berdasarkan kategori untuk {period}</CardDescription>
+        <CardDescription>Distribusi transaksi berdasarkan sumber untuk {period}</CardDescription>
       </CardHeader>
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row">
@@ -282,7 +282,7 @@ export function TransactionDistributionChart({
             )}
           </div>
           <div className="w-full md:w-1/2 md:pl-4 mt-4 md:mt-0">
-            <h4 className="text-sm font-medium mb-3">Kategori Transaksi</h4>
+            <h4 className="text-sm font-medium mb-3">Sumber Transaksi</h4>
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
               {data.map((item, index) => (
                 <div 

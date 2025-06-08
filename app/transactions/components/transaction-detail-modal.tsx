@@ -10,22 +10,22 @@ import { Printer, X } from "lucide-react"
 
 interface Transaksi {
   id: string;
-  reference_number?: string;
   anggota_id: string;
   anggota?: {
     nama: string;
+    nomor_rekening: string;
   } | null;
   tipe_transaksi: string;
+  source_type?: string;
   deskripsi?: string;
   jumlah: number;
   sebelum?: number;
   sesudah?: number;
-  pinjaman_id?: string;
+  pembiayaan_id?: string;
   tabungan_id?: string;
   created_at: string;
   updated_at: string;
   tabungan?: { 
-    nomor_rekening: string;
     saldo: number;
     jenis_tabungan_id: string;
     jenis_tabungan?: {
@@ -82,7 +82,7 @@ export function TransactionDetailModal({
             </Button>
           </DialogTitle>
           <DialogDescription>
-            {transaction.reference_number || transaction.id}
+            {transaction.id}
           </DialogDescription>
         </DialogHeader>
         
@@ -134,7 +134,7 @@ export function TransactionDetailModal({
               <p className="text-sm font-medium text-muted-foreground">Rekening Tabungan</p>
               <div>
                 <p><span className="font-medium">{transaction.tabungan.jenis_tabungan?.nama || 'Tabungan'}</span></p>
-                <p className="text-sm text-muted-foreground">No. Rekening: {transaction.tabungan.nomor_rekening}</p>
+                <p className="text-sm text-muted-foreground">No. Rekening: {transaction.anggota?.nomor_rekening || '-'}</p>
                 <p className="text-sm text-muted-foreground">Saldo Saat Ini: {formatCurrency(Number(transaction.tabungan.saldo))}</p>
               </div>
             </div>

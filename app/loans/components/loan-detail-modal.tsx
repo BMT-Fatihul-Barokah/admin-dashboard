@@ -102,7 +102,7 @@ export function LoanDetailModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Jenis Pembiayaan</p>
-              <p>{loan.jenis_pembiayaan}</p>
+              <p>{loan.jenis_pembiayaan?.nama || '-'}</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Tanggal Pengajuan</p>

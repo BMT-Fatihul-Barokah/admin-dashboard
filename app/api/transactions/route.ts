@@ -4,19 +4,18 @@ import { supabase } from '@/lib/supabase'
 // Define transaction type for TypeScript
 interface Transaksi {
   id: string;
-  reference_number?: string;
   anggota_id: string;
   tipe_transaksi: string;
-  kategori: string;
+  source_type?: string;
   deskripsi?: string;
   jumlah: number;
   sebelum?: number;
   sesudah?: number;
-  pinjaman_id?: string;
+  pembiayaan_id?: string;
   tabungan_id?: string;
   created_at: string;
   updated_at: string;
-  anggota?: { nama: string } | null;
+  anggota?: { nama: string, nomor_rekening: string } | null;
   tabungan?: { 
     nomor_rekening: string;
     saldo: number;
@@ -54,10 +53,9 @@ export async function GET() {
     // Define the type for our RPC function result
     type TransactionRPCResult = {
       id: string;
-      reference_number: string | null;
       anggota_id: string;
       tipe_transaksi: string;
-      kategori: string;
+      source_type: string | null;
       deskripsi: string | null;
       jumlah: number;
       sebelum: number;
@@ -67,7 +65,7 @@ export async function GET() {
       created_at: string;
       updated_at: string;
       anggota_nama: string | null;
-      tabungan_nomor_rekening: string | null;
+      anggota_nomor_rekening: string | null;
       tabungan_saldo: number | null;
       tabungan_jenis_id: string | null;
       tabungan_jenis_nama: string | null;
@@ -80,21 +78,22 @@ export async function GET() {
     // Transform the flat data structure into the nested structure expected by the frontend
     const transformedData = data?.map((item: TransactionRPCResult) => ({
       id: item.id,
-      reference_number: item.reference_number,
       anggota_id: item.anggota_id,
       tipe_transaksi: item.tipe_transaksi,
-      kategori: item.kategori,
+      source_type: item.source_type,
       deskripsi: item.deskripsi,
       jumlah: item.jumlah,
       sebelum: item.sebelum,
       sesudah: item.sesudah,
-      pembiayaan_id: item.pembiayaan_id,  // Note: frontend expects pinjaman_id
+      pembiayaan_id: item.pembiayaan_id,
       tabungan_id: item.tabungan_id,
       created_at: item.created_at,
       updated_at: item.updated_at,
-      anggota: item.anggota_nama ? { nama: item.anggota_nama } : null,
-      tabungan: item.tabungan_nomor_rekening ? {
-        nomor_rekening: item.tabungan_nomor_rekening,
+      anggota: item.anggota_nama ? { 
+        nama: item.anggota_nama,
+        nomor_rekening: item.anggota_nomor_rekening 
+      } : null,
+      tabungan: item.tabungan_id ? {
         saldo: item.tabungan_saldo,
         jenis_tabungan_id: item.tabungan_jenis_id,
         jenis_tabungan: item.tabungan_jenis_nama ? {
@@ -128,7 +127,7 @@ export async function POST(request: Request) {
     console.log('Creating new transaction with data:', body)
     
     // Validate required fields
-    const requiredFields = ['anggota_id', 'tipe_transaksi', 'kategori', 'jumlah']
+    const requiredFields = ['anggota_id', 'tipe_transaksi', 'source_type', 'jumlah']
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
@@ -138,8 +137,8 @@ export async function POST(request: Request) {
       }
     }
     
-    // For setoran or penarikan, we need a jenis_tabungan_id
-    if ((body.kategori === 'setoran' || body.kategori === 'penarikan') && !body.jenis_tabungan_id) {
+    // For tabungan transactions, we need a jenis_tabungan_id
+    if (body.source_type === 'tabungan' && !body.jenis_tabungan_id) {
       return NextResponse.json(
         { error: 'Jenis tabungan harus dipilih untuk setoran atau penarikan' },
         { status: 400 }
@@ -150,7 +149,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase.rpc('add_transaction', {
       p_anggota_id: body.anggota_id,
       p_tipe_transaksi: body.tipe_transaksi,
-      p_kategori: body.kategori,
+      p_source_type: body.source_type,
       p_jumlah: body.jumlah,
       p_deskripsi: body.deskripsi || null,
       p_jenis_tabungan_id: body.jenis_tabungan_id || null,
@@ -178,8 +177,7 @@ export async function POST(request: Request) {
       success: true, 
       message: 'Transaction created successfully',
       data: {
-        id: data.transaction_id,
-        reference_number: data.reference_number
+        id: data.transaction_id
       }
     })
   } catch (error) {

@@ -18,16 +18,14 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 type Anggota = {
   id: string
   nama: string
-  nomor_rekening: string
 }
 
 type Transaksi = {
   id: string
   anggota_id: string
   tipe_transaksi: string
-  kategori: string
+  source_type: string
   deskripsi?: string
-  reference_number?: string
   jumlah: number
   sebelum: number
   sesudah: number
@@ -108,7 +106,7 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
         <DialogHeader>
           <DialogTitle>Riwayat Transaksi</DialogTitle>
           <DialogDescription>
-            Riwayat transaksi untuk anggota {user.nama} ({user.nomor_rekening})
+            Riwayat transaksi untuk anggota {user.nama}
           </DialogDescription>
         </DialogHeader>
         
@@ -127,10 +125,9 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     <TableHead>Tanggal</TableHead>
-                    <TableHead>Tipe</TableHead>
-                    <TableHead>Kategori</TableHead>
+                    <TableHead>Jenis</TableHead>
+                    <TableHead>Sumber</TableHead>
                     <TableHead>Deskripsi</TableHead>
-                    <TableHead>Referensi</TableHead>
                     <TableHead className="text-right">Jumlah</TableHead>
                     <TableHead className="text-right">Saldo</TableHead>
                   </TableRow>
@@ -155,9 +152,8 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
                           {transaction.tipe_transaksi === 'kredit' ? 'Masuk' : 'Keluar'}
                         </Badge>
                       </TableCell>
-                      <TableCell>{transaction.kategori}</TableCell>
+                      <TableCell>{transaction.source_type}</TableCell>
                       <TableCell>{transaction.deskripsi || '-'}</TableCell>
-                      <TableCell>{transaction.reference_number || '-'}</TableCell>
                       <TableCell className="text-right font-medium">
                         <span className={transaction.tipe_transaksi === 'kredit' ? 'text-green-600' : 'text-red-600'}>
                           {transaction.tipe_transaksi === 'kredit' ? '+' : '-'} Rp {Number(transaction.jumlah).toLocaleString('id-ID')}

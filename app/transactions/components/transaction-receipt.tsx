@@ -10,17 +10,19 @@ import { useReactToPrint } from "react-to-print"
 
 interface Transaksi {
   id: string;
-  reference_number?: string;
   anggota_id: string;
   anggota?: {
     nama: string;
+    nomor_rekening: string;
   } | null;
   tipe_transaksi: string;
+  source_type?: string;
   deskripsi?: string;
   jumlah: number;
   sebelum?: number;
   sesudah?: number;
-  pinjaman_id?: string;
+  pembiayaan_id?: string;
+  tabungan_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -56,7 +58,7 @@ export function TransactionReceipt({
 
 
   const handlePrint = useReactToPrint({
-    documentTitle: `Bukti_Transaksi_${transaction?.reference_number || transaction?.id}`,
+    documentTitle: `Bukti_Transaksi_${transaction?.id}`,
     onAfterPrint: () => {
       console.log('Print completed');
     },
@@ -87,7 +89,7 @@ export function TransactionReceipt({
             <p className="text-sm">Telp: (021) 1234-5678</p>
             <div className="mt-4 border-t-2 border-b-2 border-black py-2">
               <h3 className="text-lg font-bold">BUKTI TRANSAKSI</h3>
-              <p className="text-sm">{transaction.reference_number || transaction.id}</p>
+              <p className="text-sm">{transaction.id}</p>
             </div>
           </div>
           

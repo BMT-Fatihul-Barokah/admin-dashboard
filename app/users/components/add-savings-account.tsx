@@ -22,11 +22,7 @@ interface SavingsType {
   id: string
   kode: string
   nama: string
-  minimum_setoran: number
-  is_reguler: boolean
-  periode_setoran: string | null
-  jangka_waktu: number | null
-  is_active: boolean
+  deskripsi?: string
 }
 
 export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAccountProps) {
@@ -84,11 +80,10 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
           // Extract the IDs of savings types the member already has
           const existingTypeIds = (memberAccounts || []).map(account => account.jenis_tabungan_id)
           
-          // Get all active savings types
+          // Get all savings types
           const { data, error } = await supabase
             .from('jenis_tabungan')
             .select('*')
-            .eq('is_active', true)
             .order('kode', { ascending: true })
           
           if (error) throw error
@@ -142,10 +137,10 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     setIsSubmitting(true)
     
     try {
-      // Use the updated add_tabungan_baru function that generates account numbers automatically
+      // Use the add_tabungan_baru function with the current schema
       console.log('Attempting to insert account using bypass RLS function');
       
-      // Call the updated add_tabungan_baru function without providing a nomor_rekening
+      // Call the add_tabungan_baru function with the parameters matching the current schema
       const { data, error } = await supabase.rpc('add_tabungan_baru', {
         p_anggota_id: userId,
         p_jenis_tabungan_id: selectedTypeId,
@@ -189,7 +184,7 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     }
   }
   
-  // Format currency
+  // Format currency (kept for future use)
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -229,7 +224,7 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
               <SelectContent>
                 {savingsTypes.map((type) => (
                   <SelectItem key={type.id} value={type.id}>
-                    {type.kode} - {type.nama} (Min. {formatCurrency(type.minimum_setoran)})
+                    {type.kode} - {type.nama}
                   </SelectItem>
                 ))}
               </SelectContent>

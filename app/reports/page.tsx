@@ -727,7 +727,7 @@ export default function ReportsPage() {
                   <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                       <CardTitle>Distribusi Transaksi</CardTitle>
-                      <CardDescription>Berdasarkan kategori</CardDescription>
+                      <CardDescription>Berdasarkan sumber</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button 

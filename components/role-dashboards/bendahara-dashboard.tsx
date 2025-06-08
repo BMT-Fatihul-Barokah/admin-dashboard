@@ -297,7 +297,7 @@ export function BendaraDashboard() {
                         </div>
                       ))
                     ) : (
-                      <div className="text-sm text-muted-foreground">Tidak ada data kategori</div>
+                      <div className="text-sm text-muted-foreground">Tidak ada data transaksi</div>
                     )}
                   </div>
                 </div>

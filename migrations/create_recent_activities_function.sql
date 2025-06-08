@@ -18,8 +18,8 @@ BEGIN
     t.id,
     'transaction'::TEXT as activity_type,
     CASE 
-      WHEN t.tipe_transaksi = 'masuk' THEN 'Penerimaan ' || t.kategori || ' dari ' || COALESCE(a.nama, 'Anggota')
-      ELSE 'Pengeluaran ' || t.kategori || ' dari ' || COALESCE(a.nama, 'Anggota')
+      WHEN t.tipe_transaksi = 'masuk' THEN 'Penerimaan ' || t.source_type || ' dari ' || COALESCE(a.nama, 'Anggota')
+      ELSE 'Pengeluaran ' || t.source_type || ' dari ' || COALESCE(a.nama, 'Anggota')
     END as description,
     t.jumlah as amount,
     t.created_at,
