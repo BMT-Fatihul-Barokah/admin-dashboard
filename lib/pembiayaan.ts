@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 export type Pembiayaan = {
   id: string;
@@ -11,6 +11,7 @@ export type Pembiayaan = {
   sisa_pembayaran: number;
   jangka_waktu: number;
   sisa_bulan?: number;
+  tanggal_jatuh_tempo_bulanan?: number;
   created_at: Date;
   updated_at: Date;
   deskripsi?: string;
@@ -67,14 +68,36 @@ export async function getAllJenisPembiayaan(): Promise<JenisPembiayaan[]> {
 }
 
 /**
- * Get all pembiayaan with member information
+ * Get all pembiayaan (loans) with member information
  */
 export async function getAllPembiayaan(): Promise<Pembiayaan[]> {
   console.log('Fetching all pembiayaan data');
   
   try {
-    console.log('Supabase client initialized:', !!supabase);
+    // Check if Supabase client is initialized
+    if (!supabase) {
+      console.error('Supabase client is not initialized');
+      return [];
+    }
     
+    // Log Supabase URL and key (partial for security)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    console.log('Supabase client initialized with URL:', supabaseUrl);
+    console.log('Supabase key available:', !!supabaseKey, 
+      supabaseKey ? `Key prefix: ${supabaseKey.substring(0, 10)}...` : '');
+    
+    // Debug Supabase environment variables
+    if (typeof window !== 'undefined') {
+      console.log('NEXT_PUBLIC_SUPABASE_URL available in browser:', !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY available in browser:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      console.log('Service role key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    }
+    
+    // We've updated the RLS policy to allow anonymous access
+    console.log('Using regular client with updated RLS policies');
+    
+    console.log('Querying pembiayaan table...');
     const { data, error } = await supabase
       .from('pembiayaan')
       .select(`
@@ -84,23 +107,34 @@ export async function getAllPembiayaan(): Promise<Pembiayaan[]> {
       `)
       .order('created_at', { ascending: false });
     
-    console.log('Raw response from Supabase:', { data: data?.length || 0, error });
+    console.log('Raw response from Supabase:', { 
+      dataReceived: !!data, 
+      dataLength: data?.length || 0, 
+      errorReceived: !!error,
+      errorMessage: error?.message,
+      errorDetails: error?.details,
+      error: error // Log the full error object
+    });
     
     if (error) {
       console.error('Error fetching pembiayaan:', error);
       return [];
     }
     
-    if (!data || data.length === 0) {
-      console.log('No pembiayaan data returned from Supabase');
+    if (!data) {
+      console.log('No data returned from Supabase (data is null or undefined)');
       return [];
     }
     
-    console.log('Sample raw data item:', data[0]);
+    if (data.length === 0) {
+      console.log('Empty array returned from Supabase (no records found)');
+      return [];
+    }
+    
+    console.log('First raw data item:', JSON.stringify(data[0], null, 2));
     
     // Map the data to include jenis_pembiayaan_nama for backward compatibility
-    const mappedData = data.map(item => {
-      console.log('Processing item:', item.id, 'jenis_pembiayaan:', item.jenis_pembiayaan);
+    const mappedData = data.map((item: any) => {
       return {
         ...item,
         // Add jenis_pembiayaan_nama for backward compatibility with UI code
@@ -109,10 +143,15 @@ export async function getAllPembiayaan(): Promise<Pembiayaan[]> {
     });
     
     console.log('Mapped pembiayaan data count:', mappedData.length);
-    console.log('Sample mapped item:', mappedData[0]);
+    if (mappedData.length > 0) {
+      console.log('Sample mapped item:', JSON.stringify(mappedData[0], null, 2));
+    }
+    
     return mappedData;
   } catch (e) {
     console.error('Exception in getAllPembiayaan:', e);
+    console.error('Error details:', e instanceof Error ? e.message : String(e));
+    console.error('Error stack:', e instanceof Error ? e.stack : 'No stack available');
     return [];
   }
 }

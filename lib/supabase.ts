@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 // Supabase project credentials from environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Check if environment variables are set
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -11,7 +12,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 console.log('Initializing Supabase client with URL:', supabaseUrl);
 
-// Create the Supabase client
+// Create the Supabase client with anonymous key (for public access)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -24,6 +25,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
+
+// Create a Supabase admin client with service role key (for bypassing RLS)
+export const supabaseAdmin = supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      },
+      global: {
+        headers: {
+          'x-client-info': 'admin-dashboard-server'
+        },
+      },
+    })
+  : null;
 
 // Log auth state changes
 supabase.auth.onAuthStateChange((event, session) => {

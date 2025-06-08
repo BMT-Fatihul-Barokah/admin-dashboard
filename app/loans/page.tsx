@@ -216,19 +216,21 @@ export default function LoansPage() {
       jatuh_tempo: 'Jatuh Tempo',
       total_pembayaran: 'Total Pembayaran',
       sisa_pembayaran: 'Sisa Pembayaran',
-      created_at: 'Tanggal Dibuat'
+      created_at: 'Tanggal Dibuat',
+      jangka_waktu: 'Jangka Waktu'
     }
 
     const exportData = filteredPembiayaan.map(loan => ({
       "ID Pembiayaan": loan.id,
       "Nama Anggota": loan.anggota?.nama || 'Anggota',
-      "Jenis Pembiayaan": loan.jenis_pembiayaan,
+      "Jenis Pembiayaan": loan.jenis_pembiayaan?.nama || loan.jenis_pembiayaan_nama || 'Unknown',
       "Status": loan.status,
       "Jumlah Pembiayaan": formatCurrency(Number(loan.jumlah)),
       "Jatuh Tempo": formatDate(String(loan.jatuh_tempo)),
       "Total Pembayaran": formatCurrency(Number(loan.total_pembayaran)),
       "Sisa Pembayaran": formatCurrency(Number(loan.sisa_pembayaran)),
-      "Tanggal Dibuat": formatDate(String(loan.created_at)),
+      "Jangka Waktu": `${loan.jangka_waktu} bulan`,
+      "Tanggal Dibuat": formatDate(String(loan.created_at))
     }))
 
     // Download as CSV
