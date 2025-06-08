@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Hardcoded Supabase URL and service_role key for the koperasi-fatihul-barokah project
+// Supabase URL and service_role key from environment variables
 // This client bypasses RLS policies and should only be used in admin contexts
-const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+// Check if environment variables are set
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing Supabase environment variables for admin client. Please check your .env file.');
+}
 
 // Create a Supabase client with the service role key
 export const createAdminClient = () => {

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { createPembiayaan, PembiayaanInput } from "@/lib/pembiayaan"
+import { createPembiayaan, PembiayaanInput, getAllJenisPembiayaan, JenisPembiayaan } from "@/lib/pembiayaan"
 import { toast } from "sonner"
 import { format, addMonths } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
@@ -15,12 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Loan types
-const LOAN_TYPES = [
-  "Pembiayaan Konsumtif Syariah",
-  "Pembiayaan Investasi Syariah",
-  "Pembiayaan Modal Kerja Syariah"
-]
+// Loan durations in months
 // Loan durations in months
 const LOAN_DURATIONS = [
   { label: "3 Bulan", value: 3 },
@@ -55,7 +50,7 @@ export function CreateLoanModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<PembiayaanInput>({
     anggota_id: "",
-    jenis_pembiayaan: "",
+    jenis_pembiayaan_id: "",
     jumlah: 0,
     jatuh_tempo: format(addMonths(new Date(), 3), 'yyyy-MM-dd'),
     durasi_bulan: 3,
@@ -63,6 +58,8 @@ export function CreateLoanModal({
   })
   const [date, setDate] = useState<Date | undefined>(addMonths(new Date(), 3))
   const [loanDuration, setLoanDuration] = useState<number>(3)
+  const [loanTypes, setLoanTypes] = useState<JenisPembiayaan[]>([])
+  const [isLoadingLoanTypes, setIsLoadingLoanTypes] = useState(false)
 
   // Reset form when modal opens
   useEffect(() => {
@@ -73,7 +70,7 @@ export function CreateLoanModal({
       
       setFormData({
         anggota_id: "",
-        jenis_pembiayaan: "",
+        jenis_pembiayaan_id: "",
         jumlah: 0,
         jatuh_tempo: format(nextMonthSameDay, 'yyyy-MM-dd'),
         durasi_bulan: 3,
@@ -81,6 +78,22 @@ export function CreateLoanModal({
       })
       setDate(nextMonthSameDay)
       setLoanDuration(3)
+      
+      // Fetch loan types
+      const fetchLoanTypes = async () => {
+        setIsLoadingLoanTypes(true)
+        try {
+          const data = await getAllJenisPembiayaan()
+          setLoanTypes(data)
+        } catch (error) {
+          console.error('Error fetching loan types:', error)
+          toast.error('Gagal memuat jenis pembiayaan')
+        } finally {
+          setIsLoadingLoanTypes(false)
+        }
+      }
+      
+      fetchLoanTypes()
     }
   }, [isOpen])
 
@@ -121,7 +134,7 @@ export function CreateLoanModal({
       toast.error("Silakan pilih anggota")
       return
     }
-    if (!formData.jenis_pembiayaan) {
+    if (!formData.jenis_pembiayaan_id) {
       toast.error("Silakan pilih jenis pembiayaan")
       return
     }
@@ -198,16 +211,24 @@ export function CreateLoanModal({
               Jenis Pembiayaan
             </Label>
             <Select 
-              value={formData.jenis_pembiayaan} 
-              onValueChange={(value) => handleChange('jenis_pembiayaan', value)}
+              value={formData.jenis_pembiayaan_id} 
+              onValueChange={(value) => handleChange('jenis_pembiayaan_id', value)}
+              disabled={isLoadingLoanTypes}
             >
               <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Pilih jenis pembiayaan" />
+                {isLoadingLoanTypes ? (
+                  <div className="flex items-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span>Memuat...</span>
+                  </div>
+                ) : (
+                  <SelectValue placeholder="Pilih jenis pembiayaan" />
+                )}
               </SelectTrigger>
               <SelectContent>
-                {LOAN_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
+                {loanTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.nama} ({type.kode})
                   </SelectItem>
                 ))}
               </SelectContent>

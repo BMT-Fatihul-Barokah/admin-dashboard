@@ -137,7 +137,7 @@ export default function LoansPage() {
         (loan.id && loan.id.toLowerCase().includes(query)) ||
         (loan.anggota?.nama && loan.anggota.nama.toLowerCase().includes(query)) ||
         loan.status.toLowerCase().includes(query) ||
-        loan.jenis_pembiayaan.toLowerCase().includes(query)
+        (loan.jenis_pembiayaan?.nama && loan.jenis_pembiayaan.nama.toLowerCase().includes(query))
       )
     }
     
@@ -342,8 +342,8 @@ export default function LoansPage() {
                   <TableCell className="font-medium truncate max-w-[180px]" title={loan.anggota?.nama || 'Tidak ada nama'}>
                     {loan.anggota?.nama || 'Tidak ada nama'}
                   </TableCell>
-                  <TableCell className="truncate max-w-[200px]" title={loan.jenis_pembiayaan}>
-                    {loan.jenis_pembiayaan}
+                  <TableCell className="truncate max-w-[200px]" title={loan.jenis_pembiayaan?.nama || loan.jenis_pembiayaan_nama || 'Unknown'}>
+                    {loan.jenis_pembiayaan?.nama || loan.jenis_pembiayaan_nama || 'Unknown'}
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge

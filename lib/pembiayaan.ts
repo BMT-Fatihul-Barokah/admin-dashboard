@@ -23,6 +23,8 @@ export type Pembiayaan = {
     kode: string;
     deskripsi?: string;
   };
+  // For backward compatibility with UI code
+  jenis_pembiayaan_nama?: string;
 }
 
 export type PembiayaanInput = {
@@ -31,7 +33,37 @@ export type PembiayaanInput = {
   jumlah: number;
   jatuh_tempo: string;
   jangka_waktu: number;
+  durasi_bulan: number;
   deskripsi?: string;
+}
+
+export type JenisPembiayaan = {
+  id: string;
+  kode: string;
+  nama: string;
+  deskripsi?: string;
+}
+
+/**
+ * Get all jenis pembiayaan
+ */
+export async function getAllJenisPembiayaan(): Promise<JenisPembiayaan[]> {
+  try {
+    const { data, error } = await supabase
+      .from('jenis_pembiayaan')
+      .select('*')
+      .order('nama');
+    
+    if (error) {
+      console.error('Error fetching jenis_pembiayaan:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (e) {
+    console.error('Exception in getAllJenisPembiayaan:', e);
+    return [];
+  }
 }
 
 /**
@@ -41,6 +73,8 @@ export async function getAllPembiayaan(): Promise<Pembiayaan[]> {
   console.log('Fetching all pembiayaan data');
   
   try {
+    console.log('Supabase client initialized:', !!supabase);
+    
     const { data, error } = await supabase
       .from('pembiayaan')
       .select(`
@@ -50,12 +84,33 @@ export async function getAllPembiayaan(): Promise<Pembiayaan[]> {
       `)
       .order('created_at', { ascending: false });
     
+    console.log('Raw response from Supabase:', { data: data?.length || 0, error });
+    
     if (error) {
       console.error('Error fetching pembiayaan:', error);
       return [];
     }
     
-    return data || [];
+    if (!data || data.length === 0) {
+      console.log('No pembiayaan data returned from Supabase');
+      return [];
+    }
+    
+    console.log('Sample raw data item:', data[0]);
+    
+    // Map the data to include jenis_pembiayaan_nama for backward compatibility
+    const mappedData = data.map(item => {
+      console.log('Processing item:', item.id, 'jenis_pembiayaan:', item.jenis_pembiayaan);
+      return {
+        ...item,
+        // Add jenis_pembiayaan_nama for backward compatibility with UI code
+        jenis_pembiayaan_nama: item.jenis_pembiayaan?.nama || 'Unknown'
+      };
+    });
+    
+    console.log('Mapped pembiayaan data count:', mappedData.length);
+    console.log('Sample mapped item:', mappedData[0]);
+    return mappedData;
   } catch (e) {
     console.error('Exception in getAllPembiayaan:', e);
     return [];

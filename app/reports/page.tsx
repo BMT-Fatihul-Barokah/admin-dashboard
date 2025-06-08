@@ -124,7 +124,7 @@ export default function ReportsPage() {
       }
       
       // Get the Supabase URL and access token
-      const supabaseUrl = 'https://hyiwhckxwrngegswagrb.supabase.co'
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
