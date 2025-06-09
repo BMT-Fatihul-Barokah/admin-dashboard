@@ -75,14 +75,41 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const hasPermission = (action: string): boolean => {
     if (!user) return false;
     
-    const permissions = {
+    // Special case for role management
+    if (action === 'view_roles' && user.role === 'admin') {
+      return true;
+    }
+    
+    // Special case for manage_roles permission
+    if (action === 'view_roles' && hasPermissionFromDB('manage_roles')) {
+      return true;
+    }
+    
+    // Check if user has the permission from the database
+    return hasPermissionFromDB(action);
+  };
+  
+  // Helper function to check permissions from the database
+  const hasPermissionFromDB = (action: string): boolean => {
+    // For admin users, grant all permissions
+    if (user?.role === 'admin') {
+      return true;
+    }
+    
+    if (!user || !user.role) {
+      return false;
+    }
+    
+    // Hardcoded permissions as fallback
+    const permissions: Record<string, string[]> = {
       ketua: ['view_all'],
-      admin: ['view_all', 'edit_all', 'approve_all', 'reject_all'],
+      admin: ['view_all', 'edit_all', 'approve_all', 'reject_all', 'view_roles', 'manage_roles'],
       sekretaris: ['view_all', 'edit_users', 'approve_users', 'reject_users'],
       bendahara: ['view_all', 'edit_transactions', 'approve_transactions', 'reject_transactions']
     };
     
-    return permissions[user.role]?.includes(action) || false;
+    const userRole = user.role as string;
+    return permissions[userRole]?.includes(action) || false;
   };
 
   return (

@@ -28,7 +28,7 @@ export function RoleProtected({
       }
 
       // If user doesn't have the required role, redirect to unauthorized
-      if (user && !allowedRoles.includes(user.role)) {
+      if (user && !allowedRoles.includes(user.role as string)) {
         router.push("/unauthorized");
         return;
       }

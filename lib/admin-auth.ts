@@ -7,7 +7,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Types for admin authentication
-export type AdminRole = 'ketua' | 'admin' | 'sekretaris' | 'bendahara';
+export type AdminRole = string;
 
 export interface AdminUser {
   id: string;
@@ -127,14 +127,19 @@ export function logoutAdmin(): void {
 
 // Function to check if user has permission for a specific action
 export function hasPermission(role: AdminRole, action: string): boolean {
-  const permissions = {
+  const permissions: Record<string, string[]> = {
     ketua: ['view_all'],
-    admin: ['view_all', 'edit_all', 'approve_all', 'reject_all'],
+    admin: ['view_all', 'edit_all', 'approve_all', 'reject_all', 'view_roles', 'manage_roles'],
     sekretaris: ['view_all', 'edit_users', 'approve_users', 'reject_users'],
     bendahara: ['view_all', 'edit_transactions', 'approve_transactions', 'reject_transactions']
   };
   
-  return permissions[role]?.includes(action) || false;
+  // Special case for admin role
+  if (role === 'admin' && action.startsWith('view_')) {
+    return true;
+  }
+  
+  return permissions[role as string]?.includes(action) || false;
 }
 
 // Role-based access control for navigation items
@@ -145,7 +150,7 @@ export function getAuthorizedNavigation(role: AdminRole) {
   ];
   
   // Role-specific navigation items
-  const navigationByRole = {
+  const navigationByRole: Record<string, string[]> = {
     ketua: [
       "Manajemen User", 
       "Transaksi", 
@@ -161,7 +166,8 @@ export function getAuthorizedNavigation(role: AdminRole) {
       "Laporan", 
       "Analitik", 
       "Notifikasi", 
-      "Import Data"
+      "Import Data",
+      "Role Management"
     ],
     sekretaris: [
       "Manajemen User", 
@@ -176,5 +182,6 @@ export function getAuthorizedNavigation(role: AdminRole) {
     ]
   };
   
-  return navigationByRole[role] || [];
+  // Default to empty array if role doesn't exist in the mapping
+  return navigationByRole[role as string] || [];
 }

@@ -510,7 +510,7 @@ function RoleManagementContent(): React.ReactElement {
 export default function RoleManagement(): React.ReactElement {
   return (
     <RoleProtected
-      requiredPermission="view_roles"
+      requiredPermission="manage_roles"
       allowedRoles={["admin"]}
     >
       <Card>
