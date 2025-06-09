@@ -547,55 +547,43 @@ export default function AnalyticsPage() {
     if (!analyticsData) return null;
     
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Anggota</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.totalRegistrations}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Pinjaman</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(analyticsData.totalLoanAmount)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pinjaman Aktif</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.activeLoans}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Pinjaman yang sedang berjalan
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Tingkat Persetujuan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.approvalRate}%</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Persentase pinjaman yang disetujui
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Total Anggota</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{analyticsData.totalRegistrations}</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
+          </p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Total Pinjaman</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{formatCurrency(analyticsData.totalLoanAmount)}</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
+          </p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Pinjaman Aktif</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{analyticsData.activeLoans}</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Pinjaman yang sedang berjalan
+          </p>
+        </CardContent>
+      </Card>
+    </div>
     );
   };
   
