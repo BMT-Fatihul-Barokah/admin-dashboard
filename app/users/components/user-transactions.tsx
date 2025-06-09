@@ -23,7 +23,7 @@ type Anggota = {
 type Transaksi = {
   id: string
   anggota_id: string
-  tipe_transaksi: string
+  tipe_transaksi: string // 'masuk' or 'keluar'
   source_type: string
   deskripsi?: string
   jumlah: number
@@ -82,7 +82,7 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
       try {
         const { data, error: fallbackError } = await supabase
           .from('transaksi')
-          .select('*')
+          .select('id, anggota_id, tipe_transaksi, source_type, deskripsi, jumlah, sebelum, sesudah, pembiayaan_id, tabungan_id, created_at, updated_at')
           .eq('anggota_id', user.id)
           .order('created_at', { ascending: false })
           .limit(50)
@@ -138,25 +138,25 @@ export function UserTransactions({ user, open, onOpenChange }: UserTransactionsP
                       <TableCell>{formatDate(transaction.created_at)}</TableCell>
                       <TableCell>
                         <Badge 
-                          variant={transaction.tipe_transaksi === 'kredit' ? 'default' : 'outline'}
-                          className={transaction.tipe_transaksi === 'kredit' 
+                          variant={transaction.tipe_transaksi === 'masuk' ? 'default' : 'outline'}
+                          className={transaction.tipe_transaksi === 'masuk' 
                             ? "bg-green-500 hover:bg-green-600" 
                             : "text-red-500 border-red-500"
                           }
                         >
-                          {transaction.tipe_transaksi === 'kredit' ? (
+                          {transaction.tipe_transaksi === 'masuk' ? (
                             <ArrowDownIcon className="mr-1 h-3 w-3" />
                           ) : (
                             <ArrowUpIcon className="mr-1 h-3 w-3" />
                           )}
-                          {transaction.tipe_transaksi === 'kredit' ? 'Masuk' : 'Keluar'}
+                          {transaction.tipe_transaksi === 'masuk' ? 'Masuk' : 'Keluar'}
                         </Badge>
                       </TableCell>
                       <TableCell>{transaction.source_type}</TableCell>
                       <TableCell>{transaction.deskripsi || '-'}</TableCell>
                       <TableCell className="text-right font-medium">
-                        <span className={transaction.tipe_transaksi === 'kredit' ? 'text-green-600' : 'text-red-600'}>
-                          {transaction.tipe_transaksi === 'kredit' ? '+' : '-'} Rp {Number(transaction.jumlah).toLocaleString('id-ID')}
+                        <span className={transaction.tipe_transaksi === 'masuk' ? 'text-green-600' : 'text-red-600'}>
+                          {transaction.tipe_transaksi === 'masuk' ? '+' : '-'} Rp {Number(transaction.jumlah).toLocaleString('id-ID')}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Users, CreditCard, Wallet, UserPlus, FileText, Plus, Loader2, UserCog, TrendingUp, Bell, Info, AlertCircle, Clock, User } from "lucide-react";
+import { BarChart3, Users, CreditCard, Wallet, UserPlus, FileText, Plus, Loader2, UserCog, TrendingUp, Bell, Info, AlertCircle, Clock, User, MoreHorizontal } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,6 +37,7 @@ import {
   getMemberStatistics,
   getLoanStatistics,
   getTransactionStatistics,
+  formatCurrency,
   FinancialSummary,
   TransactionDistribution,
   FinancialTrend,
@@ -44,6 +45,12 @@ import {
   LoanStatistics,
   TransactionStatistics
 } from "@/lib/reports";
+import {
+  fetchNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  CombinedNotification
+} from '@/lib/notifications';
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 
@@ -324,29 +331,16 @@ export function AdminDashboard() {
     loanStats: null as LoanStatistics | null,
     transactionStats: null as TransactionStatistics | null,
     // Notification data
-    notifications: [] as Notification[],
-    unreadNotifications: [] as Notification[],
+    notifications: [] as CombinedNotification[],
+    unreadNotifications: [] as CombinedNotification[],
     unreadNotificationsCount: 0
   });
   
-  // Notification type definition
-  type Notification = {
-    id: string;
-    judul: string;
-    pesan: string;
-    jenis: string;
-    is_read: boolean;
-    data?: any;
-    created_at: string;
-    updated_at: string;
-    anggota?: {
-      nama: string;
-    } | null;
-  };
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [analyticsTimeRange, setAnalyticsTimeRange] = useState<string>('6months');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
+  const [notifications, setNotifications] = useState<CombinedNotification[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState<CombinedNotification[]>([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
   
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -402,8 +396,8 @@ export function AdminDashboard() {
         return 'bg-gray-100 dark:bg-gray-900';
     }
   };
-  // Mark notification as read
-  const markNotificationAsRead = async (id: string) => {
+  // Mark notification as read - internal helper function
+  const markAsReadInDatabase = async (id: string) => {
     try {
       // Try to update in transaksi_notifikasi first
       const { error, count } = await supabase
@@ -434,17 +428,27 @@ export function AdminDashboard() {
   };
   
   // Handle marking notification as read from UI
-  const handleMarkAsRead = async (id: string) => {
+  const handleMarkAsRead = async (notification: CombinedNotification) => {
     try {
-      await markNotificationAsRead(id);
-      
-      // Refresh notifications
-      const updatedNotifications = await fetchNotifications();
-      setDashboardData(prevData => ({
-        ...prevData,
-        notifications: updatedNotifications.allNotifications,
-        unreadNotifications: updatedNotifications.unreadNotifications
+      // Update UI optimistically
+      setDashboardData(prev => ({
+        ...prev,
+        notifications: prev.notifications.map(n => 
+          n.id === notification.id ? { ...n, is_read: true } : n
+        ),
+        unreadNotifications: prev.unreadNotifications.filter(n => n.id !== notification.id),
+        unreadNotificationsCount: prev.unreadNotificationsCount - 1
       }));
+      
+      // Update notifications state
+      setNotifications(prev => 
+        prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
+      );
+      setUnreadNotifications(prev => prev.filter(n => n.id !== notification.id));
+      setUnreadNotificationsCount(prev => prev - 1);
+      
+      // Call API to mark notification as read
+      await markNotificationAsRead(notification, user?.id);
       
       // Show success toast
       toast({
@@ -453,126 +457,51 @@ export function AdminDashboard() {
       });
     } catch (error) {
       console.error("Error handling notification read:", error);
+      toast({
+        title: "Error",
+        description: "Gagal menandai notifikasi sebagai dibaca",
+        variant: "destructive"
+      });
     }
   };
   
-  // Fetch notifications
-  const fetchNotifications = async () => {
+  // Fetch notifications using the library function
+  const loadNotifications = async () => {
     try {
-      // Get global notifications
-      const { data: globalNotifications, error: globalError } = await supabase
-        .from('global_notifikasi')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      setIsLoading(true);
+      // Use the library function to fetch notifications
+      const notificationsData = await fetchNotifications();
       
-      if (globalError) throw globalError;
-      
-      // Get transaction notifications
-      const { data: transactionNotifications, error: transactionError } = await supabase
-        .from('transaksi_notifikasi')
-        .select(`
-          *,
-          transaksi:transaksi_id(anggota_id)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (transactionError) throw transactionError;
-      
-      // Get anggota names for transaction notifications
-      let anggotaNames: Record<string, string> = {};
-      if (transactionNotifications && transactionNotifications.length > 0) {
-        const anggotaIds = transactionNotifications
-          .filter(item => item.transaksi?.anggota_id)
-          .map(item => item.transaksi.anggota_id);
-        
-        if (anggotaIds.length > 0) {
-          const { data: anggotaData } = await supabase
-            .from('anggota')
-            .select('id, nama')
-            .in('id', anggotaIds);
-          
-          if (anggotaData) {
-            anggotaData.forEach(anggota => {
-              anggotaNames[anggota.id] = anggota.nama;
-            });
-          }
-        }
-      }
-      
-      // Get read status for global notifications
-      let readGlobalNotifications: Record<string, boolean> = {};
-      if (globalNotifications && globalNotifications.length > 0) {
-        const globalIds = globalNotifications.map(item => item.id);
-        
-        const { data: readData } = await supabase
-          .from('global_notifikasi_read')
-          .select('global_notifikasi_id')
-          .in('global_notifikasi_id', globalIds);
-        
-        if (readData) {
-          readData.forEach(item => {
-            readGlobalNotifications[item.global_notifikasi_id] = true;
-          });
-        }
-      }
-      
-      // Format global notifications
-      const formattedGlobalNotifications = globalNotifications?.map(item => ({
-        id: item.id,
-        judul: item.judul,
-        pesan: item.pesan,
-        jenis: item.jenis || 'info',
-        is_read: readGlobalNotifications[item.id] || false,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        data: item.data
-      })) || [];
-      
-      // Format transaction notifications
-      const formattedTransactionNotifications = transactionNotifications?.map(item => {
-        const anggotaId = item.transaksi?.anggota_id;
-        return {
-          id: item.id,
-          judul: item.judul,
-          pesan: item.pesan,
-          jenis: item.jenis || 'transaction',
-          is_read: item.is_read || false,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          data: item.data,
-          anggota: anggotaId ? { nama: anggotaNames[anggotaId] || 'Unknown' } : null
-        };
-      }) || [];
-      
-      // Combine and sort notifications by creation date
-      const allNotifications = [...formattedGlobalNotifications, ...formattedTransactionNotifications]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // Set notifications state
+      setNotifications(notificationsData);
       
       // Filter unread notifications
-      const unreadNotificationsList = allNotifications.filter(item => !item.is_read);
-      const unreadCount = unreadNotificationsList.length;
+      const unreadNotificationsList = notificationsData.filter(item => !item.is_read);
+      setUnreadNotifications(unreadNotificationsList);
+      setUnreadNotificationsCount(unreadNotificationsList.length);
       
-      // Return the notifications data with both array and count
-      return {
-        allNotifications,
+      // Update dashboard data with notifications
+      setDashboardData(prev => ({
+        ...prev,
+        notifications: notificationsData,
         unreadNotifications: unreadNotificationsList,
-        unreadCount
-      };
+        unreadNotificationsCount: unreadNotificationsList.length
+      }));
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      return {
-        allNotifications: [],
-        unreadNotifications: [],
-        unreadCount: 0
-      };
+      toast({
+        title: "Error",
+        description: "Failed to load notifications",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Function to fetch dashboard data
   const fetchDashboardData = async () => {
     try {
+      setIsLoading(true);
       // Test database connection
       const connectionResult = await testDatabaseConnection();
       setConnectionStatus(connectionResult ? 'Connected' : 'Connection failed');
@@ -588,21 +517,19 @@ export function AdminDashboard() {
       
       // Get transaction distribution
       const transactionDistribution = await getTransactionDistribution();
+      
+      // Get transaction statistics
+      const transactionStats = await getTransactionStatistics();
 
       // Get notifications
-      try {
-        const notificationsData = await fetchNotifications();
-        if (notificationsData) {
-          setNotifications(notificationsData.allNotifications || []);
-          // Use the unreadCount directly from the response
-          setUnreadNotifications(notificationsData.unreadCount || 0);
-        }
-      } catch (error) {
-        console.error('Error setting notifications:', error);
-        setNotifications([]);
-        setUnreadNotifications(0);
-      }
-
+      const notificationsData = await fetchNotifications();
+      
+      // Update notifications state
+      setNotifications(notificationsData);
+      const unreadNotificationsList = notificationsData.filter(n => !n.is_read);
+      setUnreadNotifications(unreadNotificationsList);
+      setUnreadNotificationsCount(unreadNotificationsList.length);
+      
       // Update dashboard data
       setDashboardData({
         totalMembers,
@@ -614,39 +541,42 @@ export function AdminDashboard() {
         financialTrends: [],
         memberStats: null,
         loanStats: null,
-        transactionStats: null,
-        // Include notifications data in the dashboard state
-        notifications: notifications || [],
-        unreadNotifications: notifications.filter(n => !n.is_read) || [],
-        unreadNotificationsCount: unreadNotifications || 0
+        transactionStats,
+        notifications: notificationsData,
+        unreadNotifications: unreadNotificationsList,
+        unreadNotificationsCount: unreadNotificationsList.length
       });
-
-      setIsLoading(false);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setConnectionStatus('Connection failed');
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to load analytics data
   const loadAnalyticsData = async () => {
     try {
-      setIsAnalyticsLoading(true);
-      const data = await fetchAnalyticsData(analyticsTimeRange);
+      const data = await fetchAnalyticsData();
       setAnalyticsData(data);
-      setIsAnalyticsLoading(false);
     } catch (error) {
       console.error('Error loading analytics data:', error);
-      setIsAnalyticsLoading(false);
+      toast({
+        title: "Error",
+        description: "Failed to load analytics data",
+        variant: "destructive"
+      });
     }
   };
 
-  // Load dashboard data on mount and when analytics time range changes
   useEffect(() => {
     fetchDashboardData();
     loadAnalyticsData();
-  }, [analyticsTimeRange]);
+  }, []);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -741,7 +671,7 @@ export function AdminDashboard() {
                   </div>
                 ) : dashboardData.recentActivities.length > 0 ? (
                   <div className="h-[320px] overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-300 scrollbar-track-transparent">
-                    {dashboardData.recentActivities.map((activity: Activity) => {
+                    {dashboardData.recentActivities.map((activity: any) => {
                       // Determine color and action based on activity type
                       let color = "bg-sky-500";
                       let actionLink = "#";
@@ -948,7 +878,7 @@ export function AdminDashboard() {
                 <div className="text-center">
                   <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground" />
                   <h3 className="mt-4 text-lg font-medium">Tidak Ada Data Analitik</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Terjadi kesalahan saat memuat data analitik
                   </p>
                 </div>
@@ -988,39 +918,48 @@ export function AdminDashboard() {
                 </div>
               ) : dashboardData.notifications.length > 0 ? (
                 <div className="space-y-4">
-                  {dashboardData.notifications.map((notification) => (
+                  {dashboardData.notifications.map((notification: CombinedNotification) => (
                     <div key={notification.id} className={`flex items-start gap-4 rounded-lg border p-4 ${!notification.is_read ? 'bg-muted/30' : ''}`}>
                       <div className={`mt-0.5 rounded-full p-1 ${getNotificationBg(notification.jenis)}`}>
                         {getNotificationIcon(notification.jenis)}
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-sm font-medium">
-                          {notification.judul}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium">{notification.judul}</h3>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
                           {notification.pesan}
                         </p>
-                        <div className="mt-1 flex items-center text-xs text-muted-foreground">
-                          <Clock className="mr-1 h-3 w-3" />
-                          {formatRelativeTime(notification.created_at)}
-                          {notification.anggota && (
-                            <>
-                              <span className="mx-1">•</span>
-                              <User className="mr-1 h-3 w-3" />
-                              {notification.anggota.nama}
-                            </>
-                          )}
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(notification.created_at.toString()), { addSuffix: true, locale: id })}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {notification.source === 'global' ? 'Sistem' : 'Transaksi'}
+                            </span>
+                          </div>
                         </div>
+                        {!notification.is_read && (
+                          <div className="mt-2 flex justify-end">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleMarkAsRead(notification)}
+                            >
+                              Tandai Dibaca
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      {!notification.is_read && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleMarkAsRead(notification.id)}
-                        >
-                          Tandai Dibaca
-                        </Button>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -1039,4 +978,7 @@ export function AdminDashboard() {
       </Tabs>
     </div>
   );
-}
+};
+
+export default AdminDashboard;
+
