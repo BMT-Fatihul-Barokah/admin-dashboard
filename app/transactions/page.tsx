@@ -33,6 +33,7 @@ interface Transaksi {
     nomor_rekening: string;
   } | null;
   tipe_transaksi: string;
+  jenis: string; // Added jenis field (masuk/keluar)
   source_type?: string;
   deskripsi?: string;
   jumlah: number;
@@ -164,6 +165,7 @@ export default function TransactionsPage() {
           anggota_id: string;
           anggota_nama?: string;
           tipe_transaksi: string;
+          jenis: string; // Added jenis field (masuk/keluar)
           deskripsi?: string;
           jumlah: number;
           sebelum?: number;
@@ -182,34 +184,44 @@ export default function TransactionsPage() {
         };
         
         // Transform the flat data structure into the nested structure expected by the component
-        const transformedData = data.map((item: FlattenedTransaksi) => ({
-          id: item.id,
-          anggota_id: item.anggota_id,
-          tipe_transaksi: item.tipe_transaksi,
-          deskripsi: item.deskripsi,
-          jumlah: item.jumlah,
-          sebelum: item.sebelum,
-          sesudah: item.sesudah,
-          pembiayaan_id: item.pembiayaan_id,
-          tabungan_id: item.tabungan_id,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          anggota: item.anggota_nama ? { nama: item.anggota_nama } : null,
-          tabungan: item.tabungan_jenis_id ? {
-            saldo: item.tabungan_saldo,
-            jenis_tabungan_id: item.tabungan_jenis_id,
-            jenis_tabungan: item.tabungan_jenis_nama ? {
-              nama: item.tabungan_jenis_nama,
-              kode: item.tabungan_jenis_kode
+        const transformedData = data.map((item: FlattenedTransaksi) => {
+          // Ensure jumlah is displayed with the correct sign based on jenis field
+          // For 'masuk' transactions, the amount should be positive
+          // For 'keluar' transactions, the amount should be negative
+          const jumlah = item.jenis === 'masuk' 
+            ? Math.abs(Number(item.jumlah)) 
+            : -Math.abs(Number(item.jumlah));
+            
+          return {
+            id: item.id,
+            anggota_id: item.anggota_id,
+            tipe_transaksi: item.tipe_transaksi,
+            jenis: item.jenis,
+            deskripsi: item.deskripsi,
+            jumlah: jumlah,
+            sebelum: item.sebelum,
+            sesudah: item.sesudah,
+            pembiayaan_id: item.pembiayaan_id,
+            tabungan_id: item.tabungan_id,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            anggota: item.anggota_nama ? { nama: item.anggota_nama } : null,
+            tabungan: item.tabungan_jenis_id ? {
+              saldo: item.tabungan_saldo,
+              jenis_tabungan_id: item.tabungan_jenis_id,
+              jenis_tabungan: item.tabungan_jenis_nama ? {
+                nama: item.tabungan_jenis_nama,
+                kode: item.tabungan_jenis_kode
+              } : null
+            } : null,
+            pinjaman: item.pembiayaan_jumlah ? {
+              id: item.pembiayaan_id,
+              jumlah: item.pembiayaan_jumlah,
+              sisa_pembayaran: item.pembiayaan_sisa,
+              jenis_pinjaman: item.pembiayaan_jenis || 'Unknown'
             } : null
-          } : null,
-          pinjaman: item.pembiayaan_jumlah ? {
-            id: item.pembiayaan_id,
-            jumlah: item.pembiayaan_jumlah,
-            sisa_pembayaran: item.pembiayaan_sisa,
-            jenis_pinjaman: item.pembiayaan_jenis || 'Unknown'
-          } : null
-        }))
+          };
+        });
         
         setTransactions(transformedData)
         setFilteredTransactions(transformedData)
@@ -542,13 +554,13 @@ export default function TransactionsPage() {
                   </TableCell>
                   <TableCell>{transaction.anggota?.nama || 'Anggota'}</TableCell>
                   <TableCell>
-                    <Badge variant={transaction.tipe_transaksi === 'masuk' ? 'secondary' : 'destructive'}>
-                      {transaction.tipe_transaksi === 'masuk' ? 'Masuk' : 'Keluar'}
+                    <Badge variant={transaction.jenis === 'masuk' ? 'secondary' : 'destructive'}>
+                      {transaction.jenis === 'masuk' ? 'Masuk' : 'Keluar'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {transaction.tipe_transaksi === 'masuk' ? '+ ' : '- '}
-                    {formatCurrency(Number(transaction.jumlah))}
+                    {transaction.jenis === 'masuk' ? '+ ' : '- '}
+                    {formatCurrency(Math.abs(Number(transaction.jumlah)))}
                   </TableCell>
                   <TableCell>
                     {transaction.tabungan ? (

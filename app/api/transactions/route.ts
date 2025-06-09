@@ -6,6 +6,7 @@ interface Transaksi {
   id: string;
   anggota_id: string;
   tipe_transaksi: string;
+  jenis: string; // Added jenis field (masuk/keluar)
   source_type?: string;
   deskripsi?: string;
   jumlah: number;
@@ -55,6 +56,7 @@ export async function GET() {
       id: string;
       anggota_id: string;
       tipe_transaksi: string;
+      jenis: string; // Added jenis field (masuk/keluar)
       source_type: string | null;
       deskripsi: string | null;
       jumlah: number;
@@ -76,38 +78,48 @@ export async function GET() {
     };
     
     // Transform the flat data structure into the nested structure expected by the frontend
-    const transformedData = data?.map((item: TransactionRPCResult) => ({
-      id: item.id,
-      anggota_id: item.anggota_id,
-      tipe_transaksi: item.tipe_transaksi,
-      source_type: item.source_type,
-      deskripsi: item.deskripsi,
-      jumlah: item.jumlah,
-      sebelum: item.sebelum,
-      sesudah: item.sesudah,
-      pembiayaan_id: item.pembiayaan_id,
-      tabungan_id: item.tabungan_id,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-      anggota: item.anggota_nama ? { 
-        nama: item.anggota_nama,
-        nomor_rekening: item.anggota_nomor_rekening 
-      } : null,
-      tabungan: item.tabungan_id ? {
-        saldo: item.tabungan_saldo,
-        jenis_tabungan_id: item.tabungan_jenis_id,
-        jenis_tabungan: item.tabungan_jenis_nama ? {
-          nama: item.tabungan_jenis_nama,
-          kode: item.tabungan_jenis_kode
+    const transformedData = data?.map((item: TransactionRPCResult) => {
+      // Ensure jumlah is displayed with the correct sign based on jenis field
+      // For 'masuk' transactions, the amount should be positive
+      // For 'keluar' transactions, the amount should be negative
+      const jumlah = item.jenis === 'masuk' 
+        ? Math.abs(Number(item.jumlah)) 
+        : -Math.abs(Number(item.jumlah));
+        
+      return {
+        id: item.id,
+        anggota_id: item.anggota_id,
+        tipe_transaksi: item.tipe_transaksi,
+        jenis: item.jenis,
+        source_type: item.source_type,
+        deskripsi: item.deskripsi,
+        jumlah: jumlah,
+        sebelum: item.sebelum,
+        sesudah: item.sesudah,
+        pembiayaan_id: item.pembiayaan_id,
+        tabungan_id: item.tabungan_id,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        anggota: item.anggota_nama ? { 
+          nama: item.anggota_nama,
+          nomor_rekening: item.anggota_nomor_rekening 
+        } : null,
+        tabungan: item.tabungan_id ? {
+          saldo: item.tabungan_saldo,
+          jenis_tabungan_id: item.tabungan_jenis_id,
+          jenis_tabungan: item.tabungan_jenis_nama ? {
+            nama: item.tabungan_jenis_nama,
+            kode: item.tabungan_jenis_kode
+          } : null
+        } : null,
+        pinjaman: item.pembiayaan_jumlah ? {  // Map pembiayaan to pinjaman for frontend compatibility
+          id: item.pembiayaan_id,
+          jumlah: item.pembiayaan_jumlah,
+          sisa_pembayaran: item.pembiayaan_sisa,
+          jenis_pinjaman: item.pembiayaan_jenis
         } : null
-      } : null,
-      pinjaman: item.pembiayaan_jumlah ? {  // Map pembiayaan to pinjaman for frontend compatibility
-        id: item.pembiayaan_id,
-        jumlah: item.pembiayaan_jumlah,
-        sisa_pembayaran: item.pembiayaan_sisa,
-        jenis_pinjaman: item.pembiayaan_jenis
-      } : null
-    })) || []
+      };
+    }) || []
     
     console.log(`Successfully fetched ${transformedData.length} transactions`)
     
