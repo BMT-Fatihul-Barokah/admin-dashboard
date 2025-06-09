@@ -19,15 +19,10 @@ interface SavingsType {
   id: string
   kode: string
   nama: string
-  deskripsi: string
-  minimum_setoran: number
   is_active: boolean
-  is_reguler: boolean
-  periode_setoran: string | null
-  bagi_hasil: number
-  jangka_waktu: number | null
   has_account: boolean
   account_id?: string
+  balance: number
 }
 
 export function MemberSavingsTypes({ userId, userName }: MemberSavingsTypesProps) {
@@ -53,75 +48,54 @@ export function MemberSavingsTypes({ userId, userName }: MemberSavingsTypesProps
   // Fetch savings types with info about whether the member has an account of that type
   const fetchMemberSavingsTypes = async () => {
     setIsLoading(true)
+    setError(null) // Reset error state
+    
     try {
-      // Use the RPC function to get member savings types
-      const { data, error } = await supabase
-        .rpc('get_member_savings_types', {
-          anggota_id_param: userId
-        })
+      // Get all savings types
+      const { data: allTypes, error: typesError } = await supabase
+        .from('jenis_tabungan')
+        .select('id, kode, nama')
+        .order('kode', { ascending: true })
       
-      if (error) throw error
+      if (typesError) throw typesError
       
-      // Map the results to include any missing fields with default values
-      const mappedData = (data || []).map((item: any) => ({
-        ...item,
-        bagi_hasil: item.bagi_hasil || 0,
-        is_reguler: item.is_reguler || false,
-        periode_setoran: item.periode_setoran || null,
-        jangka_waktu: item.jangka_waktu || null
+      if (!allTypes || allTypes.length === 0) {
+        setSavingsTypes([])
+        return
+      }
+      
+      // Get member's active accounts with balance
+      const { data: memberAccounts, error: accountsError } = await supabase
+        .from('tabungan')
+        .select('id, jenis_tabungan_id, saldo')
+        .eq('anggota_id', userId)
+        .eq('status', 'aktif')
+      
+      if (accountsError) throw accountsError
+      
+      // Create map of member's account types with balance
+      const memberAccountMap = new Map();
+      const balanceMap = new Map();
+      (memberAccounts || []).forEach(account => {
+        memberAccountMap.set(account.jenis_tabungan_id, account.id);
+        balanceMap.set(account.jenis_tabungan_id, account.saldo || 0);
+      });
+      
+      // Combine information
+      const typesWithAccountInfo = allTypes.map((type: any) => ({
+        id: type.id,
+        kode: type.kode,
+        nama: type.nama,
+        is_active: true, // Default value
+        has_account: memberAccountMap.has(type.id),
+        account_id: memberAccountMap.get(type.id),
+        balance: balanceMap.get(type.id) || 0
       }))
       
-      setSavingsTypes(mappedData)
+      setSavingsTypes(typesWithAccountInfo)
     } catch (error) {
       console.error('Error fetching member savings types:', error)
-      
-      // Fallback to manual join if RPC fails
-      try {
-        // Pertama, ambil semua jenis tabungan yang aktif
-        const { data: allTypes, error: typesError } = await supabase
-          .from('jenis_tabungan')
-          .select('*')
-          .eq('is_active', true)
-          .order('kode', { ascending: true })
-        
-        if (typesError) throw typesError
-        
-        if (!allTypes || allTypes.length === 0) {
-          setSavingsTypes([])
-          return
-        }
-        
-        // Kedua, ambil tabungan yang dimiliki anggota
-        const { data: memberAccounts, error: accountsError } = await supabase
-          .from('tabungan')
-          .select('id, jenis_tabungan_id')
-          .eq('anggota_id', userId)
-          .eq('status', 'aktif')
-        
-        if (accountsError) throw accountsError
-        
-        // Buat map dari jenis tabungan yang dimiliki anggota
-        const memberAccountMap = new Map();
-        (memberAccounts || []).forEach(account => {
-          memberAccountMap.set(account.jenis_tabungan_id, account.id);
-        });
-        
-        // Gabungkan informasi
-        const typesWithAccountInfo = allTypes.map((type: any) => ({
-          ...type,
-          has_account: memberAccountMap.has(type.id),
-          account_id: memberAccountMap.get(type.id),
-          bagi_hasil: type.bagi_hasil || 0,
-          is_reguler: type.is_reguler || false,
-          periode_setoran: type.periode_setoran || null,
-          jangka_waktu: type.jangka_waktu || null
-        }))
-        
-        setSavingsTypes(typesWithAccountInfo)
-      } catch (fallbackError) {
-        console.error('Fallback query also failed:', fallbackError)
-        setError('Gagal memuat data jenis tabungan')
-      }
+      setError('Gagal memuat data jenis tabungan')
     } finally {
       setIsLoading(false)
     }
@@ -215,8 +189,7 @@ export function MemberSavingsTypes({ userId, userName }: MemberSavingsTypesProps
             <TableRow>
               <TableHead>Kode</TableHead>
               <TableHead>Nama</TableHead>
-              <TableHead>Setoran Minimum</TableHead>
-              <TableHead>Bagi Hasil</TableHead>
+              <TableHead>Saldo</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
@@ -226,8 +199,7 @@ export function MemberSavingsTypes({ userId, userName }: MemberSavingsTypesProps
               <TableRow key={type.id}>
                 <TableCell className="font-medium">{type.kode}</TableCell>
                 <TableCell>{type.nama}</TableCell>
-                <TableCell>{formatCurrency(type.minimum_setoran)}</TableCell>
-                <TableCell>{type.bagi_hasil || 0}%</TableCell>
+                <TableCell>{type.has_account ? formatCurrency(type.balance) : '-'}</TableCell>
                 <TableCell>
                   <Badge
                     variant={type.has_account ? "default" : "outline"}
