@@ -72,13 +72,65 @@ export function SavingsDetails({ userId }: SavingsDetailsProps) {
   const fetchSavingsAccounts = async () => {
     setIsLoading(true)
     try {
+      // Try to fetch from the view first
       const { data, error } = await supabase
         .from('tabungan_display_view')
         .select('*')
         .eq('anggota_id', userId)
         .order('display_order', { ascending: true })
       
-      if (error) throw error
+      if (error) {
+        // If there's an error with the view, try the fallback query
+        console.log('Falling back to direct query')
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('tabungan')
+          .select(`
+            id,
+            anggota_id,
+            jenis_tabungan_id,
+            saldo,
+            created_at,
+            status,
+            anggota!inner(nama),
+            jenis_tabungan!inner(kode, nama, deskripsi)
+          `)
+          .eq('anggota_id', userId)
+        
+        if (fallbackError) throw fallbackError
+        
+        // Transform the data to match the expected format
+        const transformedData = (fallbackData || []).map(item => {
+          // Safely access nested properties
+          const anggotaData = item.anggota as Record<string, any>;
+          const jenisTabunganData = item.jenis_tabungan as Record<string, any>;
+          
+          return {
+            id: item.id,
+            anggota_id: item.anggota_id,
+            anggota_nama: anggotaData?.nama || '',
+            jenis_tabungan_id: item.jenis_tabungan_id,
+            jenis_tabungan_kode: jenisTabunganData?.kode || '',
+            jenis_tabungan_nama: jenisTabunganData?.nama || '',
+            jenis_tabungan_deskripsi: jenisTabunganData?.deskripsi || '',
+            minimum_setoran: 0, // Default value
+            is_reguler: false, // Default value
+            periode_setoran: 'bulanan', // Default value
+            saldo: item.saldo,
+            tanggal_buka: item.created_at,
+            tanggal_jatuh_tempo: null,
+            status: item.status,
+            tanggal_setoran_reguler: null,
+            is_default: true, // Default value
+            target_amount: null,
+            progress_percentage: null,
+            last_transaction_date: null,
+            display_order: 1 // Default value
+          };
+        });
+        
+        setSavingsAccounts(transformedData)
+        return
+      }
       
       setSavingsAccounts(data || [])
     } catch (error) {
