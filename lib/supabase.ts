@@ -26,8 +26,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// Check if service key is valid (not just empty or placeholder)
+const isValidServiceKey = supabaseServiceKey && 
+  supabaseServiceKey.length > 100 && 
+  !supabaseServiceKey.includes('YOUR_SERVICE_ROLE_KEY_HASH_HERE');
+
 // Create a Supabase admin client with service role key (for bypassing RLS)
-export const supabaseAdmin = supabaseServiceKey 
+export const supabaseAdmin = isValidServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -40,6 +45,14 @@ export const supabaseAdmin = supabaseServiceKey
       },
     })
   : null;
+
+// Log service role key status
+if (!isValidServiceKey) {
+  console.warn('Service role key is missing or invalid. Some admin features may not work properly.');
+  console.warn('Notifications and other features requiring admin access may be affected.');
+} else {
+  console.log('Service role key is valid and admin client initialized.');
+}
 
 // Log auth state changes
 supabase.auth.onAuthStateChange((event, session) => {

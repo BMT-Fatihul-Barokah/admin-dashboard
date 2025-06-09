@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 // Types for notifications
 export type GlobalNotification = {
@@ -56,9 +57,23 @@ export async function getGlobalNotifications(): Promise<GlobalNotification[]> {
 
     if (error) {
       console.error('Error fetching global notifications:', error);
-      throw error;
+      console.error('Error details:', JSON.stringify(error));
+      
+      // Try a simpler query as fallback
+      console.log('Attempting fallback query for global notifications...');
+      const fallback = await supabase
+        .from('global_notifikasi')
+        .select('id, judul, pesan, jenis, created_at, updated_at');
+        
+      if (fallback.error) {
+        console.error('Fallback query also failed:', fallback.error);
+        return [];
+      }
+      
+      return fallback.data || [];
     }
 
+    console.log(`Retrieved ${data?.length || 0} global notifications`);
     return data || [];
   } catch (error) {
     console.error('Error in getGlobalNotifications:', error);
@@ -99,9 +114,23 @@ export async function getTransactionNotifications(): Promise<TransactionNotifica
 
     if (error) {
       console.error('Error fetching transaction notifications:', error);
-      throw error;
+      console.error('Error details:', JSON.stringify(error));
+      
+      // Try a simpler query as fallback
+      console.log('Attempting fallback query for transaction notifications...');
+      const fallback = await supabase
+        .from('transaksi_notifikasi')
+        .select('id, judul, pesan, jenis, is_read, created_at, updated_at');
+        
+      if (fallback.error) {
+        console.error('Fallback query also failed:', fallback.error);
+        return [];
+      }
+      
+      return fallback.data || [];
     }
 
+    console.log(`Retrieved ${data?.length || 0} transaction notifications`);
     return data || [];
   } catch (error) {
     console.error('Error in getTransactionNotifications:', error);
@@ -109,37 +138,120 @@ export async function getTransactionNotifications(): Promise<TransactionNotifica
   }
 }
 
-// Get combined notifications (global + transaction)
+// Get combined notifications (global + transaction) using the new SQL function
+// Use direct Supabase URL and key as a last resort if needed
+const DIRECT_SUPABASE_URL = 'https://vszhxeamcxgqtwyaxhlu.supabase.co';
+const DIRECT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94';
+
 export async function getCombinedNotifications(
   anggotaId?: string
 ): Promise<CombinedNotification[]> {
   try {
-    console.log('Fetching combined notifications...');
-    // Get global notifications
-    const globalNotifications = await getGlobalNotifications();
+    console.log('Fetching combined notifications using SQL function...');
+    
+    // Use the new SQL function that bypasses RLS
+    const { data, error } = await supabase.rpc('get_all_notifications');
+    
+    if (error) {
+      console.error('Error fetching notifications with RPC:', error);
+      console.error('Error details:', JSON.stringify(error));
+      
+      // Fallback to the old method if RPC fails
+      console.log('Falling back to separate queries...');
+      return getFallbackCombinedNotifications(anggotaId);
+    }
+    
+    console.log(`Retrieved ${data?.length || 0} notifications from SQL function`);
     
     // Get read status for global notifications if anggotaId is provided
     let readStatusMap: Record<string, boolean> = {};
     if (anggotaId) {
-      const readStatus = await getGlobalNotificationReadStatus(anggotaId);
-      readStatusMap = readStatus.reduce((acc, item) => {
-        acc[item.global_notifikasi_id] = item.is_read;
-        return acc;
-      }, {} as Record<string, boolean>);
+      try {
+        const { data: readStatus, error: readError } = await supabase.rpc(
+          'get_notification_read_status',
+          { p_anggota_id: anggotaId }
+        );
+        
+        if (!readError && readStatus) {
+          readStatusMap = readStatus.reduce((acc: Record<string, boolean>, item: { notification_id: string, is_read: boolean }) => {
+            acc[item.notification_id] = item.is_read;
+            return acc;
+          }, {} as Record<string, boolean>);
+        }
+      } catch (readError) {
+        console.error('Error getting read status:', readError);
+      }
     }
     
-    // Get transaction notifications
-    const transactionNotifications = await getTransactionNotifications();
+    // Process the notifications
+    const combined: CombinedNotification[] = data?.map((notification: any) => {
+      // For global notifications, check the read status map
+      const isRead = notification.source === 'global'
+        ? readStatusMap[notification.id] || false
+        : notification.is_read || false;
+        
+      return {
+        ...notification,
+        is_read: isRead,
+        source: notification.source as 'global' | 'transaction'
+      };
+    }) || [];
+    
+    console.log(`Processed ${combined.length} total notifications`);
+    return combined;
+  } catch (error) {
+    console.error('Error in getCombinedNotifications:', error);
+    return [];
+  }
+}
+
+// Fallback method using separate queries
+async function getFallbackCombinedNotifications(
+  anggotaId?: string
+): Promise<CombinedNotification[]> {
+  try {
+    console.log('Using fallback method for notifications...');
+    
+    // Try direct queries with minimal fields
+    const { data: globalData } = await supabase
+      .from('global_notifikasi')
+      .select('id, judul, pesan, jenis, created_at, updated_at')
+      .order('created_at', { ascending: false });
+    
+    const { data: transactionData } = await supabase
+      .from('transaksi_notifikasi')
+      .select('id, judul, pesan, jenis, is_read, created_at, updated_at, transaksi_id')
+      .order('created_at', { ascending: false });
+    
+    console.log(`Fallback retrieved: ${globalData?.length || 0} global, ${transactionData?.length || 0} transaction`);
+    
+    // Get read status for global notifications if anggotaId is provided
+    let readStatusMap: Record<string, boolean> = {};
+    if (anggotaId && globalData?.length) {
+      const { data: readStatus } = await supabase
+        .from('global_notifikasi_read')
+        .select('global_notifikasi_id, is_read')
+        .eq('anggota_id', anggotaId);
+      
+      if (readStatus) {
+        readStatusMap = readStatus.reduce((acc: Record<string, boolean>, item: { global_notifikasi_id: string, is_read: boolean }) => {
+          acc[item.global_notifikasi_id] = item.is_read;
+          return acc;
+        }, {} as Record<string, boolean>);
+      }
+    }
     
     // Combine notifications
     const combined: CombinedNotification[] = [
-      ...globalNotifications.map(notification => ({
+      ...(globalData || []).map((notification: any) => ({
         ...notification,
+        data: {},
         is_read: readStatusMap[notification.id] || false,
         source: 'global' as const
       })),
-      ...transactionNotifications.map(notification => ({
+      ...(transactionData || []).map((notification: any) => ({
         ...notification,
+        data: {},
         source: 'transaction' as const
       }))
     ];
@@ -149,8 +261,47 @@ export async function getCombinedNotifications(
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   } catch (error) {
-    console.error('Error in getCombinedNotifications:', error);
-    return [];
+    console.error('Error in fallback notifications:', error);
+    
+    // Last resort: try with direct hardcoded client
+    try {
+      console.log('Attempting last resort direct query...');
+      const directClient = createClient(DIRECT_SUPABASE_URL, DIRECT_SUPABASE_KEY);
+      
+      const { data: globalData } = await directClient
+        .from('global_notifikasi')
+        .select('id, judul, pesan, jenis, created_at, updated_at')
+        .limit(10);
+        
+      const { data: transactionData } = await directClient
+        .from('transaksi_notifikasi')
+        .select('id, judul, pesan, jenis, is_read, created_at, updated_at')
+        .limit(10);
+      
+      console.log(`Last resort retrieved: ${globalData?.length || 0} global, ${transactionData?.length || 0} transaction`);
+      
+      // Combine notifications
+      const combined: CombinedNotification[] = [
+        ...(globalData || []).map((notification: any) => ({
+          ...notification,
+          data: {},
+          is_read: false,
+          source: 'global' as const
+        })),
+        ...(transactionData || []).map((notification: any) => ({
+          ...notification,
+          data: {},
+          source: 'transaction' as const
+        }))
+      ];
+      
+      return combined.sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    } catch (lastError) {
+      console.error('Even last resort failed:', lastError);
+      return [];
+    }
   }
 }
 
@@ -225,6 +376,61 @@ export async function markNotificationAsRead(
     return markTransactionNotificationAsRead(notification.id);
   }
   return false;
+}
+
+// Direct fetch method that can be called from components
+export async function fetchNotifications(): Promise<CombinedNotification[]> {
+  console.log('Direct fetch method called');
+  
+  try {
+    // Try SQL function first
+    const { data, error } = await supabase.rpc('get_all_notifications');
+    
+    if (!error && data && data.length > 0) {
+      console.log(`SQL function returned ${data.length} notifications`);
+      return data.map((item: any) => ({
+        ...item,
+        is_read: item.is_read || false,
+        source: item.source as 'global' | 'transaction'
+      }));
+    }
+    
+    // Try direct query as fallback
+    console.log('Trying direct query fallback');
+    const directClient = createClient(
+      'https://vszhxeamcxgqtwyaxhlu.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94'
+    );
+    
+    const [globalResult, transactionResult] = await Promise.all([
+      directClient.from('global_notifikasi').select('*').limit(20),
+      directClient.from('transaksi_notifikasi').select('*').limit(20)
+    ]);
+    
+    const globalData = globalResult.data || [];
+    const transactionData = transactionResult.data || [];
+    
+    console.log(`Direct query returned ${globalData.length} global and ${transactionData.length} transaction notifications`);
+    
+    const combined: CombinedNotification[] = [
+      ...globalData.map((item: any) => ({
+        ...item,
+        is_read: false,
+        source: 'global' as const
+      })),
+      ...transactionData.map((item: any) => ({
+        ...item,
+        source: 'transaction' as const
+      }))
+    ];
+    
+    return combined.sort((a, b) => {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  } catch (error) {
+    console.error('All notification fetch methods failed:', error);
+    return [];
+  }
 }
 
 // Mark all notifications as read
