@@ -58,27 +58,36 @@ export function PaymentScheduleModal({
   const generatePaymentSchedule = (loan: Pembiayaan) => {
     if (!loan) return [];
     
-    // Calculate number of installments (assuming 12 months for simplicity)
-    const numberOfInstallments = 12;
-    const installmentAmount = Number(loan.total_pembayaran) / numberOfInstallments;
+    // Use the loan's jangka_waktu for number of installments
+    const numberOfInstallments = loan.jangka_waktu || 12;
+    
+    // Calculate installment amount based on the loan amount, not total_pembayaran
+    // (which might be 0 for new loans)
+    const installmentAmount = Number(loan.jumlah) / numberOfInstallments;
     
     // Generate schedule
     const schedule: PaymentScheduleItem[] = [];
     const startDate = new Date(loan.created_at);
     
+    // Get the day of the month for due dates (use tanggal_jatuh_tempo_bulanan if available)
+    const dueDateDay = loan.tanggal_jatuh_tempo_bulanan || startDate.getDate();
+    
     for (let i = 1; i <= numberOfInstallments; i++) {
-      const dueDate = addMonths(startDate, i);
+      // Calculate due date by adding months to start date
+      let dueDate = addMonths(startDate, i);
       
-      // Determine status based on current date
+      // Set the day of month to match the preferred payment day
+      dueDate.setDate(dueDateDay);
+      
+      // Determine status based on current date and actual payments
+      // Default to 'belum_bayar' for all installments
       let status = 'belum_bayar';
       if (new Date() > dueDate) {
         status = 'terlambat';
       }
       
-      // For demo purposes, mark some installments as paid
-      if (i <= 3 && loan.status === 'aktif') {
-        status = 'lunas';
-      }
+      // In a real implementation, we would check if this installment has been paid
+      // by looking at payment records in the database
       
       schedule.push({
         id: `${loan.id}-${i}`,
@@ -87,7 +96,7 @@ export function PaymentScheduleModal({
         tanggal_jatuh_tempo: dueDate.toISOString(),
         jumlah_angsuran: installmentAmount,
         status: status,
-        tanggal_pembayaran: status === 'lunas' ? addMonths(startDate, i).toISOString() : undefined
+        tanggal_pembayaran: undefined // No payments for new loans
       });
     }
     
@@ -132,7 +141,7 @@ export function PaymentScheduleModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center">
             <span>Jadwal Pembayaran</span>
