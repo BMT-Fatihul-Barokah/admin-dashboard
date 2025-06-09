@@ -171,19 +171,37 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   let pembiayaanDataForDistribution: any[] = [];
   try {
     console.log('Fetching loan data from pembiayaan table...');
+    // Log environment variables for debugging
+    console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY available:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+    
+    // Use the correct schema for pembiayaan table
     const { data: pembiayaanData, error: pembiayaanError } = await supabase
       .from('pembiayaan')
-      .select('jumlah, created_at, status, jenis_pembiayaan')
+      .select(`
+        id, 
+        jumlah, 
+        created_at, 
+        status, 
+        jenis_pembiayaan_id,
+        jenis_pembiayaan:jenis_pembiayaan_id(nama, kode)
+      `)
       .gte('created_at', startDate);
     
     if (pembiayaanError) {
       console.error('Error fetching pembiayaan data:', pembiayaanError);
+      console.error('Error details:', pembiayaanError.message, pembiayaanError.details);
       throw pembiayaanError;
     }
     
     if (!pembiayaanData) {
       console.error('No pembiayaan data returned');
       throw new Error('No pembiayaan data returned');
+    }
+    
+    console.log('Pembiayaan data fetched successfully:', pembiayaanData.length, 'records');
+    if (pembiayaanData.length > 0) {
+      console.log('Sample record:', pembiayaanData[0]);
     }
     
     // Process loan data by month
@@ -225,24 +243,32 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   
   // 3. Fetch transaction data by month using stored procedure
   try {
+    console.log('Fetching transaction data using get_monthly_transactions RPC...');
     const { data: monthlyTransactions, error: transactionError } = await supabase
       .rpc('get_monthly_transactions', { start_date: startDate });
     
     if (transactionError) {
       console.error('Error fetching transaction data from RPC:', transactionError);
+      console.error('Error details:', transactionError.message, transactionError.details);
       throw transactionError;
     }
+    
+    console.log('Transaction data fetched successfully:', monthlyTransactions);
     
     if (monthlyTransactions && monthlyTransactions.length > 0) {
       // Process data from the RPC function
       monthRanges.forEach(range => {
         const monthKey = `${range.start.getFullYear()}-${String(range.start.getMonth() + 1).padStart(2, '0')}`;
+        console.log(`Looking for month key: ${monthKey} in transaction data`);
+        
         const matchingData = monthlyTransactions.find((item: { month: string; total_amount: number; count: number }) => 
           item.month === monthKey
         );
         
         const amount = matchingData ? Number(matchingData.total_amount) : 0;
         const count = matchingData ? Number(matchingData.count) : 0;
+        
+        console.log(`Month: ${range.label}, Found data: ${!!matchingData}, Amount: ${amount}, Count: ${count}`);
         
         transactionData.push({
           month: range.label,
@@ -253,7 +279,8 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
         });
       });
     } else {
-      // If no data returned from RPC, initialize with zeros
+      console.log('No transaction data returned from RPC, using empty data');
+      // No transaction data, provide empty data
       monthRanges.forEach(range => {
         transactionData.push({
           month: range.label,
@@ -358,38 +385,86 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   );
   
   // 5. Calculate loan status distribution
-  const loanStatusCounts: Record<string, number> = {};
-  pembiayaanDataForDistribution?.forEach((pembiayaan: any) => {
-    const status = pembiayaan.status;
-    loanStatusCounts[status] = (loanStatusCounts[status] || 0) + 1;
-  });
-  
-  Object.entries(loanStatusCounts).forEach(([status, count]) => {
-    const total = pembiayaanDataForDistribution?.length || 1;
-    const percentage = (count / total) * 100;
-    loanStatusDistribution.push({
-      name: status.charAt(0).toUpperCase() + status.slice(1),
-      value: count,
-      percentage
-    });
-  });
+  try {
+    console.log('Calculating loan status distribution...');
+    const loanStatusCounts: Record<string, number> = {};
+    
+    if (pembiayaanDataForDistribution && pembiayaanDataForDistribution.length > 0) {
+      pembiayaanDataForDistribution.forEach((pembiayaan: any) => {
+        // Make sure status exists and is a string
+        const status = pembiayaan.status || 'unknown';
+        loanStatusCounts[status] = (loanStatusCounts[status] || 0) + 1;
+      });
+      
+      console.log('Loan status counts:', loanStatusCounts);
+      
+      Object.entries(loanStatusCounts).forEach(([status, count]) => {
+        const total = pembiayaanDataForDistribution.length || 1;
+        const percentage = (count / total) * 100;
+        loanStatusDistribution.push({
+          name: status.charAt(0).toUpperCase() + status.slice(1),
+          value: count,
+          percentage
+        });
+      });
+    } else {
+      console.log('No loan data available for status distribution');
+      // Add default data
+      loanStatusDistribution.push(
+        { name: 'Aktif', value: 0, percentage: 0 },
+        { name: 'Lunas', value: 0, percentage: 0 },
+        { name: 'Menunggu', value: 0, percentage: 0 }
+      );
+    }
+  } catch (error) {
+    console.error('Error calculating loan status distribution:', error);
+    // Add default data
+    loanStatusDistribution.push(
+      { name: 'Aktif', value: 0, percentage: 0 },
+      { name: 'Lunas', value: 0, percentage: 0 },
+      { name: 'Menunggu', value: 0, percentage: 0 }
+    );
+  }
   
   // 6. Calculate loan type distribution
-  const loanTypeCounts: Record<string, number> = {};
-  pembiayaanDataForDistribution?.forEach((pembiayaan: any) => {
-    const type = pembiayaan.jenis_pembiayaan;
-    loanTypeCounts[type] = (loanTypeCounts[type] || 0) + 1;
-  });
-  
-  Object.entries(loanTypeCounts).forEach(([type, count]) => {
-    const total = pembiayaanDataForDistribution?.length || 1;
-    const percentage = (count / total) * 100;
-    loanTypeDistribution.push({
-      name: type.charAt(0).toUpperCase() + type.slice(1),
-      value: count,
-      percentage
-    });
-  });
+  try {
+    console.log('Calculating loan type distribution...');
+    const loanTypeCounts: Record<string, number> = {};
+    
+    if (pembiayaanDataForDistribution && pembiayaanDataForDistribution.length > 0) {
+      pembiayaanDataForDistribution.forEach((pembiayaan: any) => {
+        // Use the nested jenis_pembiayaan object to get the name
+        const typeName = pembiayaan.jenis_pembiayaan?.nama || 'unknown';
+        loanTypeCounts[typeName] = (loanTypeCounts[typeName] || 0) + 1;
+      });
+      
+      console.log('Loan type counts:', loanTypeCounts);
+      
+      Object.entries(loanTypeCounts).forEach(([type, count]) => {
+        const total = pembiayaanDataForDistribution.length || 1;
+        const percentage = (count / total) * 100;
+        loanTypeDistribution.push({
+          name: type.charAt(0).toUpperCase() + type.slice(1),
+          value: count,
+          percentage
+        });
+      });
+    } else {
+      console.log('No loan data available for type distribution');
+      // Add default data
+      loanTypeDistribution.push(
+        { name: 'Murabahah', value: 0, percentage: 0 },
+        { name: 'Mudharabah', value: 0, percentage: 0 }
+      );
+    }
+  } catch (error) {
+    console.error('Error calculating loan type distribution:', error);
+    // Add default data
+    loanTypeDistribution.push(
+      { name: 'Murabahah', value: 0, percentage: 0 },
+      { name: 'Mudharabah', value: 0, percentage: 0 }
+    );
+  }
     
 
   
@@ -397,10 +472,25 @@ const fetchAnalyticsData = async (timeRange: string): Promise<AnalyticsData> => 
   const totalRegistrations = registrationData.reduce((sum: number, item: any) => sum + item.value, 0);
   const totalLoanAmount = loanData.reduce((sum: number, item: any) => sum + item.value, 0);
   const totalTransactionAmount = transactionData.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
-  const activeLoans = pembiayaanDataForDistribution?.filter((loan: any) => loan.status === 'aktif').length || 0;
-  const approvedLoans = pembiayaanDataForDistribution?.filter((loan: any) => ['aktif', 'lunas', 'disetujui'].includes(loan.status)).length || 0;
-  const totalLoans = pembiayaanDataForDistribution?.length || 0;
-  const approvalRate = totalLoans > 0 ? Math.round((approvedLoans / totalLoans) * 100) : 0;
+  
+  // Handle potential undefined values safely
+  let activeLoans = 0;
+  let approvedLoans = 0;
+  let totalLoans = 0;
+  let approvalRate = 0;
+  
+  try {
+    if (pembiayaanDataForDistribution && pembiayaanDataForDistribution.length > 0) {
+      activeLoans = pembiayaanDataForDistribution.filter((loan: any) => loan.status === 'aktif').length || 0;
+      approvedLoans = pembiayaanDataForDistribution.filter((loan: any) => 
+        ['aktif', 'lunas', 'disetujui'].includes(loan.status || '')
+      ).length || 0;
+      totalLoans = pembiayaanDataForDistribution.length || 0;
+      approvalRate = totalLoans > 0 ? Math.round((approvedLoans / totalLoans) * 100) : 0;
+    }
+  } catch (error) {
+    console.error('Error calculating loan metrics:', error);
+  }
   
   return {
     registrationData,
