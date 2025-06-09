@@ -180,7 +180,7 @@ export function BendaraDashboard() {
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pendapatan Bulan Ini</CardTitle>
                   <div className="p-1 bg-white/20 rounded-full">
-                    <PiggyBank className="h-4 w-4 text-white" />
+                    <CircleDollarSign className="h-4 w-4 text-white" />
                   </div>
                 </CardHeader>
                 <CardContent>
