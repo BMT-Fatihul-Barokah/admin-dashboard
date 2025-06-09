@@ -53,7 +53,7 @@ export function CreateLoanModal({
     jenis_pembiayaan_id: "",
     jumlah: 0,
     jatuh_tempo: format(addMonths(new Date(), 3), 'yyyy-MM-dd'),
-    durasi_bulan: 3,
+    jangka_waktu: 3,
     deskripsi: ""
   })
   const [date, setDate] = useState<Date | undefined>(addMonths(new Date(), 3))
@@ -73,7 +73,7 @@ export function CreateLoanModal({
         jenis_pembiayaan_id: "",
         jumlah: 0,
         jatuh_tempo: format(nextMonthSameDay, 'yyyy-MM-dd'),
-        durasi_bulan: 3,
+        jangka_waktu: 3,
         deskripsi: ""
       })
       setDate(nextMonthSameDay)
@@ -117,7 +117,7 @@ export function CreateLoanModal({
     setFormData(prev => ({
       ...prev,
       jatuh_tempo: format(nextMonthSameDay, 'yyyy-MM-dd'),
-      durasi_bulan: durationInMonths
+      jangka_waktu: durationInMonths
     }))
   }
 
@@ -129,47 +129,67 @@ export function CreateLoanModal({
   }
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called');
     // Validate form
     if (!formData.anggota_id) {
       toast.error("Silakan pilih anggota")
+      console.log('Validation failed: No anggota_id');
       return
     }
     if (!formData.jenis_pembiayaan_id) {
       toast.error("Silakan pilih jenis pembiayaan")
+      console.log('Validation failed: No jenis_pembiayaan_id');
       return
     }
 
     if (!formData.jumlah || formData.jumlah <= 0) {
       toast.error("Jumlah pembiayaan harus lebih dari 0")
+      console.log('Validation failed: Invalid jumlah');
       return
     }
     if (!formData.jatuh_tempo) {
       toast.error("Silakan pilih tanggal jatuh tempo")
+      console.log('Validation failed: No jatuh_tempo');
       return
     }
-
+    
+    console.log('Form validation passed, proceeding with submission');
     setIsSubmitting(true)
+    console.log('Setting isSubmitting to true');
     try {
       // Ensure jumlah is a number and all required fields are present
-      const cleanedData = {
-        ...formData,
+      const cleanedData: PembiayaanInput = {
+        anggota_id: formData.anggota_id,
+        jenis_pembiayaan_id: formData.jenis_pembiayaan_id,
         jumlah: Number(formData.jumlah),
-        durasi_bulan: loanDuration
+        jatuh_tempo: formData.jatuh_tempo,
+        jangka_waktu: loanDuration,
+        deskripsi: formData.deskripsi
       }
+      console.log('Prepared cleaned data:', JSON.stringify(cleanedData, null, 2));
       
       // Create the loan
+      console.log('Calling createPembiayaan...');
       const result = await createPembiayaan(cleanedData)
+      console.log('createPembiayaan result:', JSON.stringify(result, null, 2));
       
       if (result.success) {
+        console.log('Loan creation successful with ID:', result.pembiayaan_id || 'unknown');
         toast.success("Pembiayaan baru berhasil dibuat")
+        console.log('Calling onSuccess callback...');
         onSuccess()
+        console.log('Calling onClose callback...');
         onClose()
       } else {
+        console.error('Loan creation failed:', result.error);
         toast.error(result.error?.message || "Gagal membuat pembiayaan")
       }
     } catch (error: any) {
+      console.error('Exception in handleSubmit:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       toast.error("Terjadi kesalahan: " + (error?.message || "Unknown error"))
     } finally {
+      console.log('Setting isSubmitting to false');
       setIsSubmitting(false)
     }
   }

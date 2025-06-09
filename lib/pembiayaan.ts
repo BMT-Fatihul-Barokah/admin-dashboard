@@ -33,8 +33,7 @@ export type PembiayaanInput = {
   jenis_pembiayaan_id: string;
   jumlah: number;
   jatuh_tempo: string;
-  jangka_waktu: number;
-  durasi_bulan: number;
+  jangka_waktu: number; // This is used in the RPC function as p_durasi_bulan
   deskripsi?: string;
 }
 
@@ -203,76 +202,80 @@ export async function getPembiayaanByStatus(status: string): Promise<Pembiayaan[
 /**
  * Create a new pembiayaan with active status using the RPC function
  */
-export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise<{ success: boolean; error?: any; data?: any }> {
+export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise<{ success: boolean; error?: any; data?: any; pembiayaan_id?: string }> {
+  console.log('createPembiayaan called with data:', JSON.stringify(pembiayaanData, null, 2));
   try {
-    // Basic validation
-    if (!pembiayaanData.anggota_id || !pembiayaanData.jenis_pembiayaan_id || !pembiayaanData.jatuh_tempo || !pembiayaanData.jumlah) {
+    // Validate required fields
+    if (!pembiayaanData.anggota_id || !pembiayaanData.jenis_pembiayaan_id || !pembiayaanData.jumlah || !pembiayaanData.jatuh_tempo) {
+      console.error('Validation failed: Missing required fields');
       return {
         success: false,
         error: { message: 'Semua field wajib diisi' }
       };
     }
-
+    
     // Prepare the loan data
     const jumlah = Number(pembiayaanData.jumlah);
     
-    // Use the RPC function to add the pembiayaan
-    const { data, error } = await supabase.rpc('add_pembiayaan', {
+    // We no longer need to fetch the jenis_pembiayaan name since our updated RPC function accepts the ID directly
+    console.log('Using jenis_pembiayaan_id directly:', pembiayaanData.jenis_pembiayaan_id);
+    
+    // Use the updated RPC function to add the pembiayaan
+    const rpcParams = {
       p_anggota_id: pembiayaanData.anggota_id,
       p_jenis_pembiayaan_id: pembiayaanData.jenis_pembiayaan_id,
       p_jumlah: jumlah,
       p_jatuh_tempo: pembiayaanData.jatuh_tempo,
-      p_jangka_waktu: pembiayaanData.jangka_waktu || 3,
+      p_durasi_bulan: pembiayaanData.jangka_waktu || 3,
       p_deskripsi: pembiayaanData.deskripsi || ''
-    });
+    };
+    
+    console.log('Calling add_pembiayaan RPC with params:', JSON.stringify(rpcParams, null, 2));
+    const { data, error } = await supabase.rpc('add_pembiayaan', rpcParams);
+    console.log('RPC response:', { data, error });
     
     if (error) {
-      console.error('Error creating pembiayaan:', error);
+      console.error('Error in add_pembiayaan RPC:', error);
       return {
         success: false,
-        error: { message: 'Gagal membuat pembiayaan: ' + (error.message || 'Unknown error') }
+        error
       };
     }
     
     if (!data) {
+      console.error('No data returned from RPC function');
       return {
         success: false,
         error: { message: 'Tidak ada data yang dikembalikan dari RPC function' }
       };
     }
     
+    console.log('RPC returned data:', JSON.stringify(data, null, 2));
+    
     // Type check the response
     const rpcResponse = data as { success: boolean; pembiayaan_id?: string; error?: string };
+    console.log('Parsed RPC response:', JSON.stringify(rpcResponse, null, 2));
     
     if (!rpcResponse.success) {
+      console.error('RPC function reported failure:', rpcResponse.error);
       return {
         success: false,
         error: { message: rpcResponse.error || 'Gagal membuat pembiayaan' }
       };
     }
     
-    // Fetch the newly created pembiayaan data
-    const { data: newPembiayaan, error: fetchError } = await supabase
-      .from('pembiayaan')
-      .select('*')
-      .eq('id', rpcResponse.pembiayaan_id)
-      .single();
-      
-    if (fetchError) {
-      console.error('Error fetching created pembiayaan:', fetchError);
-      // Still return success since the creation was successful
-      return { 
-        success: true, 
-        data: { id: rpcResponse.pembiayaan_id }
-      };
-    }
+    console.log('RPC function reported success with ID:', rpcResponse.pembiayaan_id);
     
-    return { success: true, data: newPembiayaan };
-  } catch (e: any) {
-    console.error('Exception in createPembiayaan:', e);
+    return {
+      success: true,
+      data: rpcResponse,
+      pembiayaan_id: rpcResponse.pembiayaan_id
+    };
+  } catch (error: any) {
+    console.error('Exception in createPembiayaan:', error);
     return {
       success: false,
-      error: { message: 'Terjadi kesalahan: ' + (e?.message || 'Unknown error') }
+      error: { message: error?.message || 'Terjadi kesalahan saat membuat pembiayaan' }
     };
   }
 }

@@ -66,7 +66,8 @@ export function TransactionDetailModal({
   
   // Format currency
   const formatCurrency = (amount: number) => {
-    return `Rp ${amount.toLocaleString('id-ID')}`;
+    // Always format as positive number
+    return `Rp ${Math.abs(amount).toLocaleString('id-ID')}`;
   };
 
   if (!transaction) return null;
@@ -118,7 +119,7 @@ export function TransactionDetailModal({
               <p className="text-sm font-medium text-muted-foreground">Jumlah</p>
               <p className="font-semibold text-lg">
                 {transaction.tipe_transaksi === 'masuk' ? '+ ' : '- '}
-                {formatCurrency(Number(transaction.jumlah))}
+                {formatCurrency(Math.abs(Number(transaction.jumlah)))}
               </p>
             </div>
             {transaction.sesudah !== undefined && (

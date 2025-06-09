@@ -52,7 +52,8 @@ export function TransactionReceipt({
   
   // Format currency
   const formatCurrency = (amount: number) => {
-    return `Rp ${amount.toLocaleString('id-ID')}`;
+    // Always format as positive number
+    return `Rp ${Math.abs(amount).toLocaleString('id-ID')}`;
   };
 
 
@@ -128,7 +129,7 @@ export function TransactionReceipt({
               <p className="font-medium">Jumlah:</p>
               <p className="font-bold text-lg">
                 {transaction.tipe_transaksi === 'masuk' ? '+ ' : '- '}
-                {formatCurrency(Number(transaction.jumlah))}
+                {formatCurrency(Math.abs(Number(transaction.jumlah)))}
               </p>
             </div>
             
