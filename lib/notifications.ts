@@ -143,6 +143,17 @@ export async function getTransactionNotifications(): Promise<TransactionNotifica
 const DIRECT_SUPABASE_URL = 'https://vszhxeamcxgqtwyaxhlu.supabase.co';
 const DIRECT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94';
 
+// Helper function to check if a notification is a jatuh tempo notification
+export function isJatuhTempoNotification(notification: CombinedNotification): boolean {
+  return (
+    notification.jenis === 'transaksi' && 
+    notification.data && 
+    notification.data.jatuh_tempo && 
+    notification.pesan && 
+    notification.pesan.toLowerCase().includes('jatuh tempo')
+  );
+}
+
 export async function getCombinedNotifications(
   anggotaId?: string
 ): Promise<CombinedNotification[]> {

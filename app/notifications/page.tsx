@@ -10,13 +10,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead, CombinedNotification } from '@/lib/notifications';
+import { fetchNotifications, CombinedNotification, isJatuhTempoNotification } from '@/lib/notifications';
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<CombinedNotification[]>([])
   const [unreadNotifications, setUnreadNotifications] = useState<CombinedNotification[]>([])
   const [transactionNotifications, setTransactionNotifications] = useState<CombinedNotification[]>([])
   const [systemNotifications, setSystemNotifications] = useState<CombinedNotification[]>([])
+  const [announcementNotifications, setAnnouncementNotifications] = useState<CombinedNotification[]>([])
+  const [jatuhTempoNotifications, setJatuhTempoNotifications] = useState<CombinedNotification[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
   const [selectedNotification, setSelectedNotification] = useState<CombinedNotification | null>(null)
@@ -58,11 +60,6 @@ export default function NotificationsPage() {
   const openNotificationDetail = (notification: CombinedNotification) => {
     setSelectedNotification(notification)
     setDetailOpen(true)
-    
-    // Mark as read if unread
-    if (!notification.is_read) {
-      handleMarkAsRead(notification.id)
-    }
   }
   
   // Fetch notifications
@@ -78,9 +75,14 @@ export default function NotificationsPage() {
         notification.jenis === 'transaksi' || notification.source === 'transaction'
       );
       const system = notifications.filter(notification => notification.jenis === 'sistem');
+      const announcements = notifications.filter(notification => notification.jenis === 'pengumuman');
+      const jatuhTempo = notifications.filter(notification => isJatuhTempoNotification(notification));
+      
       setUnreadNotifications(unread);
       setTransactionNotifications(transactions);
       setSystemNotifications(system);
+      setAnnouncementNotifications(announcements);
+      setJatuhTempoNotifications(jatuhTempo);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast({
@@ -92,63 +94,6 @@ export default function NotificationsPage() {
       setLoading(false);
     }
   };
-  
-  // Mark a notification as read
-  const handleMarkAsRead = async (id: string) => {
-    try {
-      // Find the notification in our local state
-      const notification = notifications.find(n => n.id === id);
-      if (!notification) {
-        throw new Error('Notification not found');
-      }
-      
-      // Use the library function to mark as read
-      const success = await markNotificationAsRead(notification, 'dummy-anggota-id');
-      
-      if (!success) throw new Error('Failed to mark notification as read');
-      
-      // Update local state
-      loadNotifications();
-      toast({
-        title: "Sukses",
-        description: "Notifikasi telah ditandai sebagai dibaca.",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-      toast({
-        title: "Error",
-        description: "Gagal menandai notifikasi sebagai dibaca. Silakan coba lagi nanti.",
-        variant: "destructive",
-      });
-    }
-  }
-  
-  // Mark all notifications as read
-  const handleMarkAllAsRead = async () => {
-    try {
-      // Use the library function to mark all as read
-      // Note: This would need an anggota_id in a real implementation
-      // For now, we'll just mark all transaction notifications as read
-      const success = await markAllNotificationsAsRead('dummy-anggota-id');
-      
-      if (!success) throw new Error('Failed to mark all notifications as read');
-      
-      // Update local state
-      loadNotifications();
-      toast({
-        title: "Sukses",
-        description: "Semua notifikasi telah ditandai sebagai dibaca.",
-      });
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error);
-      toast({
-        title: "Error",
-        description: "Gagal menandai semua notifikasi sebagai dibaca.",
-        variant: "destructive",
-      });
-    }
-  }
   
   // Fetch notifications on component mount
   useEffect(() => {
@@ -193,9 +138,6 @@ export default function NotificationsPage() {
             
             <DialogFooter className="flex justify-between items-center">
               <div className="flex items-center gap-1">
-                <Badge className={selectedNotification.is_read ? 'bg-slate-100 text-slate-800' : 'bg-blue-100 text-blue-800'}>
-                  {selectedNotification.is_read ? 'Sudah Dibaca' : 'Belum Dibaca'}
-                </Badge>
                 <Badge className="bg-slate-100 text-slate-800">
                   {selectedNotification.jenis.charAt(0).toUpperCase() + selectedNotification.jenis.slice(1)}
                 </Badge>
@@ -236,6 +178,8 @@ export default function NotificationsPage() {
           <TabsTrigger value="all">Semua</TabsTrigger>
           <TabsTrigger value="unread">Belum Dibaca</TabsTrigger>
           <TabsTrigger value="transactions">Transaksi</TabsTrigger>
+          <TabsTrigger value="jatuh_tempo">Jatuh Tempo</TabsTrigger>
+          <TabsTrigger value="announcements">Pengumuman</TabsTrigger>
           <TabsTrigger value="system">Sistem</TabsTrigger>
         </TabsList>
 
@@ -271,7 +215,7 @@ export default function NotificationsPage() {
                 notifications.map((notification) => (
                   <div 
                     key={notification.id} 
-                    className={`flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors ${!notification.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'} cursor-pointer`}
+                    className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors hover:bg-slate-50 cursor-pointer"
                     onClick={() => openNotificationDetail(notification)}
                   >
                     <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis || 'info')}`}>
@@ -296,30 +240,12 @@ export default function NotificationsPage() {
                             <Button 
                               variant="link" 
                               className="h-auto p-0 text-sm"
-                              onClick={(e) => {
-                                e.stopPropagation(); // Prevent triggering the parent onClick
-                                !notification.is_read && handleMarkAsRead(notification.id);
-                              }}
                             >
                               {notification.data.action}
                               <ArrowRight className="ml-1 h-3 w-3" />
                             </Button>
                           )}
                         </div>
-                        {!notification.is_read && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent triggering the parent onClick
-                              handleMarkAsRead(notification.id);
-                            }}
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                            Tandai Dibaca
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -327,13 +253,6 @@ export default function NotificationsPage() {
               )}
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button 
-                variant="ghost" 
-                onClick={handleMarkAllAsRead}
-                disabled={loading || unreadNotifications.length === 0}
-              >
-                Tandai Semua Dibaca
-              </Button>
               <Button 
                 variant="outline" 
                 onClick={() => fetchNotifications()}
@@ -392,7 +311,7 @@ export default function NotificationsPage() {
                 unreadNotifications.map((notification) => (
                   <div 
                     key={notification.id} 
-                    className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"
+                    className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                     onClick={() => openNotificationDetail(notification)}
                   >
                     <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis || 'info')}`}>
@@ -415,46 +334,18 @@ export default function NotificationsPage() {
                             <Button 
                               variant="link" 
                               className="h-auto p-0 text-sm"
-                              onClick={(e) => {
-                                e.stopPropagation(); // Prevent triggering the parent onClick
-                                handleMarkAsRead(notification.id);
-                              }}
                             >
                               {notification.data.action}
                               <ArrowRight className="ml-1 h-3 w-3" />
                             </Button>
                           )}
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent triggering the parent onClick
-                            handleMarkAsRead(notification.id);
-                          }}
-                        >
-                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                          Tandai Dibaca
-                        </Button>
                       </div>
                     </div>
                   </div>
                 ))
               )}
             </CardContent>
-            {unreadNotifications.length > 0 && (
-              <CardFooter>
-                <Button 
-                  variant="ghost" 
-                  className="w-full"
-                  onClick={handleMarkAllAsRead}
-                  disabled={loading}
-                >
-                  Tandai Semua Dibaca
-                </Button>
-              </CardFooter>
-            )}
           </Card>
         </TabsContent>
 
@@ -490,7 +381,7 @@ export default function NotificationsPage() {
                 transactionNotifications.map((notification) => (
                   <div 
                     key={notification.id} 
-                    className={`flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors ${!notification.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'} cursor-pointer`}
+                    className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors hover:bg-slate-50 cursor-pointer"
                     onClick={() => openNotificationDetail(notification)}
                   >
                     <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis)}`}>
@@ -517,7 +408,6 @@ export default function NotificationsPage() {
                               className="h-auto p-0 text-sm"
                               onClick={(e) => {
                                 e.stopPropagation(); // Prevent triggering the parent onClick
-                                !notification.is_read && handleMarkAsRead(notification.id);
                               }}
                             >
                               {notification.data.action}
@@ -525,20 +415,157 @@ export default function NotificationsPage() {
                             </Button>
                           )}
                         </div>
-                        {!notification.is_read && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent triggering the parent onClick
-                              handleMarkAsRead(notification.id);
-                            }}
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                            Tandai Dibaca
-                          </Button>
-                        )}
+
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="jatuh_tempo" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notifikasi Jatuh Tempo</CardTitle>
+              <CardDescription>Notifikasi terkait pembiayaan yang telah jatuh tempo</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loading ? (
+                // Loading skeleton
+                Array(3).fill(0).map((_, index) => (
+                  <div key={index} className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-[150px]" />
+                        <Skeleton className="h-4 w-[100px]" />
+                      </div>
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-[120px]" />
+                    </div>
+                  </div>
+                ))
+              ) : jatuhTempoNotifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">Tidak ada notifikasi jatuh tempo</p>
+                  <p className="text-sm text-muted-foreground">Notifikasi jatuh tempo akan muncul di sini</p>
+                </div>
+              ) : (
+                jatuhTempoNotifications.map((notification) => (
+                  <div 
+                    key={notification.id} 
+                    className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors hover:bg-slate-50 cursor-pointer"
+                    onClick={() => openNotificationDetail(notification)}
+                  >
+                    <div className="rounded-full p-2 bg-red-100 text-red-600">
+                      <AlertCircle className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">{notification.judul}</p>
+                        <div className="flex items-center gap-2">
+                          {!notification.is_read && (
+                            <Badge variant="outline" className="bg-blue-500 text-white hover:bg-blue-600">
+                              Baru
+                            </Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">{formatDate(new Date(notification.created_at))}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{notification.pesan}</p>
+                      <div className="flex justify-between items-center mt-2 pt-1">
+                        <div>
+                          {notification.data?.action && (
+                            <Button 
+                              variant="link" 
+                              className="h-auto p-0 text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent triggering the parent onClick
+                              }}
+                            >
+                              {notification.data.action}
+                              <ArrowRight className="ml-1 h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="announcements" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pengumuman</CardTitle>
+              <CardDescription>Pengumuman dan informasi penting</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loading ? (
+                // Loading skeleton
+                Array(3).fill(0).map((_, index) => (
+                  <div key={index} className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-[150px]" />
+                        <Skeleton className="h-4 w-[100px]" />
+                      </div>
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-[120px]" />
+                    </div>
+                  </div>
+                ))
+              ) : announcementNotifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Bell className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">Tidak ada pengumuman</p>
+                  <p className="text-sm text-muted-foreground">Pengumuman akan muncul di sini</p>
+                </div>
+              ) : (
+                announcementNotifications.map((notification) => (
+                  <div 
+                    key={notification.id} 
+                    className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors hover:bg-slate-50 cursor-pointer"
+                    onClick={() => openNotificationDetail(notification)}
+                  >
+                    <div className="rounded-full p-2 bg-blue-100 text-blue-600">
+                      <Bell className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">{notification.judul}</p>
+                        <div className="flex items-center gap-2">
+                          {!notification.is_read && (
+                            <Badge variant="outline" className="bg-blue-500 text-white hover:bg-blue-600">
+                              Baru
+                            </Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">{formatDate(new Date(notification.created_at))}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{notification.pesan}</p>
+                      <div className="flex justify-between items-center mt-2 pt-1">
+                        <div>
+                          {notification.data?.action && (
+                            <Button 
+                              variant="link" 
+                              className="h-auto p-0 text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent triggering the parent onClick
+                              }}
+                            >
+                              {notification.data.action}
+                              <ArrowRight className="ml-1 h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -557,7 +584,7 @@ export default function NotificationsPage() {
             <CardContent className="space-y-4">
               {loading ? (
                 // Loading skeleton
-                Array(2).fill(0).map((_, index) => (
+                Array(3).fill(0).map((_, index) => (
                   <div key={index} className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0">
                     <Skeleton className="h-8 w-8 rounded-full" />
                     <div className="flex-1 space-y-2">
@@ -580,7 +607,7 @@ export default function NotificationsPage() {
                 systemNotifications.map((notification) => (
                   <div 
                     key={notification.id} 
-                    className={`flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors ${!notification.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'} cursor-pointer`}
+                    className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors hover:bg-slate-50 cursor-pointer"
                     onClick={() => openNotificationDetail(notification)}
                   >
                     <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis)}`}>
@@ -607,7 +634,6 @@ export default function NotificationsPage() {
                               className="h-auto p-0 text-sm"
                               onClick={(e) => {
                                 e.stopPropagation(); // Prevent triggering the parent onClick
-                                !notification.is_read && handleMarkAsRead(notification.id);
                               }}
                             >
                               {notification.data.action}
@@ -615,20 +641,7 @@ export default function NotificationsPage() {
                             </Button>
                           )}
                         </div>
-                        {!notification.is_read && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent triggering the parent onClick
-                              handleMarkAsRead(notification.id);
-                            }}
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                            Tandai Dibaca
-                          </Button>
-                        )}
+
                       </div>
                     </div>
                   </div>
@@ -654,7 +667,7 @@ function getNotificationIcon(jenis: string) {
     case "sistem":
       return <Settings className="h-4 w-4 text-white" />
     case "jatuh_tempo":
-      return <Wallet className="h-4 w-4 text-white" />
+      return <AlertCircle className="h-4 w-4 text-white" />
     default:
       return <Info className="h-4 w-4 text-white" />
   }
@@ -672,7 +685,7 @@ function getNotificationIconBg(jenis: string) {
     case "sistem":
       return "bg-gray-500"
     case "jatuh_tempo":
-      return "bg-orange-500"
+      return "bg-red-500"
     default:
       return "bg-blue-500"
   }
