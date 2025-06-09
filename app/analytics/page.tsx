@@ -602,7 +602,7 @@ export default function AnalyticsPage() {
                   Perbandingan tren pinjaman dan pendaftaran nasabah dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
                 </p>
               </div>
-              <div className="px-2 pb-4">
+              <div className="px-6 pb-6">
                 <ImprovedDualAxisBarChart 
                   data={analyticsData.loanData} 
                   formatCurrency={formatCurrency} 
@@ -610,15 +610,15 @@ export default function AnalyticsPage() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+              <Card className="overflow-hidden">
                 <CardHeader>
                   <CardTitle>Distribusi Status Pinjaman</CardTitle>
                   <CardDescription>
                     Distribusi pinjaman berdasarkan status
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-6 pb-6">
                   <ImprovedPieChart 
                     data={analyticsData.loanStatusDistribution} 
                     formatCurrency={formatCurrency} 
@@ -626,14 +626,14 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader>
                   <CardTitle>Tren Transaksi</CardTitle>
                   <CardDescription>
                     Tren transaksi masuk dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-6 pb-6">
                   <div className="h-80">
                     <ImprovedTransactionTrendChart 
                       data={analyticsData.transactionData} 
@@ -648,14 +648,14 @@ export default function AnalyticsPage() {
       case 'ketua':
         return (
           <>
-            <Card className={`${roleTheme.secondary} border-none`}>
+            <Card className={`${roleTheme.secondary} border-none overflow-hidden`}>
               <CardHeader>
                 <CardTitle>Ringkasan Kinerja Koperasi</CardTitle>
                 <CardDescription className="text-white/70">
                   Ringkasan kinerja koperasi dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-6 pb-6">
                 <ImprovedTrendChart 
                   data={analyticsData.transactionData} 
                   dataKey="value" 
@@ -665,7 +665,7 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
               <div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden">
                 <div className="p-6">
                   <h2 className="text-xl font-bold text-white mb-2">Tren Pendaftaran Nasabah</h2>
@@ -673,7 +673,7 @@ export default function AnalyticsPage() {
                     Tren pendaftaran nasabah dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
                   </p>
                 </div>
-                <div className="px-2 pb-4">
+                <div className="px-6 pb-6">
                   <ImprovedDualAxisBarChart 
                     data={analyticsData.registrationData} 
                     formatCurrency={formatCurrency} 
@@ -682,14 +682,14 @@ export default function AnalyticsPage() {
                 </div>
               </div>
 
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader>
                   <CardTitle>Distribusi Status Anggota</CardTitle>
                   <CardDescription>
                     Distribusi status anggota koperasi
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-4">
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <RechartsPieChart>
@@ -728,7 +728,7 @@ export default function AnalyticsPage() {
                   Tren pendaftaran nasabah dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
                 </p>
               </div>
-              <div className="px-2 pb-4">
+              <div className="px-6 pb-6">
                 <ImprovedDualAxisBarChart 
                   data={analyticsData.registrationData} 
                   formatCurrency={formatCurrency} 
@@ -737,15 +737,15 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+              <Card className="overflow-hidden">
                 <CardHeader>
                   <CardTitle>Distribusi Status Anggota</CardTitle>
                   <CardDescription>
                     Distribusi status anggota koperasi
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-4">
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <RechartsPieChart>
@@ -771,14 +771,14 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader>
                   <CardTitle>Aktivitas Pendaftaran Bulanan</CardTitle>
                   <CardDescription>
                     Jumlah pendaftaran per bulan
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-4">
                   <ImprovedBarChart 
                     data={analyticsData.registrationData} 
                     dataKey="value" 
@@ -794,14 +794,14 @@ export default function AnalyticsPage() {
       case 'bendahara':
         return (
           <>
-            <Card className={`${roleTheme.secondary} border-none`}>
+            <Card className={`${roleTheme.secondary} border-none overflow-hidden`}>
               <CardHeader>
                 <CardTitle>Tren Pinjaman</CardTitle>
                 <CardDescription className="text-white/70">
                   Tren pinjaman dalam {timeRange === "6months" ? "6 bulan" : "1 tahun"} terakhir
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-6 pb-6">
                 <ImprovedTrendChart 
                   data={analyticsData.loanData} 
                   dataKey="value" 
@@ -812,15 +812,15 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+              <Card className="overflow-hidden">
                 <CardHeader>
                   <CardTitle>Distribusi Jenis Pinjaman</CardTitle>
                   <CardDescription>
                     Distribusi jenis pinjaman
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-6 pb-6">
                   <ImprovedPieChart 
                     data={analyticsData.loanTypeDistribution} 
                     formatCurrency={formatCurrency} 
@@ -828,14 +828,14 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader>
                   <CardTitle>Status Pinjaman</CardTitle>
                   <CardDescription>
                     Distribusi status pinjaman
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-6 pb-6">
                   <ImprovedBarChart 
                     data={analyticsData.loanStatusDistribution} 
                     dataKey="value" 
@@ -855,8 +855,8 @@ export default function AnalyticsPage() {
   
   return (
     <RoleProtected allowedRoles={['admin', 'ketua', 'sekretaris', 'bendahara']}>
-      <div className="container mx-auto py-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 max-w-7xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <h1 className="text-3xl font-bold">Analitik</h1>
           <div className="flex items-center gap-4">
             <Select value={timeRange} onValueChange={setTimeRange}>
