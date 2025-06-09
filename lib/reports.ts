@@ -100,7 +100,7 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
     const { data: incomeData, error: incomeError } = await supabase
       .from('transaksi')
       .select('jumlah')
-      .eq('jenis', 'masuk')
+      .eq('tipe_transaksi', 'masuk')
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
     
@@ -113,7 +113,7 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
     const { data: expenseData, error: expenseError } = await supabase
       .from('transaksi')
       .select('jumlah')
-      .eq('jenis', 'keluar')
+      .eq('tipe_transaksi', 'keluar')
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
     
@@ -224,10 +224,10 @@ export async function getTransactionDistribution(period: Date = new Date()): Pro
   const endDate = endOfMonth(period);
   
   try {
-    // Get transaction distribution data from Supabase
+    // Get transaction data grouped by source_type
     const { data, error } = await supabase
       .from('transaksi')
-      .select('jenis, source_type, jumlah')
+      .select('source_type, jumlah, tipe_transaksi')
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
     
@@ -313,23 +313,23 @@ export async function getTransactionDistribution(period: Date = new Date()): Pro
     }
     
     // Process the actual data from Supabase
-    // Group transactions by jenis and source_type
+    // Group transactions by tipe_transaksi and source_type
     const transactionGroups: Record<string, number> = {};
     let totalAmount = 0;
     
-    // Map jenis and source_type combinations to friendly category names
+    // Map tipe_transaksi and source_type combinations to friendly category names
     data.forEach(transaction => {
-      const jenis = transaction.jenis || '';
+      const tipeTransaksi = transaction.tipe_transaksi || '';
       const sourceType = transaction.source_type || 'lainnya';
       let category = 'Lainnya';
       
-      if (jenis === 'masuk' && sourceType === 'tabungan') {
+      if (tipeTransaksi === 'masuk' && sourceType === 'tabungan') {
         category = 'Setoran Tabungan';
-      } else if (jenis === 'keluar' && sourceType === 'tabungan') {
+      } else if (tipeTransaksi === 'keluar' && sourceType === 'tabungan') {
         category = 'Penarikan Tabungan';
-      } else if (jenis === 'masuk' && sourceType === 'pembiayaan') {
+      } else if (tipeTransaksi === 'masuk' && sourceType === 'pembiayaan') {
         category = 'Pembayaran Pinjaman';
-      } else if (jenis === 'keluar' && sourceType === 'pembiayaan') {
+      } else if (tipeTransaksi === 'keluar' && sourceType === 'pembiayaan') {
         category = 'Pencairan Pinjaman';
       }
       
@@ -394,7 +394,7 @@ export async function getFinancialTrends(periodType: 'weekly' | 'monthly' | 'qua
         const { data: incomeData, error: incomeError } = await supabase
           .from('transaksi')
           .select('jumlah')
-          .eq('jenis', 'masuk')
+          .eq('tipe_transaksi', 'masuk')
           .gte('created_at', startDate.toISOString())
           .lte('created_at', endDate.toISOString());
         
@@ -415,7 +415,7 @@ export async function getFinancialTrends(periodType: 'weekly' | 'monthly' | 'qua
         const { data: expenseData, error: expenseError } = await supabase
           .from('transaksi')
           .select('jumlah')
-          .eq('jenis', 'keluar')
+          .eq('tipe_transaksi', 'keluar')
           .gte('created_at', startDate.toISOString())
           .lte('created_at', endDate.toISOString());
         
@@ -728,7 +728,7 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     const { count: totalDeposits, error: depositsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('jenis', 'masuk')
+      .eq('tipe_transaksi', 'masuk')
       .eq('source_type', 'tabungan')
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
@@ -744,7 +744,7 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     const { count: totalWithdrawals, error: withdrawalsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('jenis', 'keluar')
+      .eq('tipe_transaksi', 'keluar')
       .eq('source_type', 'tabungan')
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
@@ -760,7 +760,7 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     const { count: totalLoanPayments, error: paymentsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('jenis', 'masuk')
+      .eq('tipe_transaksi', 'masuk')
       .eq('source_type', 'pembiayaan')
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
@@ -769,7 +769,7 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     const { count: totalLoanDisbursements, error: disbursementsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('jenis', 'keluar')
+      .eq('tipe_transaksi', 'keluar')
       .eq('source_type', 'pembiayaan')
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());

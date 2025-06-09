@@ -23,6 +23,7 @@ interface SavingsType {
   kode: string
   nama: string
   deskripsi?: string
+  has_account?: boolean
 }
 
 export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAccountProps) {
@@ -33,7 +34,6 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
   
   // Form state
   const [selectedTypeId, setSelectedTypeId] = useState<string>("")
-  const [isDefault, setIsDefault] = useState(false)
   const [selectedType, setSelectedType] = useState<SavingsType | null>(null)
   
   // Fetch available savings types (only those the member doesn't already have)
@@ -41,65 +41,37 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     async function fetchSavingsTypes() {
       setIsLoading(true)
       try {
-        // Try to use the RPC function first
-        const { data: memberSavingsTypes, error: rpcError } = await supabase
-          .rpc('get_member_savings_types', {
-            anggota_id_param: userId
-          })
+        // First, get the member's existing savings accounts
+        const { data: memberAccounts, error: memberError } = await supabase
+          .from('tabungan')
+          .select('jenis_tabungan_id')
+          .eq('anggota_id', userId)
+          .eq('status', 'aktif')
         
-        if (rpcError) throw rpcError
+        if (memberError) throw memberError
         
-        // Get all active savings types
-        const { data: allTypes, error: typesError } = await supabase
-          .rpc('get_jenis_tabungan')
+        // Extract the IDs of savings types the member already has
+        const existingTypeIds = (memberAccounts || []).map(account => account.jenis_tabungan_id)
         
-        if (typesError) throw typesError
+        // Get all savings types
+        const { data, error } = await supabase
+          .from('jenis_tabungan')
+          .select('id, kode, nama, deskripsi')
+          .order('kode', { ascending: true })
+        
+        if (error) throw error
         
         // Filter out the savings types the member already has
-        const existingTypeIds = (memberSavingsTypes || [])
-          .filter((type: any) => type.has_account)
-          .map((type: any) => type.id)
-        
-        const availableTypes = (allTypes || []).filter((type: any) => !existingTypeIds.includes(type.id))
+        const availableTypes = (data || []).filter(type => !existingTypeIds.includes(type.id))
         
         setSavingsTypes(availableTypes)
       } catch (error) {
-        console.error('Error fetching savings types with RPC:', error)
-        
-        // Fallback to direct queries if RPC fails
-        try {
-          // First, get the member's existing savings accounts
-          const { data: memberAccounts, error: memberError } = await supabase
-            .from('tabungan')
-            .select('jenis_tabungan_id')
-            .eq('anggota_id', userId)
-            .eq('status', 'aktif')
-          
-          if (memberError) throw memberError
-          
-          // Extract the IDs of savings types the member already has
-          const existingTypeIds = (memberAccounts || []).map(account => account.jenis_tabungan_id)
-          
-          // Get all savings types
-          const { data, error } = await supabase
-            .from('jenis_tabungan')
-            .select('*')
-            .order('kode', { ascending: true })
-          
-          if (error) throw error
-          
-          // Filter out the savings types the member already has
-          const availableTypes = (data || []).filter(type => !existingTypeIds.includes(type.id))
-          
-          setSavingsTypes(availableTypes)
-        } catch (fallbackError) {
-          console.error('Fallback query also failed:', fallbackError)
-          toast({
-            title: "Error",
-            description: "Gagal memuat data jenis tabungan",
-            variant: "destructive"
-          })
-        }
+        console.error('Error fetching savings types:', error)
+        toast({
+          title: "Error",
+          description: "Gagal memuat data jenis tabungan",
+          variant: "destructive"
+        })
       } finally {
         setIsLoading(false)
       }
@@ -128,7 +100,7 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     if (!selectedTypeId) {
       toast({
         title: "Error",
-        description: "Silakan pilih jenis tabungan",
+        description: "Pilih jenis tabungan terlebih dahulu",
         variant: "destructive"
       })
       return
@@ -137,21 +109,40 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     setIsSubmitting(true)
     
     try {
-      // Use the add_tabungan_baru function with the current schema
-      console.log('Attempting to insert account using bypass RLS function');
+      // Use our new dedicated RPC function
+      console.log('Adding savings account with RPC function');
       
-      // Call the add_tabungan_baru function with the parameters matching the current schema
-      const { data, error } = await supabase.rpc('add_tabungan_baru', {
+      const { data, error } = await supabase.rpc('add_savings_account', {
         p_anggota_id: userId,
         p_jenis_tabungan_id: selectedTypeId,
         p_saldo: 0
       });
       
-      console.log('Insert response:', { data, error });
-      
       if (error) {
-        console.error('Detailed error:', JSON.stringify(error));
-        throw error;
+        console.error('Error from RPC function:', error);
+        
+        // If RPC fails, try direct insert as a last resort
+        if (error.code === 'PGRST116') { // Function not found
+          console.log('RPC function not found, trying direct insert');
+          
+          const { error: insertError } = await supabase
+            .from('tabungan')
+            .insert({
+              anggota_id: userId,
+              jenis_tabungan_id: selectedTypeId,
+              saldo: 0,
+              status: 'aktif',
+              created_at: new Date(),
+              updated_at: new Date()
+            });
+          
+          if (insertError) {
+            console.error('Direct insert also failed:', insertError);
+            throw insertError;
+          }
+        } else {
+          throw error;
+        }
       }
       
       toast({
@@ -165,8 +156,14 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
     } catch (error: any) {
       console.error('Error adding savings account:', error)
       
-      // Periksa apakah error adalah duplikasi jenis tabungan
+      // Check for specific error messages
       if (error?.message && error.message.includes('Anggota sudah memiliki jenis tabungan ini')) {
+        toast({
+          title: "⚠️ Duplikasi Tabungan",
+          description: `Anggota sudah memiliki jenis tabungan ini. Tidak dapat menambahkan jenis tabungan yang sama.`,
+          variant: "destructive"
+        })
+      } else if (error?.code === '23505') { // Unique constraint violation
         toast({
           title: "⚠️ Duplikasi Tabungan",
           description: `Anggota sudah memiliki jenis tabungan ini. Tidak dapat menambahkan jenis tabungan yang sama.`,
@@ -236,14 +233,7 @@ export function AddSavingsAccount({ userId, userName, onSuccess }: AddSavingsAcc
 
 
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="is_default"
-            checked={isDefault}
-            onCheckedChange={setIsDefault}
-          />
-          <Label htmlFor="is_default">Jadikan Tabungan Utama</Label>
-        </div>
+        {/* Toggle for default savings removed as no longer needed */}
       </div>
 
       <div className="flex justify-end space-x-2">
