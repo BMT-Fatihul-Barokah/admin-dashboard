@@ -60,14 +60,19 @@ export function LoanDetailModal({
   };
 
   // Calculate progress percentage
-  const calculateProgress = (total: number, remaining: number) => {
-    if (total === 0) return 100;
-    const paid = total - remaining;
-    return Math.round((paid / total) * 100);
+  const calculateProgress = (totalPaid: number, remainingAmount: number) => {
+    // For a new loan, totalPaid will be 0 and remainingAmount will be the full loan amount
+    const totalLoanAmount = totalPaid + remainingAmount;
+    
+    if (totalLoanAmount === 0) return 0; // Avoid division by zero
+    
+    // Calculate the percentage of the loan that has been paid
+    return Math.round((totalPaid / totalLoanAmount) * 100);
   };
 
   if (!loan) return null;
 
+  // Calculate progress using the total amount paid and the remaining amount
   const progressPercentage = calculateProgress(Number(loan.total_pembayaran), Number(loan.sisa_pembayaran));
 
   return (
