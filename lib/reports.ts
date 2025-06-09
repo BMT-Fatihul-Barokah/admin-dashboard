@@ -74,11 +74,11 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
   const periodDisplay = format(period, 'MMMM yyyy', { locale: id });
   
   try {
-    // Get income transactions (setoran, pembayaran_pinjaman)
+    // Get income transactions (setor, bayar)
     const { data: incomeData, error: incomeError } = await supabase
       .from('transaksi')
       .select('jumlah')
-      .in('tipe_transaksi', ['setoran', 'pembayaran_pinjaman'])
+      .in('tipe_transaksi', ['setor', 'bayar'])
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
     
@@ -87,12 +87,11 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
       throw incomeError;
     }
     
-    // Get expense transactions (penarikan, pencairan_pinjaman, biaya_admin)
+    // Get expense transactions (tarik)
     const { data: expenseData, error: expenseError } = await supabase
       .from('transaksi')
       .select('jumlah')
-      .in('tipe_transaksi', ['penarikan', 'pencairan_pinjaman'])
-      .or(`tipe_transaksi.eq('keluar').ilike('deskripsi', '%biaya admin%')`)
+      .eq('tipe_transaksi', 'tarik')
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
     
@@ -192,11 +191,9 @@ export async function getFinancialSummary(period: Date = new Date()): Promise<Fi
 export async function getTransactionDistribution(period: Date = new Date()): Promise<TransactionDistribution[]> {
   // Define source type colors for visualization - using more vibrant colors
   const sourceTypeColors: Record<string, string> = {
-    'Setoran': '#3b82f6', // blue
-    'Penarikan': '#ef4444', // red
-    'Pembayaran Pinjaman': '#10b981', // green
-    'Pencairan Pinjaman': '#f59e0b', // amber
-    'Biaya Admin': '#8b5cf6', // purple
+    'Setor': '#3b82f6', // blue
+    'Tarik': '#ef4444', // red
+    'Bayar': '#10b981', // green
     'Lainnya': '#ec4899', // pink
   };
   
@@ -212,58 +209,58 @@ export async function getTransactionDistribution(period: Date = new Date()): Pro
   switch (monthIndex) {
     case 0: // January
       sampleData = [
-        { category: 'Setoran', amount: 3800000, percentage: 48, color: sourceTypeColors['Setoran'] },
-        { category: 'Penarikan', amount: 1800000, percentage: 23, color: sourceTypeColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1600000, percentage: 20, color: sourceTypeColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 700000, percentage: 9, color: sourceTypeColors['Pencairan Pinjaman'] }
+        { category: 'Setor', amount: 3800000, percentage: 48, color: sourceTypeColors['Setor'] },
+        { category: 'Tarik', amount: 1800000, percentage: 23, color: sourceTypeColors['Tarik'] },
+        { category: 'Bayar', amount: 1600000, percentage: 20, color: sourceTypeColors['Bayar'] },
+        { category: 'Lainnya', amount: 700000, percentage: 9, color: sourceTypeColors['Lainnya'] }
       ];
       break;
     case 1: // February
       sampleData = [
-        { category: 'Setoran', amount: 3200000, percentage: 42, color: sourceTypeColors['Setoran'] },
-        { category: 'Penarikan', amount: 2200000, percentage: 29, color: sourceTypeColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1400000, percentage: 18, color: sourceTypeColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 850000, percentage: 11, color: sourceTypeColors['Pencairan Pinjaman'] }
+        { category: 'Setor', amount: 3200000, percentage: 42, color: sourceTypeColors['Setor'] },
+        { category: 'Tarik', amount: 2200000, percentage: 29, color: sourceTypeColors['Tarik'] },
+        { category: 'Bayar', amount: 1400000, percentage: 18, color: sourceTypeColors['Bayar'] },
+        { category: 'Lainnya', amount: 850000, percentage: 11, color: sourceTypeColors['Lainnya'] }
       ];
       break;
     case 2: // March
       sampleData = [
-        { category: 'Setoran', amount: 3600000, percentage: 43, color: sourceTypeColors['Setoran'] },
-        { category: 'Penarikan', amount: 2100000, percentage: 25, color: sourceTypeColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1700000, percentage: 20, color: sourceTypeColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 950000, percentage: 12, color: sourceTypeColors['Pencairan Pinjaman'] }
+        { category: 'Setor', amount: 3600000, percentage: 43, color: sourceTypeColors['Setor'] },
+        { category: 'Tarik', amount: 2100000, percentage: 25, color: sourceTypeColors['Tarik'] },
+        { category: 'Bayar', amount: 1700000, percentage: 20, color: sourceTypeColors['Bayar'] },
+        { category: 'Lainnya', amount: 950000, percentage: 12, color: sourceTypeColors['Lainnya'] }
       ];
       break;
     case 3: // April
       sampleData = [
-        { category: 'Setoran', amount: 4100000, percentage: 47, color: sourceTypeColors['Setoran'] },
-        { category: 'Penarikan', amount: 2300000, percentage: 26, color: sourceTypeColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1500000, percentage: 17, color: sourceTypeColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 850000, percentage: 10, color: sourceTypeColors['Pencairan Pinjaman'] }
+        { category: 'Setor', amount: 4100000, percentage: 47, color: sourceTypeColors['Setor'] },
+        { category: 'Tarik', amount: 2300000, percentage: 26, color: sourceTypeColors['Tarik'] },
+        { category: 'Bayar', amount: 1500000, percentage: 17, color: sourceTypeColors['Bayar'] },
+        { category: 'Lainnya', amount: 850000, percentage: 10, color: sourceTypeColors['Lainnya'] }
       ];
       break;
     case 4: // May
       sampleData = [
-        { category: 'Setoran', amount: 3900000, percentage: 44, color: sourceTypeColors['Setoran'] },
-        { category: 'Penarikan', amount: 2500000, percentage: 28, color: sourceTypeColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1600000, percentage: 18, color: sourceTypeColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 900000, percentage: 10, color: sourceTypeColors['Pencairan Pinjaman'] }
+        { category: 'Setor', amount: 3900000, percentage: 44, color: sourceTypeColors['Setor'] },
+        { category: 'Tarik', amount: 2500000, percentage: 28, color: sourceTypeColors['Tarik'] },
+        { category: 'Bayar', amount: 1600000, percentage: 18, color: sourceTypeColors['Bayar'] },
+        { category: 'Lainnya', amount: 900000, percentage: 10, color: sourceTypeColors['Lainnya'] }
       ];
       break;
     case 5: // June
       sampleData = [
-        { category: 'Setoran', amount: 4200000, percentage: 46, color: sourceTypeColors['Setoran'] },
-        { category: 'Penarikan', amount: 2400000, percentage: 26, color: sourceTypeColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1700000, percentage: 19, color: sourceTypeColors['Pembayaran Pinjaman'] },
-        { category: 'Biaya Admin', amount: 800000, percentage: 9, color: sourceTypeColors['Biaya Admin'] }
+        { category: 'Setor', amount: 4200000, percentage: 46, color: sourceTypeColors['Setor'] },
+        { category: 'Tarik', amount: 2400000, percentage: 26, color: sourceTypeColors['Tarik'] },
+        { category: 'Bayar', amount: 1700000, percentage: 19, color: sourceTypeColors['Bayar'] },
+        { category: 'Lainnya', amount: 800000, percentage: 9, color: sourceTypeColors['Lainnya'] }
       ];
       break;
     default: // Default/fallback for other months
       sampleData = [
-        { category: 'Setoran', amount: 3500000, percentage: 45, color: sourceTypeColors['Setoran'] },
-        { category: 'Penarikan', amount: 2000000, percentage: 25, color: sourceTypeColors['Penarikan'] },
-        { category: 'Pembayaran Pinjaman', amount: 1500000, percentage: 20, color: sourceTypeColors['Pembayaran Pinjaman'] },
-        { category: 'Pencairan Pinjaman', amount: 800000, percentage: 10, color: sourceTypeColors['Pencairan Pinjaman'] }
+        { category: 'Setor', amount: 3500000, percentage: 45, color: sourceTypeColors['Setor'] },
+        { category: 'Tarik', amount: 2000000, percentage: 25, color: sourceTypeColors['Tarik'] },
+        { category: 'Bayar', amount: 1500000, percentage: 20, color: sourceTypeColors['Bayar'] },
+        { category: 'Lainnya', amount: 800000, percentage: 10, color: sourceTypeColors['Lainnya'] }
       ];
   }
   
@@ -293,11 +290,11 @@ export async function getFinancialTrends(periodType: 'weekly' | 'monthly' | 'qua
       console.log(`Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
       try {
-        // Get income for the month
+        // Get income for the month (setor, bayar)
         const { data: incomeData, error: incomeError } = await supabase
           .from('transaksi')
           .select('jumlah')
-          .in('tipe_transaksi', ['setoran', 'pembayaran_pinjaman'])
+          .in('tipe_transaksi', ['setor', 'bayar'])
           .gte('created_at', startDate.toISOString())
           .lte('created_at', endDate.toISOString());
         
@@ -314,12 +311,11 @@ export async function getFinancialTrends(periodType: 'weekly' | 'monthly' | 'qua
         
         console.log(`Income data for ${monthLabel}:`, incomeData);
         
-        // Get expenses for the month
+        // Get expenses for the month (tarik)
         const { data: expenseData, error: expenseError } = await supabase
           .from('transaksi')
           .select('jumlah')
-          .in('tipe_transaksi', ['penarikan', 'pencairan_pinjaman'])
-          .or(`tipe_transaksi.eq('keluar').ilike('deskripsi', '%biaya admin%')`)
+          .eq('tipe_transaksi', 'tarik')
           .gte('created_at', startDate.toISOString())
           .lte('created_at', endDate.toISOString());
         
@@ -628,12 +624,11 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     
     console.log(`Total transactions: ${totalTransactions}`);
     
-    // Get deposits
+    // Get deposits (setor)
     const { count: totalDeposits, error: depositsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('tipe_transaksi', 'masuk')
-      .is('pembiayaan_id', null)
+      .eq('tipe_transaksi', 'setor')
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
     
@@ -644,12 +639,11 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     
     console.log(`Total deposits: ${totalDeposits}`);
     
-    // Get withdrawals
+    // Get withdrawals (tarik)
     const { count: totalWithdrawals, error: withdrawalsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('tipe_transaksi', 'keluar')
-      .is('pembiayaan_id', null)
+      .eq('tipe_transaksi', 'tarik')
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
     
@@ -660,30 +654,19 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     
     console.log(`Total withdrawals: ${totalWithdrawals}`);
     
-    // Get loan disbursements
-    const { count: totalLoanDisbursements, error: disbursementsError } = await supabase
-      .from('transaksi')
-      .select('*', { count: 'exact', head: true })
-      .eq('tipe_transaksi', 'masuk')
-      .not('pembiayaan_id', 'is', null)
-      .gte('created_at', queryStartDate.toISOString())
-      .lte('created_at', queryEndDate.toISOString());
-    
-    if (disbursementsError) {
-      console.error('Error fetching loan disbursements:', disbursementsError);
-      throw disbursementsError;
-    }
-    
-    console.log(`Total loan disbursements: ${totalLoanDisbursements}`);
-    
-    // Get loan payments
+    // Get loan payments (bayar)
     const { count: totalLoanPayments, error: paymentsError } = await supabase
       .from('transaksi')
       .select('*', { count: 'exact', head: true })
-      .eq('tipe_transaksi', 'keluar')
-      .not('pembiayaan_id', 'is', null)
+      .eq('tipe_transaksi', 'bayar')
       .gte('created_at', queryStartDate.toISOString())
       .lte('created_at', queryEndDate.toISOString());
+    
+    // No disbursements error check needed since we're setting it manually
+    
+    // We don't have a specific transaction type for loan disbursements in the current schema
+    // For now, set this to 0 or implement a different way to identify loan disbursements
+    const totalLoanDisbursements = 0;
     
     if (paymentsError) {
       console.error('Error fetching loan payments:', paymentsError);
@@ -691,6 +674,7 @@ export async function getTransactionStatistics(period: Date = new Date()): Promi
     }
     
     console.log(`Total loan payments: ${totalLoanPayments}`);
+    console.log(`Total loan disbursements: ${totalLoanDisbursements}`);
     
     const result = {
       totalTransactions: totalTransactions || 0,

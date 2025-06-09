@@ -169,7 +169,7 @@ const fetchAnalyticsData = async (timeRange: string = '6months'): Promise<Analyt
     console.log('Fetching pembiayaan data directly from table...');
     const { data, error } = await supabase
       .from('pembiayaan')
-      .select('jumlah, created_at, status, jenis_pembiayaan')
+      .select('jumlah, created_at, status, jenis_pembiayaan_id')
       .gte('created_at', startDate);
       
     if (error) {
@@ -180,7 +180,7 @@ const fetchAnalyticsData = async (timeRange: string = '6months'): Promise<Analyt
         jumlah: item.jumlah,
         created_at: item.created_at,
         status: item.status || 'unknown',
-        jenis_pinjaman: item.jenis_pembiayaan || 'unknown'
+        jenis_pembiayaan_id: item.jenis_pembiayaan_id || null
       }));
       console.log(`Successfully fetched ${pinjamanData.length} pembiayaan records`);
     } else {
@@ -270,7 +270,7 @@ const fetchAnalyticsData = async (timeRange: string = '6months'): Promise<Analyt
   // 6. Calculate loan type distribution
   const loanTypeCounts: Record<string, number> = {};
   pinjamanData?.forEach(pinjaman => {
-    const type = pinjaman.jenis_pinjaman;
+    const type = pinjaman.jenis_pembiayaan_id;
     loanTypeCounts[type] = (loanTypeCounts[type] || 0) + 1;
   });
   
@@ -325,13 +325,13 @@ export function AdminDashboard() {
     transactionStats: null as TransactionStatistics | null,
     // Notification data
     notifications: [] as Notification[],
-    unreadNotifications: [] as Notification[]
+    unreadNotifications: [] as Notification[],
+    unreadNotificationsCount: 0
   });
   
   // Notification type definition
   type Notification = {
     id: string;
-    anggota_id: string;
     judul: string;
     pesan: string;
     jenis: string;
@@ -341,10 +341,12 @@ export function AdminDashboard() {
     updated_at: string;
     anggota?: {
       nama: string;
-    };
+    } | null;
   };
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [analyticsTimeRange, setAnalyticsTimeRange] = useState<string>('6months');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
   
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -403,14 +405,31 @@ export function AdminDashboard() {
   // Mark notification as read
   const markNotificationAsRead = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('notifikasi_instances')
+      // Try to update in transaksi_notifikasi first
+      const { error, count } = await supabase
+        .from('transaksi_notifikasi')
         .update({ is_read: true })
         .eq('id', id);
-      
+        
       if (error) throw error;
+      
+      // If no rows were updated, it might be a global notification
+      // For global notifications, we need to create a read record
+      if (count === 0) {
+        const { error: globalError } = await supabase
+          .from('global_notifikasi_read')
+          .insert({
+            global_notifikasi_id: id,
+            is_read: true
+          });
+          
+        if (globalError) throw globalError;
+      }
+      
+      return true;
     } catch (error) {
       console.error("Error marking notification as read:", error);
+      return false;
     }
   };
   
@@ -440,133 +459,191 @@ export function AdminDashboard() {
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      // Get all notifications (limit to 20 most recent)
-      const { data: allNotifications, error: allError } = await supabase
-        .from('notifikasi_instances')
+      // Get global notifications
+      const { data: globalNotifications, error: globalError } = await supabase
+        .from('global_notifikasi')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (globalError) throw globalError;
+      
+      // Get transaction notifications
+      const { data: transactionNotifications, error: transactionError } = await supabase
+        .from('transaksi_notifikasi')
         .select(`
           *,
-          notifikasi(*),
-          anggota:anggota_id(nama)
+          transaksi:transaksi_id(anggota_id)
         `)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
       
-      if (allError) throw allError;
+      if (transactionError) throw transactionError;
       
-      // Get unread notifications
-      const { data: unread, error: unreadError } = await supabase
-        .from('notifikasi_instances')
-        .select(`
-          *,
-          notifikasi(*),
-          anggota:anggota_id(nama)
-        `)
-        .eq('is_read', false)
-        .order('created_at', { ascending: false });
+      // Get anggota names for transaction notifications
+      let anggotaNames: Record<string, string> = {};
+      if (transactionNotifications && transactionNotifications.length > 0) {
+        const anggotaIds = transactionNotifications
+          .filter(item => item.transaksi?.anggota_id)
+          .map(item => item.transaksi.anggota_id);
+        
+        if (anggotaIds.length > 0) {
+          const { data: anggotaData } = await supabase
+            .from('anggota')
+            .select('id, nama')
+            .in('id', anggotaIds);
+          
+          if (anggotaData) {
+            anggotaData.forEach(anggota => {
+              anggotaNames[anggota.id] = anggota.nama;
+            });
+          }
+        }
+      }
       
-      if (unreadError) throw unreadError;
+      // Get read status for global notifications
+      let readGlobalNotifications: Record<string, boolean> = {};
+      if (globalNotifications && globalNotifications.length > 0) {
+        const globalIds = globalNotifications.map(item => item.id);
+        
+        const { data: readData } = await supabase
+          .from('global_notifikasi_read')
+          .select('global_notifikasi_id')
+          .in('global_notifikasi_id', globalIds);
+        
+        if (readData) {
+          readData.forEach(item => {
+            readGlobalNotifications[item.global_notifikasi_id] = true;
+          });
+        }
+      }
       
-      // Format the notifications for display
-      const formattedAll = allNotifications?.map(item => ({
-        ...item.notifikasi,
+      // Format global notifications
+      const formattedGlobalNotifications = globalNotifications?.map(item => ({
         id: item.id,
-        is_read: item.is_read,
-        anggota: item.anggota
+        judul: item.judul,
+        pesan: item.pesan,
+        jenis: item.jenis || 'info',
+        is_read: readGlobalNotifications[item.id] || false,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        data: item.data
       })) || [];
       
-      const formattedUnread = unread?.map(item => ({
-        ...item.notifikasi,
-        id: item.id,
-        is_read: item.is_read,
-        anggota: item.anggota
-      })) || [];
+      // Format transaction notifications
+      const formattedTransactionNotifications = transactionNotifications?.map(item => {
+        const anggotaId = item.transaksi?.anggota_id;
+        return {
+          id: item.id,
+          judul: item.judul,
+          pesan: item.pesan,
+          jenis: item.jenis || 'transaction',
+          is_read: item.is_read || false,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          data: item.data,
+          anggota: anggotaId ? { nama: anggotaNames[anggotaId] || 'Unknown' } : null
+        };
+      }) || [];
       
-      // Return the notifications data
+      // Combine and sort notifications by creation date
+      const allNotifications = [...formattedGlobalNotifications, ...formattedTransactionNotifications]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      // Filter unread notifications
+      const unreadNotificationsList = allNotifications.filter(item => !item.is_read);
+      const unreadCount = unreadNotificationsList.length;
+      
+      // Return the notifications data with both array and count
       return {
-        allNotifications: formattedAll,
-        unreadNotifications: formattedUnread
+        allNotifications,
+        unreadNotifications: unreadNotificationsList,
+        unreadCount
       };
     } catch (error) {
       console.error("Error fetching notifications:", error);
       return {
         allNotifications: [],
-        unreadNotifications: []
+        unreadNotifications: [],
+        unreadCount: 0
       };
     }
   };
 
+  // Function to fetch dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      // Test database connection
+      const connectionResult = await testDatabaseConnection();
+      setConnectionStatus(connectionResult ? 'Connected' : 'Connection failed');
+
+      // Fetch dashboard data
+      const totalMembers = await getTotalAnggota();
+      const activeLoans = await getTotalActivePinjaman();
+      const currentMonthTransactions = await getCurrentMonthTransactions();
+      const recentActivities = await getRecentActivities();
+
+      // Get financial summary
+      const financialSummary = await getFinancialSummary();
+      
+      // Get transaction distribution
+      const transactionDistribution = await getTransactionDistribution();
+
+      // Get notifications
+      try {
+        const notificationsData = await fetchNotifications();
+        if (notificationsData) {
+          setNotifications(notificationsData.allNotifications || []);
+          // Use the unreadCount directly from the response
+          setUnreadNotifications(notificationsData.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error('Error setting notifications:', error);
+        setNotifications([]);
+        setUnreadNotifications(0);
+      }
+
+      // Update dashboard data
+      setDashboardData({
+        totalMembers,
+        activeLoans,
+        currentMonthTransactions,
+        recentActivities,
+        financialSummary,
+        transactionDistribution,
+        financialTrends: [],
+        memberStats: null,
+        loanStats: null,
+        transactionStats: null,
+        // Include notifications data in the dashboard state
+        notifications: notifications || [],
+        unreadNotifications: notifications.filter(n => !n.is_read) || [],
+        unreadNotificationsCount: unreadNotifications || 0
+      });
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      setConnectionStatus('Connection failed');
+      setIsLoading(false);
+    }
+  };
+
+  // Function to load analytics data
+  const loadAnalyticsData = async () => {
+    try {
+      setIsAnalyticsLoading(true);
+      const data = await fetchAnalyticsData(analyticsTimeRange);
+      setAnalyticsData(data);
+      setIsAnalyticsLoading(false);
+    } catch (error) {
+      console.error('Error loading analytics data:', error);
+      setIsAnalyticsLoading(false);
+    }
+  };
+
+  // Load dashboard data on mount and when analytics time range changes
   useEffect(() => {
-    async function testConnection() {
-      console.log('Testing Supabase connection...');
-      const isConnected = await testDatabaseConnection();
-      setConnectionStatus(isConnected ? 'Connected to Supabase' : 'Connection failed');
-      console.log('Connection status:', isConnected ? 'Connected' : 'Failed');
-      return isConnected;
-    }
-
-    async function fetchDashboardData() {
-      setIsLoading(true);
-      try {
-        // Test database connection
-        const connectionResult = await testDatabaseConnection();
-        setConnectionStatus(connectionResult ? 'Connected' : 'Connection failed');
-
-        // Fetch dashboard data
-        const totalMembers = await getTotalAnggota();
-        const activeLoans = await getTotalActivePinjaman();
-        const currentMonthTransactions = await getCurrentMonthTransactions();
-        const recentActivities = await getRecentActivities();
-
-        // Fetch report data
-        const currentDate = new Date();
-        const [financialSummary, transactionDistribution, financialTrends, memberStats, loanStats, transactionStats, notificationsData] = 
-          await Promise.all([
-            getFinancialSummary(currentDate),
-            getTransactionDistribution(currentDate),
-            getFinancialTrends('monthly'),
-            getMemberStatistics(currentDate),
-            getLoanStatistics(currentDate),
-            getTransactionStatistics(currentDate),
-            fetchNotifications()
-          ]);
-
-        setDashboardData({
-          totalMembers,
-          activeLoans,
-          currentMonthTransactions,
-          recentActivities,
-          // Report data
-          financialSummary,
-          transactionDistribution,
-          financialTrends,
-          memberStats,
-          loanStats,
-          transactionStats,
-          // Notification data
-          notifications: notificationsData.allNotifications,
-          unreadNotifications: notificationsData.unreadNotifications
-        });
-
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        setConnectionStatus('Connection error');
-        setIsLoading(false);
-      }
-    }
-
-    async function loadAnalyticsData() {
-      try {
-        setIsAnalyticsLoading(true);
-        const data = await fetchAnalyticsData(analyticsTimeRange);
-        setAnalyticsData(data);
-        setIsAnalyticsLoading(false);
-      } catch (error) {
-        console.error('Error loading analytics data:', error);
-        setIsAnalyticsLoading(false);
-      }
-    }
-
     fetchDashboardData();
     loadAnalyticsData();
   }, [analyticsTimeRange]);
