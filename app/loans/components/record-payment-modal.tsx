@@ -60,7 +60,7 @@ export function RecordPaymentModal({
       // Calculate monthly installment
       const installment = calculateMonthlyInstallment(
         Number(loan.jumlah), 
-        loan.durasi_bulan || 3
+        loan.jangka_waktu || 12
       );
       setMonthlyInstallment(installment);
       setAmount(installment.toString());
@@ -69,7 +69,7 @@ export function RecordPaymentModal({
       const startDate = new Date(loan.created_at);
       const schedule = generatePaymentSchedule(
         Number(loan.jumlah),
-        loan.durasi_bulan || 3,
+        loan.jangka_waktu || 12,
         startDate
       );
       setPaymentSchedule(schedule);
@@ -88,7 +88,7 @@ export function RecordPaymentModal({
       
       // Find the next unpaid month
       const paidMonths = payments.map(p => p.bulan_ke);
-      for (let i = 1; i <= (loan?.durasi_bulan || 3); i++) {
+      for (let i = 1; i <= (loan?.jangka_waktu || 12); i++) {
         if (!paidMonths.includes(i)) {
           setSelectedMonth(i);
           break;
@@ -146,11 +146,7 @@ export function RecordPaymentModal({
     setError(null);
     
     try {
-      // We'll let the RPC function handle the loan balance update
-      // Calculate the expected new balance for UI feedback only
-      const expectedNewBalance = Math.max(Number(loan.sisa_pembayaran) - paymentAmount, 0);
-      
-      // Record the payment using the new RPC function
+      // Record the payment using the simplified RPC function
       const result = await recordPembayaranPembiayaan(
         {
           pembiayaan_id: loan.id,
@@ -164,12 +160,18 @@ export function RecordPaymentModal({
       );
       
       if (result.success) {
-        // The RPC function already updates the loan balance, so we don't need to call a separate function
-        // But we'll log the success for debugging purposes
-        console.log('Payment recorded successfully with RPC function');
+        console.log('Payment recorded successfully:', result.data);
         
-        // Show success message with expected new balance
-        toast.success(`Pembayaran berhasil dicatat. Sisa pembayaran: ${formatCurrency(result.data?.sisa_pembayaran || expectedNewBalance)}`);
+        // Show success message with updated loan information
+        const sisaPembayaran = result.data?.sisa_pembayaran || 0;
+        const sisaBulan = result.data?.sisa_bulan || 0;
+        const status = result.data?.status || 'aktif';
+        
+        toast.success(
+          `Pembayaran berhasil dicatat. Sisa pembayaran: ${formatCurrency(sisaPembayaran)}. ` +
+          `Sisa angsuran: ${sisaBulan} bulan. ` +
+          `Status: ${status === 'lunas' ? 'Lunas' : 'Aktif'}`
+        );
         
         // Close modal
         resetForm();
@@ -211,7 +213,7 @@ export function RecordPaymentModal({
               <CardHeader className="pb-2">
                 <CardTitle>Informasi Pinjaman</CardTitle>
                 <CardDescription>
-                  Durasi: {loan.durasi_bulan || 3} bulan | Jatuh Tempo: {format(new Date(loan.jatuh_tempo), 'dd MMM yyyy')}
+                  Durasi: {loan.jangka_waktu || 12} bulan | Jatuh Tempo: {format(new Date(loan.jatuh_tempo), 'dd MMM yyyy')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -261,7 +263,7 @@ export function RecordPaymentModal({
                   <SelectValue placeholder="Pilih bulan angsuran" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({length: loan.durasi_bulan || 3}, (_, i) => i + 1).map((month) => {
+                  {Array.from({length: loan.jangka_waktu || 12}, (_, i) => i + 1).map((month) => {
                     const isPaid = previousPayments.some(p => p.bulan_ke === month);
                     return (
                       <SelectItem 

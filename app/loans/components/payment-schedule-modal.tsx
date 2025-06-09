@@ -28,6 +28,7 @@ interface PaymentScheduleItem {
   jumlah_angsuran: number;
   status: string;
   tanggal_pembayaran?: string;
+  payment_id?: string;
 }
 
 export function PaymentScheduleModal({
@@ -39,16 +40,17 @@ export function PaymentScheduleModal({
   const [isLoading, setIsLoading] = useState(true);
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Format date function
-  const formatDate = (dateString: string) => {
+  // Format date for display
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return '-';
     try {
-      const date = parseISO(dateString);
-      return format(date, 'dd MMMM yyyy', { locale: id });
+      return format(new Date(dateString), 'dd MMMM yyyy');
     } catch (error) {
-      return dateString;
+      console.error('Error formatting date:', dateString, error);
+      return '-';
     }
   };
-  
+
   // Format currency
   const formatCurrency = (amount: number) => {
     return `Rp ${amount.toLocaleString('id-ID')}`;
@@ -103,7 +105,7 @@ export function PaymentScheduleModal({
     return schedule;
   };
 
-  // Fetch payment schedule from database or generate if not available
+  // Fetch payment schedule from database using the get_payment_schedule function
   useEffect(() => {
     const fetchPaymentSchedule = async () => {
       if (!loan) return;
@@ -111,12 +113,51 @@ export function PaymentScheduleModal({
       setIsLoading(true);
       
       try {
-        // Try to fetch from database first (in a real app)
-        // For demo, we'll just generate the schedule
+        // First try to use the RPC function
+        try {
+          const { data, error } = await supabase.rpc('get_payment_schedule', {
+            p_pembiayaan_id: loan.id
+          });
+          
+          if (error) {
+            throw new Error(`RPC error: ${JSON.stringify(error)}`);
+          }
+          
+          console.log('Payment schedule raw data:', data);
+          
+          if (data && data.success && data.schedule) {
+            // Convert the schedule from the database to our PaymentScheduleItem format
+            const scheduleItems: PaymentScheduleItem[] = data.schedule.map((item: any) => ({
+              id: item.id,
+              pembiayaan_id: item.pembiayaan_id,
+              angsuran_ke: item.angsuran_ke,
+              tanggal_jatuh_tempo: item.tanggal_jatuh_tempo,
+              jumlah_angsuran: item.jumlah_angsuran,
+              status: item.status,
+              tanggal_pembayaran: item.tanggal_pembayaran,
+              payment_id: item.payment_id
+            }));
+            
+            console.log('Processed schedule items:', scheduleItems);
+            setPaymentSchedule(scheduleItems);
+            return; // Exit early if successful
+          } else {
+            throw new Error(`Invalid response format from RPC function: ${JSON.stringify(data)}`);
+          }
+        } catch (rpcError) {
+          console.warn('RPC function failed, falling back to client-side generation:', rpcError);
+          // Continue to fallback
+        }
+        
+        // Fallback: Generate schedule client-side
         const generatedSchedule = generatePaymentSchedule(loan);
         setPaymentSchedule(generatedSchedule);
+        
       } catch (error) {
-        console.error('Error fetching payment schedule:', error);
+        console.error('Error in payment schedule handling:', error);
+        // Final fallback
+        const generatedSchedule = generatePaymentSchedule(loan);
+        setPaymentSchedule(generatedSchedule);
       } finally {
         setIsLoading(false);
       }

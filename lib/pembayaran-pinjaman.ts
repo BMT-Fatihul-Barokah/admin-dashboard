@@ -69,7 +69,7 @@ export function calculateMonthlyInstallment(loanAmount: number, durationMonths: 
 }
 
 /**
- * Record a loan payment with transaction using the new RPC function
+ * Record a loan payment with transaction using the simplified RPC function
  */
 export async function recordPembayaranPembiayaan(
   pembayaranData: PembayaranPembiayaanInput,
@@ -107,8 +107,9 @@ export async function recordPembayaranPembiayaan(
       success: boolean; 
       error?: string; 
       transaksi_id?: string; 
-      pembayaran_id?: string;
       sisa_pembayaran?: number;
+      total_pembayaran?: number;
+      sisa_bulan?: number;
       status?: string;
     };
     
@@ -122,9 +123,10 @@ export async function recordPembayaranPembiayaan(
     return {
       success: true,
       data: {
-        pembayaran_id: rpcResponse.pembayaran_id,
         transaksi_id: rpcResponse.transaksi_id,
         sisa_pembayaran: rpcResponse.sisa_pembayaran,
+        total_pembayaran: rpcResponse.total_pembayaran,
+        sisa_bulan: rpcResponse.sisa_bulan,
         status: rpcResponse.status
       }
     };
