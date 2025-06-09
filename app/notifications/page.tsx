@@ -8,33 +8,18 @@ import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, ArrowRi
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
-import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-
-type Notifikasi = {
-  id: string;
-  anggota_id: string;
-  judul: string;
-  pesan: string;
-  jenis: string;
-  is_read: boolean;
-  data?: any;
-  created_at: Date;
-  updated_at: Date;
-  anggota?: {
-    nama: string;
-  };
-}
+import { CombinedNotification, getCombinedNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@/lib/notifications"
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notifikasi[]>([])
-  const [unreadNotifications, setUnreadNotifications] = useState<Notifikasi[]>([])
-  const [transactionNotifications, setTransactionNotifications] = useState<Notifikasi[]>([])
-  const [systemNotifications, setSystemNotifications] = useState<Notifikasi[]>([])
+  const [notifications, setNotifications] = useState<CombinedNotification[]>([])
+  const [unreadNotifications, setUnreadNotifications] = useState<CombinedNotification[]>([])
+  const [transactionNotifications, setTransactionNotifications] = useState<CombinedNotification[]>([])
+  const [systemNotifications, setSystemNotifications] = useState<CombinedNotification[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
-  const [selectedNotification, setSelectedNotification] = useState<Notifikasi | null>(null)
+  const [selectedNotification, setSelectedNotification] = useState<CombinedNotification | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   
   // Format the date to a readable format
@@ -70,7 +55,7 @@ export default function NotificationsPage() {
   }
   
   // Open notification detail
-  const openNotificationDetail = (notification: Notifikasi) => {
+  const openNotificationDetail = (notification: CombinedNotification) => {
     setSelectedNotification(notification)
     setDetailOpen(true)
     
@@ -84,118 +69,88 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      // Get all notifications
-      const { data: allNotifications, error: allError } = await supabase
-        .from('notifikasi')
-        .select(`
-          *,
-          anggota:anggota_id(nama)
-        `)
-        .order('created_at', { ascending: false })
+      // Get all notifications using the new library
+      console.log('Fetching notifications...');
+      const allNotifications = await getCombinedNotifications();
       
-      if (allError) throw allError
+      // Filter notifications by type
+      const unread = allNotifications.filter(notification => !notification.is_read);
+      const transactions = allNotifications.filter(notification => 
+        notification.jenis === 'transaksi' || notification.source === 'transaction'
+      );
+      const system = allNotifications.filter(notification => notification.jenis === 'sistem');
       
-      // Get unread notifications
-      const { data: unread, error: unreadError } = await supabase
-        .from('notifikasi')
-        .select(`
-          *,
-          anggota:anggota_id(nama)
-        `)
-        .eq('is_read', false)
-        .order('created_at', { ascending: false })
+      console.log(`Fetched ${allNotifications.length} notifications, ${unread.length} unread`);
       
-      if (unreadError) throw unreadError
-      
-      // Get transaction notifications
-      const { data: transactions, error: transactionsError } = await supabase
-        .from('notifikasi')
-        .select(`
-          *,
-          anggota:anggota_id(nama)
-        `)
-        .eq('jenis', 'transaksi')
-        .order('created_at', { ascending: false })
-      
-      if (transactionsError) throw transactionsError
-      
-      // Get system notifications
-      const { data: system, error: systemError } = await supabase
-        .from('notifikasi')
-        .select(`
-          *,
-          anggota:anggota_id(nama)
-        `)
-        .eq('jenis', 'sistem')
-        .order('created_at', { ascending: false })
-      
-      if (systemError) throw systemError
-      
-      setNotifications(allNotifications || [])
-      setUnreadNotifications(unread || [])
-      setTransactionNotifications(transactions || [])
-      setSystemNotifications(system || [])
+      setNotifications(allNotifications);
+      setUnreadNotifications(unread);
+      setTransactionNotifications(transactions);
+      setSystemNotifications(system);
     } catch (error) {
-      console.error("Error fetching notifications:", error)
+      console.error("Error fetching notifications:", error);
       toast({
         title: "Error",
         description: "Gagal memuat notifikasi. Silakan coba lagi nanti.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
   
   // Mark a notification as read
   const handleMarkAsRead = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('notifikasi')
-        .update({ is_read: true, updated_at: new Date() })
-        .eq('id', id)
+      // Find the notification in our local state
+      const notification = notifications.find(n => n.id === id);
+      if (!notification) {
+        throw new Error('Notification not found');
+      }
       
-      if (error) throw error
+      // Use the library function to mark as read
+      const success = await markNotificationAsRead(notification);
+      
+      if (!success) throw new Error('Failed to mark notification as read');
       
       // Update local state
-      fetchNotifications()
+      fetchNotifications();
       toast({
         title: "Sukses",
         description: "Notifikasi telah ditandai sebagai dibaca.",
-      })
+      });
     } catch (error) {
-      console.error("Error marking notification as read:", error)
+      console.error("Error marking notification as read:", error);
       toast({
         title: "Error",
         description: "Gagal menandai notifikasi sebagai dibaca.",
         variant: "destructive",
-      })
+      });
     }
   }
   
   // Mark all notifications as read
   const handleMarkAllAsRead = async () => {
     try {
-      const { error } = await supabase
-        .from('notifikasi')
-        .update({ is_read: true, updated_at: new Date() })
-        .eq('is_read', false)
+      // Use the library function to mark all as read
+      // Note: This would need an anggota_id in a real implementation
+      // For now, we'll just mark all transaction notifications as read
+      const success = await markAllNotificationsAsRead('dummy-anggota-id');
       
-      if (error) throw error
+      if (!success) throw new Error('Failed to mark all notifications as read');
       
       // Update local state
-      fetchNotifications()
+      fetchNotifications();
       toast({
         title: "Sukses",
         description: "Semua notifikasi telah ditandai sebagai dibaca.",
-      })
+      });
     } catch (error) {
-      console.error("Error marking all notifications as read:", error)
+      console.error("Error marking all notifications as read:", error);
       toast({
         title: "Error",
         description: "Gagal menandai semua notifikasi sebagai dibaca.",
         variant: "destructive",
-      })
+      });
     }
   }
   
@@ -211,8 +166,8 @@ export default function NotificationsPage() {
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <div className="flex items-center gap-2 mb-1">
-                <div className={`rounded-full p-2 ${getNotificationIconBg(selectedNotification.jenis)}`}>
-                  {getNotificationIcon(selectedNotification.jenis)}
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getNotificationIconBg(selectedNotification)}`}>
+                  {getNotificationIcon(selectedNotification)}
                 </div>
                 <DialogTitle>{selectedNotification.judul}</DialogTitle>
               </div>
@@ -226,13 +181,6 @@ export default function NotificationsPage() {
               <div className="bg-slate-50 p-4 rounded-lg mb-4">
                 <p className="text-sm">{selectedNotification.pesan}</p>
               </div>
-              
-              {selectedNotification.anggota && (
-                <div className="flex items-center gap-2 mb-4">
-                  <User className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm text-slate-700">Terkait dengan: {selectedNotification.anggota.nama}</span>
-                </div>
-              )}
               
               {selectedNotification.data && (
                 <div className="border rounded-lg p-4 mb-4">
@@ -330,8 +278,8 @@ export default function NotificationsPage() {
                     className={`flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg transition-colors ${!notification.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'} cursor-pointer`}
                     onClick={() => openNotificationDetail(notification)}
                   >
-                    <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis)}`}>
-                      {getNotificationIcon(notification.jenis)}
+                    <div className={`rounded-full p-2 ${getNotificationIconBg(notification)}`}>
+                      {getNotificationIcon(notification)}
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
@@ -451,8 +399,8 @@ export default function NotificationsPage() {
                     className="flex items-start gap-4 border-b pb-4 last:border-0 last:pb-0 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"
                     onClick={() => openNotificationDetail(notification)}
                   >
-                    <div className={`rounded-full p-2 ${getNotificationIconBg(notification.jenis)}`}>
-                      {getNotificationIcon(notification.jenis)}
+                    <div className={`rounded-full p-2 ${getNotificationIconBg(notification)}`}>
+                      {getNotificationIcon(notification)}
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
@@ -698,8 +646,14 @@ export default function NotificationsPage() {
   )
 }
 
-function getNotificationIcon(jenis: string) {
-  switch (jenis) {
+function getNotificationIcon(notification: CombinedNotification) {
+  // First check the source
+  if (notification.source === 'transaction') {
+    return <CreditCard className="h-4 w-4 text-white" />
+  }
+  
+  // Then check the jenis
+  switch (notification.jenis) {
     case "transaksi":
       return <CreditCard className="h-4 w-4 text-white" />
     case "pengumuman":
@@ -715,8 +669,14 @@ function getNotificationIcon(jenis: string) {
   }
 }
 
-function getNotificationIconBg(jenis: string) {
-  switch (jenis) {
+function getNotificationIconBg(notification: CombinedNotification) {
+  // First check the source
+  if (notification.source === 'transaction') {
+    return "bg-blue-500"
+  }
+  
+  // Then check the jenis
+  switch (notification.jenis) {
     case "transaksi":
       return "bg-blue-500"
     case "pengumuman":

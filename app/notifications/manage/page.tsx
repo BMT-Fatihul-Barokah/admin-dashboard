@@ -16,25 +16,31 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, Plus, Edit, Trash2, ArrowLeft, Search, Loader2 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { supabase } from "@/lib/supabase"
+import { 
+  GlobalNotification, 
+  TransactionNotification, 
+  CombinedNotification 
+} from "@/lib/notifications"
 
-type Notifikasi = {
+// Type definitions for the notification management page
+type DisplayNotification = {
   id: string;
-  anggota_id: string;
   judul: string;
   pesan: string;
   jenis: string;
-  is_read: boolean;
+  is_read?: boolean;
   data?: any;
   created_at: Date;
   updated_at: Date;
-  anggota?: {
-    nama: string;
-  };
+  source: 'global' | 'transaction';
+  anggota_id?: string;
+  anggota_name?: string;
+  transaksi_id?: string;
 }
 
 type Anggota = {
@@ -45,21 +51,29 @@ type Anggota = {
 
 export default function ManageNotificationsPage() {
   const router = useRouter()
-  const [notifications, setNotifications] = useState<Notifikasi[]>([])
-  const [notificationTypes, setNotificationTypes] = useState<{kode: string, nama: string, deskripsi: string}[]>([])
+  const [notifications, setNotifications] = useState<DisplayNotification[]>([])
+  const [notificationTypes] = useState<{kode: string, nama: string}[]>([
+    { kode: "info", nama: "Informasi" },
+    { kode: "sistem", nama: "Sistem" },
+    { kode: "pengumuman", nama: "Pengumuman" },
+    { kode: "transaksi", nama: "Transaksi" },
+    { kode: "jatuh_tempo", nama: "Jatuh Tempo" }
+  ])
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([])
   const [loading, setLoading] = useState(true)
   const [isLoadingAnggota, setIsLoadingAnggota] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [currentNotification, setCurrentNotification] = useState<Notifikasi | null>(null)
+  const [currentNotification, setCurrentNotification] = useState<DisplayNotification | null>(null)
+  const [activeTab, setActiveTab] = useState("global")
   const [formData, setFormData] = useState({
     jenis: "info",
     judul: "",
     pesan: "",
-    anggota_id: "null",
-    data: {}
+    anggota_id: "",
+    data: {},
+    source: "global" as "global" | "transaction"
   })
 
   // Anggota selection popover states
@@ -82,32 +96,62 @@ export default function ManageNotificationsPage() {
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      // Fetch notification types first
-      const { data: typesData, error: typesError } = await supabase
-        .from('jenis_notifikasi')
-        .select('kode, nama, deskripsi')
-        .order('nama')
+      // Fetch global notifications
+      const { data: globalData, error: globalError } = await supabase
+        .from('global_notifikasi')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-      if (typesError) throw typesError
-      setNotificationTypes(typesData || [])
+      if (globalError) throw globalError
 
-      // Then fetch notifications
-      const { data, error } = await supabase
-        .from('notifikasi')
+      // Fetch transaction notifications
+      const { data: transactionData, error: transactionError } = await supabase
+        .from('transaksi_notifikasi')
         .select(`
           *,
-          anggota:anggota_id(nama)
+          transaksi:transaksi_id(id, jumlah, tipe_transaksi)
         `)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setNotifications(data || [])
+      if (transactionError) throw transactionError
+
+      // Transform and combine notifications
+      const formattedGlobalNotifications: DisplayNotification[] = (globalData || []).map(notification => ({
+        id: notification.id,
+        judul: notification.judul,
+        pesan: notification.pesan,
+        jenis: notification.jenis,
+        data: notification.data,
+        created_at: new Date(notification.created_at),
+        updated_at: new Date(notification.updated_at),
+        source: 'global' as const,
+        anggota_id: notification.anggota_id || undefined
+      }))
+
+      const formattedTransactionNotifications: DisplayNotification[] = (transactionData || []).map(notification => ({
+        id: notification.id,
+        judul: notification.judul || 'Notifikasi Transaksi',
+        pesan: notification.pesan,
+        jenis: notification.jenis || 'transaksi',
+        is_read: notification.is_read,
+        data: notification.data,
+        created_at: new Date(notification.created_at),
+        updated_at: new Date(notification.updated_at),
+        source: 'transaction' as const,
+        transaksi_id: notification.transaksi_id
+      }))
+
+      // Combine and sort notifications by creation date
+      const combinedNotifications = [...formattedGlobalNotifications, ...formattedTransactionNotifications]
+        .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
+
+      setNotifications(combinedNotifications)
     } catch (error) {
-      console.error("Error fetching notifications:", error)
+      console.error('Error fetching notifications:', error)
       toast({
         title: "Error",
         description: "Gagal memuat notifikasi. Silakan coba lagi nanti.",
-        variant: "destructive",
+        variant: "destructive"
       })
     } finally {
       setLoading(false)
@@ -118,11 +162,13 @@ export default function ManageNotificationsPage() {
   const fetchAnggota = async () => {
     setIsLoadingAnggota(true)
     try {
-      const response = await fetch('/api/anggota')
-      if (!response.ok) {
-        throw new Error('Failed to fetch anggota')
-      }
-      const data = await response.json()
+      // Fetch anggota directly from the database
+      const { data, error } = await supabase
+        .from('anggota')
+        .select('id, nama, nomor_anggota')
+        .order('nama')
+
+      if (error) throw error
       setAnggotaList(data || [])
     } catch (error) {
       console.error("Error fetching anggota:", error)
@@ -139,23 +185,34 @@ export default function ManageNotificationsPage() {
   // Create a new notification
   const createNotification = async () => {
     try {
-      const anggotaIdValue = formData.anggota_id === 'null' ? null : formData.anggota_id || null
+      const anggotaIdValue = formData.anggota_id || null
 
-      const { data, error } = await supabase
-        .from('notifikasi')
-        .insert([
-          {
-            anggota_id: anggotaIdValue,
-            judul: formData.judul,
-            pesan: formData.pesan,
-            jenis: formData.jenis,
-            is_read: false,
-            data: formData.data || {},
-          }
-        ])
-        .select()
+      if (formData.source === 'global') {
+        // Create a global notification
+        const { data, error } = await supabase
+          .from('global_notifikasi')
+          .insert([
+            {
+              anggota_id: anggotaIdValue,
+              judul: formData.judul,
+              pesan: formData.pesan,
+              jenis: formData.jenis,
+              data: formData.data || {},
+            }
+          ])
+          .select()
 
-      if (error) throw error
+        if (error) throw error
+      } else {
+        // For transaction notifications, we would typically not create them manually
+        // as they are generated by the system when transactions occur
+        toast({
+          title: "Info",
+          description: "Notifikasi transaksi biasanya dibuat secara otomatis oleh sistem.",
+          variant: "default",
+        })
+        return
+      }
       
       toast({
         title: "Sukses",
@@ -180,21 +237,36 @@ export default function ManageNotificationsPage() {
     if (!currentNotification) return
 
     try {
-      const anggotaIdValue = formData.anggota_id === 'null' ? null : formData.anggota_id || null
+      const anggotaIdValue = formData.anggota_id || null
 
-      const { error } = await supabase
-        .from('notifikasi')
-        .update({
-          anggota_id: anggotaIdValue,
-          judul: formData.judul,
-          pesan: formData.pesan,
-          jenis: formData.jenis,
-          data: formData.data || {},
-          updated_at: new Date()
-        })
-        .eq('id', currentNotification.id)
+      if (currentNotification.source === 'global') {
+        // Update a global notification
+        const { error } = await supabase
+          .from('global_notifikasi')
+          .update({
+            anggota_id: anggotaIdValue,
+            judul: formData.judul,
+            pesan: formData.pesan,
+            jenis: formData.jenis,
+            data: formData.data || {}
+          })
+          .eq('id', currentNotification.id)
 
-      if (error) throw error
+        if (error) throw error
+      } else {
+        // Update a transaction notification
+        const { error } = await supabase
+          .from('transaksi_notifikasi')
+          .update({
+            judul: formData.judul,
+            pesan: formData.pesan,
+            jenis: formData.jenis,
+            data: formData.data || {}
+          })
+          .eq('id', currentNotification.id)
+
+        if (error) throw error
+      }
       
       toast({
         title: "Sukses",
@@ -219,12 +291,23 @@ export default function ManageNotificationsPage() {
     if (!currentNotification) return
 
     try {
-      const { error } = await supabase
-        .from('notifikasi')
-        .delete()
-        .eq('id', currentNotification.id)
+      if (currentNotification.source === 'global') {
+        // Delete a global notification
+        const { error } = await supabase
+          .from('global_notifikasi')
+          .delete()
+          .eq('id', currentNotification.id)
 
-      if (error) throw error
+        if (error) throw error
+      } else {
+        // Delete a transaction notification
+        const { error } = await supabase
+          .from('transaksi_notifikasi')
+          .delete()
+          .eq('id', currentNotification.id)
+
+        if (error) throw error
+      }
       
       toast({
         title: "Sukses",
@@ -244,20 +327,21 @@ export default function ManageNotificationsPage() {
   }
 
   // Handle edit button click
-  const handleEdit = (notification: Notifikasi) => {
+  const handleEdit = (notification: DisplayNotification) => {
     setCurrentNotification(notification)
     setFormData({
       jenis: notification.jenis,
       judul: notification.judul,
       pesan: notification.pesan,
-      anggota_id: notification.anggota_id || 'null',
-      data: notification.data || {}
+      anggota_id: notification.anggota_id || '',
+      data: notification.data || {},
+      source: notification.source
     })
     setIsEditing(true)
   }
 
   // Handle delete button click
-  const handleDelete = (notification: Notifikasi) => {
+  const handleDelete = (notification: DisplayNotification) => {
     setCurrentNotification(notification)
     setDeleteDialogOpen(true)
   }
@@ -268,8 +352,9 @@ export default function ManageNotificationsPage() {
       jenis: "info",
       judul: "",
       pesan: "",
-      anggota_id: "null",
-      data: {}
+      anggota_id: "",
+      data: {},
+      source: "global"
     })
     setCurrentNotification(null)
   }
@@ -316,74 +401,104 @@ export default function ManageNotificationsPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle>Daftar Notifikasi</CardTitle>
-          <CardDescription>Kelola semua notifikasi dalam sistem</CardDescription>
+          <CardDescription>
+            Kelola notifikasi yang akan dikirim ke anggota atau ditampilkan di dashboard.
+          </CardDescription>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+            <TabsList>
+              <TabsTrigger value="global">Notifikasi Global</TabsTrigger>
+              <TabsTrigger value="transaction">Notifikasi Transaksi</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="space-y-4">
-              {Array(5).fill(0).map((_, index) => (
-                <div key={index} className="flex items-center space-x-4">
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center space-x-4">
                   <Skeleton className="h-12 w-12 rounded-full" />
                   <div className="space-y-2">
                     <Skeleton className="h-4 w-[250px]" />
-                    <Skeleton className="h-4 w-[400px]" />
+                    <Skeleton className="h-4 w-[200px]" />
                   </div>
                 </div>
               ))}
             </div>
-          ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              <Bell className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-medium">Tidak ada notifikasi</p>
-              <p className="text-sm text-muted-foreground">Buat notifikasi baru dengan mengklik tombol di atas</p>
-            </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[100px]">Jenis</TableHead>
-                    <TableHead className="w-[250px]">Judul</TableHead>
-                    <TableHead>Pesan</TableHead>
-                    <TableHead className="w-[180px]">Waktu</TableHead>
-                    <TableHead className="w-[100px]">Status</TableHead>
-                    <TableHead className="w-[120px] text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {notifications.map((notification) => (
-                    <TableRow key={notification.id}>
-                      <TableCell>
-                        <Badge variant="outline" className={`${getNotificationBadgeColor(notification.jenis)} text-white`}>
-                          {notification.jenis}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">{notification.judul}</TableCell>
-                      <TableCell className="max-w-[300px] truncate">{notification.pesan}</TableCell>
-                      <TableCell>{formatDate(new Date(notification.created_at))}</TableCell>
-                      <TableCell>
-                        {notification.is_read ? (
-                          <Badge variant="outline" className="bg-gray-200 text-gray-700">Dibaca</Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-blue-500 text-white">Belum Dibaca</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(notification)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(notification)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            <div className="space-y-4">
+              {notifications.filter(n => n.source === activeTab).length === 0 ? (
+                <div className="text-center py-10">
+                  <Bell className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    {activeTab === 'global' ? 'Belum ada notifikasi global' : 'Belum ada notifikasi transaksi'}
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Jenis</TableHead>
+                      <TableHead>Judul</TableHead>
+                      <TableHead>Pesan</TableHead>
+                      {activeTab === 'global' && <TableHead>Penerima</TableHead>}
+                      {activeTab === 'transaction' && <TableHead>ID Transaksi</TableHead>}
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {notifications
+                      .filter(notification => notification.source === activeTab)
+                      .map((notification) => (
+                      <TableRow key={notification.id}>
+                        <TableCell>
+                          <Badge className={getNotificationBadgeColor(notification.jenis)}>
+                            {notification.jenis}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium">{notification.judul}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{notification.pesan}</TableCell>
+                        {activeTab === 'global' && (
+                          <TableCell>
+                            {notification.anggota_name || 'Semua Anggota'}
+                          </TableCell>
+                        )}
+                        {activeTab === 'transaction' && (
+                          <TableCell>
+                            {notification.transaksi_id ? (
+                              <Link href={`/transactions/${notification.transaksi_id}`} className="text-blue-500 hover:underline">
+                                {notification.transaksi_id.substring(0, 8)}...
+                              </Link>
+                            ) : 'N/A'}
+                          </TableCell>
+                        )}
+                        <TableCell>{formatDate(notification.created_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleEdit(notification)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-red-500"
+                              onClick={() => handleDelete(notification)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           )}
         </CardContent>
@@ -455,7 +570,7 @@ export default function ManageNotificationsPage() {
                       aria-expanded={openAnggotaPopover}
                       className="w-full justify-between"
                     >
-                      {formData.anggota_id === "null"
+                      {!formData.anggota_id
                         ? "Notifikasi Global"
                         : anggotaList.find((anggota) => anggota.id === formData.anggota_id)
                           ? `${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nama} - ${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nomor_anggota}`
@@ -477,7 +592,7 @@ export default function ManageNotificationsPage() {
                           key="global"
                           value="global"
                           onSelect={() => {
-                            setFormData({...formData, anggota_id: "null"})
+                            setFormData({...formData, anggota_id: ""})
                             setOpenAnggotaPopover(false)
                             setAnggotaSearchQuery("")
                           }}
@@ -653,7 +768,7 @@ export default function ManageNotificationsPage() {
                           key="global-edit"
                           value="global"
                           onSelect={() => {
-                            setFormData({...formData, anggota_id: "null"})
+                            setFormData({...formData, anggota_id: ""})
                             setOpenEditAnggotaPopover(false)
                             setAnggotaSearchQuery("")
                           }}
