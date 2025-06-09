@@ -948,17 +948,7 @@ export function AdminDashboard() {
                             </span>
                           </div>
                         </div>
-                        {!notification.is_read && (
-                          <div className="mt-2 flex justify-end">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleMarkAsRead(notification)}
-                            >
-                              Tandai Dibaca
-                            </Button>
-                          </div>
-                        )}
+
                       </div>
                     </div>
                   ))}
