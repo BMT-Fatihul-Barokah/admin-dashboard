@@ -394,35 +394,97 @@ export async function fetchNotifications(): Promise<CombinedNotification[]> {
   console.log('Direct fetch method called');
   
   try {
-    // Try SQL function first
-    const { data, error } = await supabase.rpc('get_all_notifications');
+    // Try SQL function first with explicit authentication
+    console.log('Trying to fetch notifications using RPC function...');
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_notifications');
     
-    if (!error && data && data.length > 0) {
-      console.log(`SQL function returned ${data.length} notifications`);
-      return data.map((item: any) => ({
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      console.log(`SQL function returned ${rpcData.length} notifications`);
+      return rpcData.map((item: any) => ({
         ...item,
         is_read: item.is_read || false,
         source: item.source as 'global' | 'transaction'
       }));
     }
     
-    // Try direct query as fallback
-    console.log('Trying direct query fallback');
-    const directClient = createClient(
-      'https://vszhxeamcxgqtwyaxhlu.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94'
-    );
+    if (rpcError) {
+      console.error('RPC error:', rpcError);
+    }
     
+    // Try separate direct queries as fallback
+    console.log('Trying direct queries as fallback...');
+    
+    // Use the same supabase client for consistency
     const [globalResult, transactionResult] = await Promise.all([
-      directClient.from('global_notifikasi').select('*').limit(20),
-      directClient.from('transaksi_notifikasi').select('*').limit(20)
+      supabase
+        .from('global_notifikasi')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('transaksi_notifikasi')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
     ]);
+    
+    if (globalResult.error) {
+      console.error('Global notifications query error:', globalResult.error);
+    }
+    
+    if (transactionResult.error) {
+      console.error('Transaction notifications query error:', transactionResult.error);
+    }
     
     const globalData = globalResult.data || [];
     const transactionData = transactionResult.data || [];
     
-    console.log(`Direct query returned ${globalData.length} global and ${transactionData.length} transaction notifications`);
+    console.log(`Direct queries returned ${globalData.length} global and ${transactionData.length} transaction notifications`);
     
+    // If both direct queries failed, try with hardcoded client as last resort
+    if (globalData.length === 0 && transactionData.length === 0) {
+      console.log('Both direct queries failed, trying with hardcoded client...');
+      const directClient = createClient(
+        'https://vszhxeamcxgqtwyaxhlu.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94'
+      );
+      
+      const [hardcodedGlobalResult, hardcodedTransactionResult] = await Promise.all([
+        directClient
+          .from('global_notifikasi')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50),
+        directClient
+          .from('transaksi_notifikasi')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50)
+      ]);
+      
+      const hardcodedGlobalData = hardcodedGlobalResult.data || [];
+      const hardcodedTransactionData = hardcodedTransactionResult.data || [];
+      
+      console.log(`Hardcoded client returned ${hardcodedGlobalData.length} global and ${hardcodedTransactionData.length} transaction notifications`);
+      
+      const combined: CombinedNotification[] = [
+        ...hardcodedGlobalData.map((item: any) => ({
+          ...item,
+          is_read: false,
+          source: 'global' as const
+        })),
+        ...hardcodedTransactionData.map((item: any) => ({
+          ...item,
+          source: 'transaction' as const
+        }))
+      ];
+      
+      return combined.sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
+    
+    // Process results from direct queries if they succeeded
     const combined: CombinedNotification[] = [
       ...globalData.map((item: any) => ({
         ...item,

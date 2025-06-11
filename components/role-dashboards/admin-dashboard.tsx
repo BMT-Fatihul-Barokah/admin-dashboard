@@ -561,6 +561,7 @@ export function AdminDashboard() {
 
   const loadAnalyticsData = async () => {
     try {
+      setIsAnalyticsLoading(true);
       const data = await fetchAnalyticsData();
       setAnalyticsData(data);
     } catch (error) {
@@ -570,6 +571,8 @@ export function AdminDashboard() {
         description: "Failed to load analytics data",
         variant: "destructive"
       });
+    } finally {
+      setIsAnalyticsLoading(false);
     }
   };
 
@@ -597,7 +600,6 @@ export function AdminDashboard() {
         <TabsList>
           <TabsTrigger value="overview">Ikhtisar</TabsTrigger>
           <TabsTrigger value="analytics">Analitik</TabsTrigger>
-          <TabsTrigger value="reports">Laporan</TabsTrigger>
           <TabsTrigger value="notifications">Notifikasi</TabsTrigger>
         </TabsList>
         
@@ -948,17 +950,7 @@ export function AdminDashboard() {
                             </span>
                           </div>
                         </div>
-                        {!notification.is_read && (
-                          <div className="mt-2 flex justify-end">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleMarkAsRead(notification)}
-                            >
-                              Tandai Dibaca
-                            </Button>
-                          </div>
-                        )}
+
                       </div>
                     </div>
                   ))}

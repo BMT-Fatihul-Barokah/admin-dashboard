@@ -31,13 +31,18 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AdminAuthProvider>
             <NavigationProgress />
-            <div className="flex min-h-screen">
-              <div className="sticky top-0 h-screen">
-                <AdminSidebar />
+            <div className="flex min-h-screen flex-col">
+              <div className="flex flex-1">
+                <div className="sticky top-0 h-screen">
+                  <AdminSidebar />
+                </div>
+                <main className="flex-1 overflow-y-auto transition-all duration-200">
+                  {children}
+                </main>
               </div>
-              <main className="flex-1 overflow-y-auto transition-all duration-200">
-                {children}
-              </main>
+              <footer className="py-4 px-6 text-center text-sm text-muted-foreground border-t">
+                {new Date().getFullYear()} © ALL RIGHTS RESERVED — CODE BY ANDRE WIJAYA, IQBAL ISYA FATHURROHMAN, NOVANDRA ANUGRAH
+              </footer>
             </div>
             <Toaster />
           </AdminAuthProvider>

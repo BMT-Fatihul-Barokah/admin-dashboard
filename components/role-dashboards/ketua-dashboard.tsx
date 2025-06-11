@@ -177,7 +177,7 @@ export function KetuaDashboard() {
       
       // 1. Check for overdue loans (more than 30 days past due)
       const { data: overdueLoans, error: overdueError } = await supabase
-        .from('pinjaman')
+        .from('pembiayaan')
         .select('id, anggota_id, jumlah, jatuh_tempo, created_at')
         .eq('status', 'aktif')
         .lt('jatuh_tempo', subDays(new Date(), 30).toISOString());
