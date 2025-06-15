@@ -200,6 +200,29 @@ export async function getPembiayaanByStatus(status: string): Promise<Pembiayaan[
 }
 
 /**
+ * Get pembiayaan by anggota_id and status
+ */
+export async function getPembiayaanByAnggotaAndStatus(anggotaId: string, status: string): Promise<Pembiayaan[]> {
+  const { data, error } = await supabase
+    .from('pembiayaan')
+    .select(`
+      *,
+      anggota:anggota_id(nama, nomor_rekening),
+      jenis_pembiayaan:jenis_pembiayaan_id(nama, kode, deskripsi)
+    `)
+    .eq('anggota_id', anggotaId)
+    .eq('status', status)
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching pembiayaan by anggota and status:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+/**
  * Create a new pembiayaan with active status using the RPC function
  */
 export async function createPembiayaan(pembiayaanData: PembiayaanInput): Promise<{ success: boolean; error?: any; data?: any; pembiayaan_id?: string }> {

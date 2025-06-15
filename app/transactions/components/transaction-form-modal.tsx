@@ -204,14 +204,14 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       
       setIsLoadingPinjaman(true)
       try {
-        const response = await fetch(`/api/pinjaman?anggota_id=${selectedAnggotaId}&status=aktif`)
+        const response = await fetch(`/api/pembiayaan/by-anggota?anggota_id=${selectedAnggotaId}&status=aktif`)
         if (!response.ok) {
-          throw new Error('Failed to fetch pinjaman')
+          throw new Error('Failed to fetch pembiayaan')
         }
         const data = await response.json()
         setPinjamanList(data)
       } catch (error) {
-        console.error('Error fetching pinjaman:', error)
+        console.error('Error fetching pembiayaan:', error)
         toast.error('Gagal memuat data pinjaman')
       } finally {
         setIsLoadingPinjaman(false)
@@ -272,17 +272,24 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
     }
     setIsSubmitting(true)
     try {
+      // Determine source type based on whether pinjaman_id is selected
+      const source_type = values.pinjaman_id ? "pembiayaan" : "tabungan";
+      
       // Send data to API
-      // Map form values to match the database schema
+      // Map form values to match the database schema and ensure fields are properly set based on source_type
       const formData = {
         ...values,
+        // Set source_type based on whether pinjaman_id is selected
+        source_type,
         // Map pinjaman_id to pembiayaan_id for database compatibility
         pembiayaan_id: values.pinjaman_id,
-        // Set source_type based on transaction type
-        source_type: values.tipe_transaksi === "masuk" ? 
-          (values.pinjaman_id ? "pembiayaan" : "tabungan") : 
-          (values.pinjaman_id ? "pembiayaan" : "tabungan")
+        // Ensure jenis_tabungan_id is null for pembiayaan transactions
+        jenis_tabungan_id: source_type === "pembiayaan" ? null : values.jenis_tabungan_id,
+        // Ensure pembiayaan_id and pinjaman_id are null for tabungan transactions
+        pinjaman_id: source_type === "tabungan" ? null : values.pinjaman_id,
       };
+      
+      console.log('Creating new transaction with data:', formData);
       
       const response = await fetch('/api/transactions', {
         method: 'POST',
