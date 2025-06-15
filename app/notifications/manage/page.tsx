@@ -46,7 +46,7 @@ type DisplayNotification = {
 type Anggota = {
   id: string;
   nama: string;
-  nomor_anggota: string;
+  nomor_rekening: string;
 }
 
 export default function ManageNotificationsPage() {
@@ -165,7 +165,7 @@ export default function ManageNotificationsPage() {
       // Fetch anggota directly from the database
       const { data, error } = await supabase
         .from('anggota')
-        .select('id, nama, nomor_anggota')
+        .select('id, nama, nomor_rekening')
         .order('nama')
 
       if (error) throw error
@@ -573,7 +573,7 @@ export default function ManageNotificationsPage() {
                       {!formData.anggota_id
                         ? "Notifikasi Global"
                         : anggotaList.find((anggota) => anggota.id === formData.anggota_id)
-                          ? `${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nama} - ${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nomor_anggota}`
+                          ? `${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nama} - ${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nomor_rekening}`
                           : "Pilih anggota..."}
                       <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -614,7 +614,7 @@ export default function ManageNotificationsPage() {
                           anggotaList
                             .filter(anggota => 
                               anggota.nama.toLowerCase().includes(anggotaSearchQuery.toLowerCase()) ||
-                              anggota.nomor_anggota.toLowerCase().includes(anggotaSearchQuery.toLowerCase())
+                              anggota.nomor_rekening.toLowerCase().includes(anggotaSearchQuery.toLowerCase())
                             )
                             .map((anggota) => (
                               <CommandItem
@@ -632,7 +632,7 @@ export default function ManageNotificationsPage() {
                                 )}>
                                   👤
                                 </span>
-                                {anggota.nama} - {anggota.nomor_anggota}
+                                {anggota.nama} - {anggota.nomor_rekening}
                               </CommandItem>
                             ))
                         )}
@@ -749,7 +749,7 @@ export default function ManageNotificationsPage() {
                       {formData.anggota_id === "null"
                         ? "Notifikasi Global"
                         : anggotaList.find((anggota) => anggota.id === formData.anggota_id)
-                          ? `${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nama} - ${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nomor_anggota}`
+                          ? `${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nama} - ${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nomor_rekening}`
                           : "Pilih anggota..."}
                       <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -790,7 +790,7 @@ export default function ManageNotificationsPage() {
                           anggotaList
                             .filter(anggota => 
                               anggota.nama.toLowerCase().includes(anggotaSearchQuery.toLowerCase()) ||
-                              anggota.nomor_anggota.toLowerCase().includes(anggotaSearchQuery.toLowerCase())
+                              anggota.nomor_rekening.toLowerCase().includes(anggotaSearchQuery.toLowerCase())
                             )
                             .map((anggota) => (
                               <CommandItem
@@ -808,7 +808,7 @@ export default function ManageNotificationsPage() {
                                 )}>
                                   👤
                                 </span>
-                                {anggota.nama} - {anggota.nomor_anggota}
+                                {anggota.nama} - {anggota.nomor_rekening}
                               </CommandItem>
                             ))
                         )}

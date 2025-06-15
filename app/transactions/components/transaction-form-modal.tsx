@@ -42,9 +42,7 @@ const formSchema = z.object({
     invalid_type_error: "Jumlah harus berupa angka",
   }).positive("Jumlah harus lebih dari 0"),
   deskripsi: z.string().optional(),
-  source_type: z.string().optional(),
-  pinjaman_id: z.string().optional(), // Keep for frontend compatibility
-  pembiayaan_id: z.string().optional(), // Add for database compatibility
+  source_type: z.string().default("tabungan"),
   jenis_tabungan_id: z.string().optional(),
 })
 
@@ -94,11 +92,9 @@ interface Anggota {
 export function TransactionFormModal({ isOpen, onClose, onSuccess }: TransactionFormModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([])
-  const [pinjamanList, setPinjamanList] = useState<any[]>([])
   const [jenisTabunganList, setJenisTabunganList] = useState<JenisTabungan[]>([])
   const [userTabunganList, setUserTabunganList] = useState<{id: string, jenis_tabungan_id: string, jenis_tabungan_nama: string, saldo: number}[]>([])
   const [isLoadingAnggota, setIsLoadingAnggota] = useState(false)
-  const [isLoadingPinjaman, setIsLoadingPinjaman] = useState(false)
   const [isLoadingJenisTabungan, setIsLoadingJenisTabungan] = useState(false)
   
   // Initialize form with base schema first
@@ -108,9 +104,8 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       tipe_transaksi: "",
       jumlah: undefined,
       deskripsi: "",
-      source_type: "",
+      source_type: "tabungan",
       jenis_tabungan_id: "",
-      pinjaman_id: "",
     },
   })
   
@@ -197,27 +192,8 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
     }
   }, [isOpen])
   
-  // Fetch pinjaman list when anggota is selected
+  // Fetch user's tabungan when anggota is selected
   useEffect(() => {
-    const fetchPinjaman = async () => {
-      if (!selectedAnggotaId) return
-      
-      setIsLoadingPinjaman(true)
-      try {
-        const response = await fetch(`/api/pembiayaan/by-anggota?anggota_id=${selectedAnggotaId}&status=aktif`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch pembiayaan')
-        }
-        const data = await response.json()
-        setPinjamanList(data)
-      } catch (error) {
-        console.error('Error fetching pembiayaan:', error)
-        toast.error('Gagal memuat data pinjaman')
-      } finally {
-        setIsLoadingPinjaman(false)
-      }
-    }
-    
     const fetchUserTabungan = async () => {
       if (!selectedAnggotaId) return
       
@@ -251,14 +227,10 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
     }
     
     if (selectedAnggotaId) {
-      if (tipeTransaksi === "masuk") {
-        fetchPinjaman()
-      }
-      
       // Fetch user's tabungan whenever anggota is selected
       fetchUserTabungan()
     }
-  }, [selectedAnggotaId, tipeTransaksi, form])
+  }, [selectedAnggotaId])
   
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -272,21 +244,15 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
     }
     setIsSubmitting(true)
     try {
-      // Determine source type based on whether pinjaman_id is selected
-      const source_type = values.pinjaman_id ? "pembiayaan" : "tabungan";
+      // Always set source_type to "tabungan" since we only handle savings transactions now
+      const source_type = "tabungan";
       
       // Send data to API
-      // Map form values to match the database schema and ensure fields are properly set based on source_type
       const formData = {
         ...values,
-        // Set source_type based on whether pinjaman_id is selected
         source_type,
-        // Map pinjaman_id to pembiayaan_id for database compatibility
-        pembiayaan_id: values.pinjaman_id,
-        // Ensure jenis_tabungan_id is null for pembiayaan transactions
-        jenis_tabungan_id: source_type === "pembiayaan" ? null : values.jenis_tabungan_id,
-        // Ensure pembiayaan_id and pinjaman_id are null for tabungan transactions
-        pinjaman_id: source_type === "tabungan" ? null : values.pinjaman_id,
+        pembiayaan_id: null,
+        pinjaman_id: null
       };
       
       console.log('Creating new transaction with data:', formData);
@@ -391,37 +357,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
             
 
             
-            {/* Pinjaman Field - Only show for loan payments */}
-            {tipeTransaksi === "masuk" && (
-              <FormField
-                control={form.control}
-                name="pinjaman_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pinjaman</FormLabel>
-                    <Select 
-                      disabled={isLoadingPinjaman} 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih pinjaman" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {pinjamanList.map((pinjaman) => (
-                          <SelectItem key={pinjaman.id} value={pinjaman.id}>
-                            {pinjaman.jenis_pinjaman} - Rp {pinjaman.sisa_pembayaran.toLocaleString('id-ID')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+
             
             {/* Jenis Tabungan Field */}
             <FormField

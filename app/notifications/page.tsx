@@ -4,13 +4,21 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, ArrowRight, Calendar, Clock, AlertCircle } from "lucide-react"
+import { Bell, CheckCircle, CreditCard, Info, Settings, User, Wallet, X, ArrowRight, Calendar, Clock, AlertCircle, Plus, Search, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { fetchNotifications, CombinedNotification, isJatuhTempoNotification } from '@/lib/notifications';
+import { supabase } from "@/lib/supabase"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<CombinedNotification[]>([])
@@ -23,6 +31,21 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState("all")
   const [selectedNotification, setSelectedNotification] = useState<CombinedNotification | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  
+  // Create notification dialog states
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [anggotaList, setAnggotaList] = useState<{id: string, nama: string, nomor_rekening: string}[]>([])
+  const [isLoadingAnggota, setIsLoadingAnggota] = useState(false)
+  const [openAnggotaPopover, setOpenAnggotaPopover] = useState(false)
+  const [anggotaSearchQuery, setAnggotaSearchQuery] = useState("")
+  const [formData, setFormData] = useState({
+    jenis: "info",
+    judul: "",
+    pesan: "",
+    anggota_id: "",
+    data: {},
+    source: "global" as "global" | "transaction"
+  })
   
   // Format the date to a readable format
   const formatDate = (date: Date) => {
@@ -95,9 +118,94 @@ export default function NotificationsPage() {
     }
   };
   
-  // Fetch notifications on component mount
+  // Fetch anggota list
+  const fetchAnggota = async () => {
+    setIsLoadingAnggota(true)
+    try {
+      const { data, error } = await supabase
+        .from('anggota')
+        .select('id, nama, nomor_rekening')
+      
+      if (error) throw error
+      setAnggotaList(data || [])
+    } catch (error) {
+      console.error("Error fetching anggota:", error)
+      toast({
+        title: "Error",
+        description: "Gagal memuat data anggota. Silakan coba lagi nanti.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingAnggota(false)
+    }
+  }
+
+  // Create a new notification
+  const createNotification = async () => {
+    try {
+      const anggotaIdValue = formData.anggota_id || null
+
+      if (formData.source === 'global') {
+        // Create a global notification
+        const { data, error } = await supabase
+          .from('global_notifikasi')
+          .insert([
+            {
+              anggota_id: anggotaIdValue,
+              judul: formData.judul,
+              pesan: formData.pesan,
+              jenis: formData.jenis,
+              data: formData.data || {},
+            }
+          ])
+          .select()
+
+        if (error) throw error
+      } else {
+        // For transaction notifications, we would typically not create them manually
+        toast({
+          title: "Info",
+          description: "Notifikasi transaksi biasanya dibuat secara otomatis oleh sistem.",
+          variant: "default",
+        })
+        return
+      }
+      
+      toast({
+        title: "Sukses",
+        description: "Notifikasi berhasil dibuat.",
+      })
+      
+      setCreateDialogOpen(false)
+      resetForm()
+      loadNotifications()
+    } catch (error) {
+      console.error("Error creating notification:", error)
+      toast({
+        title: "Error",
+        description: "Gagal membuat notifikasi. Silakan coba lagi nanti.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      jenis: "info",
+      judul: "",
+      pesan: "",
+      anggota_id: "",
+      data: {},
+      source: "global"
+    })
+    setAnggotaSearchQuery("")
+  }
+
+  // Fetch notifications and anggota list on component mount
   useEffect(() => {
     loadNotifications();
+    fetchAnggota();
   }, []);
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -155,14 +263,190 @@ export default function NotificationsPage() {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Create Notification Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Buat Notifikasi Baru</DialogTitle>
+            <DialogDescription>
+              Buat notifikasi baru untuk ditampilkan di dashboard atau dikirim ke anggota tertentu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="jenis" className="text-right">
+                Jenis Notifikasi
+              </Label>
+              <Select 
+                value={formData.jenis} 
+                onValueChange={(value) => setFormData({...formData, jenis: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Pilih jenis notifikasi" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="info">Informasi</SelectItem>
+                  <SelectItem value="sistem">Sistem</SelectItem>
+                  <SelectItem value="pengumuman">Pengumuman</SelectItem>
+                  <SelectItem value="jatuh_tempo">Jatuh Tempo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="judul" className="text-right">
+                Judul
+              </Label>
+              <Input
+                id="judul"
+                value={formData.judul}
+                onChange={(e) => setFormData({...formData, judul: e.target.value})}
+                className="col-span-3"
+                placeholder="Judul notifikasi"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="pesan" className="text-right">
+                Pesan
+              </Label>
+              <Textarea
+                id="pesan"
+                value={formData.pesan}
+                onChange={(e) => setFormData({...formData, pesan: e.target.value})}
+                className="col-span-3"
+                placeholder="Isi pesan notifikasi"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="penerima" className="text-right">
+                Penerima
+              </Label>
+              <div className="col-span-3">
+                <Popover open={openAnggotaPopover} onOpenChange={setOpenAnggotaPopover}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openAnggotaPopover}
+                      className="w-full justify-between"
+                    >
+                      {!formData.anggota_id
+                        ? "Notifikasi Global"
+                        : anggotaList.find((anggota) => anggota.id === formData.anggota_id)
+                          ? `${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nama} - ${anggotaList.find((anggota) => anggota.id === formData.anggota_id)?.nomor_rekening}`
+                          : "Pilih anggota..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Cari anggota..." 
+                        className="h-9"
+                        value={anggotaSearchQuery}
+                        onValueChange={setAnggotaSearchQuery}
+                      />
+                      <CommandEmpty>Anggota tidak ditemukan.</CommandEmpty>
+                      <CommandGroup className="max-h-[300px] overflow-auto">
+                        <CommandItem
+                          key="global"
+                          value="global"
+                          onSelect={() => {
+                            setFormData({...formData, anggota_id: ""})
+                            setOpenAnggotaPopover(false)
+                            setAnggotaSearchQuery("")
+                          }}
+                        >
+                          <span className={cn(
+                            "mr-2",
+                            formData.anggota_id === "" ? "opacity-100" : "opacity-40"
+                          )}>
+                            🌐
+                          </span>
+                          Notifikasi Global
+                        </CommandItem>
+                        {isLoadingAnggota ? (
+                          <div className="flex items-center justify-center p-2">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span>Memuat data anggota...</span>
+                          </div>
+                        ) : (
+                          anggotaList
+                            .filter(anggota => 
+                              anggota.nama.toLowerCase().includes(anggotaSearchQuery.toLowerCase()) ||
+                              anggota.nomor_rekening.toLowerCase().includes(anggotaSearchQuery.toLowerCase())
+                            )
+                            .map((anggota) => (
+                              <CommandItem
+                                key={anggota.id}
+                                value={anggota.nama}
+                                onSelect={() => {
+                                  setFormData({...formData, anggota_id: anggota.id})
+                                  setOpenAnggotaPopover(false)
+                                  setAnggotaSearchQuery("")
+                                }}
+                              >
+                                <span className={cn(
+                                  "mr-2",
+                                  formData.anggota_id === anggota.id ? "opacity-100" : "opacity-40"
+                                )}>
+                                  👤
+                                </span>
+                                {anggota.nama} - {anggota.nomor_rekening}
+                              </CommandItem>
+                            ))
+                        )}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="data" className="text-right">
+                Data JSON (Opsional)
+              </Label>
+              <Textarea
+                id="data"
+                value={formData.data ? JSON.stringify(formData.data, null, 2) : '{}'}
+                onChange={(e) => {
+                  try {
+                    const jsonData = JSON.parse(e.target.value);
+                    setFormData({...formData, data: jsonData});
+                  } catch (error) {
+                    // If invalid JSON, don't update the state
+                  }
+                }}
+                className="col-span-3 font-mono text-sm"
+                placeholder='{"key": "value"}'
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setCreateDialogOpen(false)
+              resetForm()
+            }}>
+              Batal
+            </Button>
+            <Button 
+              onClick={createNotification}
+              disabled={!formData.judul || !formData.pesan}
+            >
+              Buat Notifikasi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Notifikasi</h2>
         <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/notifications/manage">
-              <Bell className="mr-2 h-4 w-4" />
-              Kelola Notifikasi
-            </Link>
+          <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+            <Bell className="mr-2 h-4 w-4" />
+            Buat Notifikasi
           </Button>
           <Button variant="outline" asChild>
             <Link href="/notifications/settings">
