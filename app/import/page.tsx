@@ -363,10 +363,9 @@ export default function ImportPage() {
                       <TableRow>
                         <TableHead>Nama Anggota</TableHead>
                         <TableHead>Jenis Transaksi</TableHead>
-                        <TableHead>Kategori</TableHead>
                         <TableHead>Jumlah</TableHead>
+                        <TableHead>Rekening/Pinjaman</TableHead>
                         <TableHead>Tanggal</TableHead>
-                        <TableHead>Deskripsi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -380,7 +379,6 @@ export default function ImportPage() {
                               </Badge>
                             ) : '-'}
                           </TableCell>
-                          <TableCell>{row["Kategori"] || '-'}</TableCell>
                           <TableCell>
                             {row["Jumlah"] !== undefined && row["Jumlah"] !== null
                               ? (typeof row["Jumlah"] === 'number'
@@ -388,6 +386,7 @@ export default function ImportPage() {
                                 : row["Jumlah"].toString())
                               : '-'}
                           </TableCell>
+                          <TableCell>{row["Rekening/Pinjaman"] || '-'}</TableCell>
                           <TableCell>
                             {row["Tanggal"] !== undefined && row["Tanggal"] !== null
                               ? (typeof row["Tanggal"] === 'number'
@@ -395,7 +394,6 @@ export default function ImportPage() {
                                 : row["Tanggal"].toString())
                               : '-'}
                           </TableCell>
-                          <TableCell>{row["Deskripsi"] || '-'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

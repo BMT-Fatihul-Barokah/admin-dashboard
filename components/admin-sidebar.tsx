@@ -211,12 +211,23 @@ export function AdminSidebar() {
 										)}
 									>
 										<Avatar className="h-6 w-6 shrink-0">
-											<AvatarImage
-												src="/placeholder.svg"
-												alt="Admin"
-											/>
 											<AvatarFallback>
-												AD
+												{user?.role ? (() => {
+													// Map role to first letter
+													switch(user.role.toLowerCase()) {
+														case "administrator":
+															return "A";
+														case "bendahara":
+															return "B";
+														case "ketua":
+															return "K";
+														case "sekretaris":
+															return "S";
+														default:
+															// Fallback to first letter of role
+															return user.role.charAt(0).toUpperCase();
+													}
+												})() : "U"}
 											</AvatarFallback>
 										</Avatar>
 										{!isCollapsed && (

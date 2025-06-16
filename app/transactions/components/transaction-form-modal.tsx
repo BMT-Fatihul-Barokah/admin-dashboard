@@ -21,6 +21,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { RupiahInput } from "@/components/ui/rupiah-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -42,37 +43,13 @@ const formSchema = z.object({
     invalid_type_error: "Jumlah harus berupa angka",
   }).positive("Jumlah harus lebih dari 0"),
   deskripsi: z.string().optional(),
-  source_type: z.string().optional(),
-  pinjaman_id: z.string().optional(), // Keep for frontend compatibility
-  pembiayaan_id: z.string().optional(), // Add for database compatibility
+  source_type: z.string().default("tabungan"),
   jenis_tabungan_id: z.string().optional(),
 })
 
-// Create a function to generate a dynamic schema based on the selected savings type
-const createFormSchema = (jenisTabunganList: JenisTabungan[], selectedJenisTabunganId?: string, isDeposit?: boolean) => {
-  // Get the base schema
-  const baseSchema = formSchema;
-  
-  // If we have a selected savings type and it's a deposit transaction, add minimum deposit validation
-  if (selectedJenisTabunganId && isDeposit && jenisTabunganList.length > 0) {
-    const selectedJenisTabungan = jenisTabunganList.find(jt => jt.id === selectedJenisTabunganId);
-    
-    if (selectedJenisTabungan && selectedJenisTabungan.minimum_setoran > 0) {
-      return baseSchema.extend({
-        jumlah: z.coerce.number({
-          required_error: "Masukkan jumlah",
-          invalid_type_error: "Jumlah harus berupa angka",
-        })
-        .positive("Jumlah harus lebih dari 0")
-        .min(
-          selectedJenisTabungan.minimum_setoran,
-          `Setoran minimum untuk ${selectedJenisTabungan.nama} adalah Rp ${selectedJenisTabungan.minimum_setoran.toLocaleString('id-ID')}`
-        ),
-      });
-    }
-  }
-  
-  return baseSchema;
+// Use the base form schema for all cases
+const createFormSchema = () => {
+  return formSchema;
 }
 
 // Define props for the component
@@ -94,11 +71,9 @@ interface Anggota {
 export function TransactionFormModal({ isOpen, onClose, onSuccess }: TransactionFormModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([])
-  const [pinjamanList, setPinjamanList] = useState<any[]>([])
   const [jenisTabunganList, setJenisTabunganList] = useState<JenisTabungan[]>([])
   const [userTabunganList, setUserTabunganList] = useState<{id: string, jenis_tabungan_id: string, jenis_tabungan_nama: string, saldo: number}[]>([])
   const [isLoadingAnggota, setIsLoadingAnggota] = useState(false)
-  const [isLoadingPinjaman, setIsLoadingPinjaman] = useState(false)
   const [isLoadingJenisTabungan, setIsLoadingJenisTabungan] = useState(false)
   
   // Initialize form with base schema first
@@ -108,9 +83,8 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       tipe_transaksi: "",
       jumlah: undefined,
       deskripsi: "",
-      source_type: "",
+      source_type: "tabungan",
       jenis_tabungan_id: "",
-      pinjaman_id: "",
     },
   })
   
@@ -119,36 +93,21 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
   const selectedAnggotaId = form.watch("anggota_id")
   const selectedJenisTabunganId = form.watch("jenis_tabungan_id")
   
-  // State to track minimum deposit amount for the selected savings type
-  const [minimumSetoran, setMinimumSetoran] = useState<number | null>(null)
+  // Track selected savings type name for display purposes
   const [selectedJenisTabunganNama, setSelectedJenisTabunganNama] = useState<string>('')
   
-  // Update minimum deposit amount when savings type changes
+  // Update selected savings type name when it changes
   useEffect(() => {
-    // Only apply minimum deposit validation for deposits
-    if (tipeTransaksi === "masuk" && selectedJenisTabunganId && jenisTabunganList.length > 0) {
+    if (selectedJenisTabunganId && jenisTabunganList.length > 0) {
       const selectedJenisTabungan = jenisTabunganList.find(jt => jt.id === selectedJenisTabunganId);
       
       if (selectedJenisTabungan) {
-        setMinimumSetoran(selectedJenisTabungan.minimum_setoran);
         setSelectedJenisTabunganNama(selectedJenisTabungan.nama);
-        
-        // Validate the current amount against minimum deposit
-        const currentAmount = form.getValues("jumlah");
-        if (currentAmount && currentAmount < selectedJenisTabungan.minimum_setoran) {
-          form.setError("jumlah", {
-            type: "min",
-            message: `Setoran minimum untuk ${selectedJenisTabungan.nama} adalah Rp ${selectedJenisTabungan.minimum_setoran.toLocaleString('id-ID')}`
-          });
-        } else {
-          form.clearErrors("jumlah");
-        }
       }
     } else {
-      setMinimumSetoran(null);
       setSelectedJenisTabunganNama('');
     }
-  }, [tipeTransaksi, selectedJenisTabunganId, jenisTabunganList, form])
+  }, [selectedJenisTabunganId, jenisTabunganList])
   
   // Reset form when modal is opened/closed
   useEffect(() => {
@@ -197,27 +156,8 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
     }
   }, [isOpen])
   
-  // Fetch pinjaman list when anggota is selected
+  // Fetch user's tabungan when anggota is selected
   useEffect(() => {
-    const fetchPinjaman = async () => {
-      if (!selectedAnggotaId) return
-      
-      setIsLoadingPinjaman(true)
-      try {
-        const response = await fetch(`/api/pinjaman?anggota_id=${selectedAnggotaId}&status=aktif`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch pinjaman')
-        }
-        const data = await response.json()
-        setPinjamanList(data)
-      } catch (error) {
-        console.error('Error fetching pinjaman:', error)
-        toast.error('Gagal memuat data pinjaman')
-      } finally {
-        setIsLoadingPinjaman(false)
-      }
-    }
-    
     const fetchUserTabungan = async () => {
       if (!selectedAnggotaId) return
       
@@ -251,38 +191,27 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
     }
     
     if (selectedAnggotaId) {
-      if (tipeTransaksi === "masuk") {
-        fetchPinjaman()
-      }
-      
       // Fetch user's tabungan whenever anggota is selected
       fetchUserTabungan()
     }
-  }, [selectedAnggotaId, tipeTransaksi, form])
+  }, [selectedAnggotaId])
   
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Check minimum deposit amount before submitting
-    if (tipeTransaksi === "masuk" && minimumSetoran && values.jumlah < minimumSetoran) {
-      form.setError("jumlah", {
-        type: "min",
-        message: `Setoran minimum untuk ${selectedJenisTabunganNama} adalah Rp ${minimumSetoran.toLocaleString('id-ID')}`
-      });
-      return;
-    }
     setIsSubmitting(true)
     try {
+      // Always set source_type to "tabungan" since we only handle savings transactions now
+      const source_type = "tabungan";
+      
       // Send data to API
-      // Map form values to match the database schema
       const formData = {
         ...values,
-        // Map pinjaman_id to pembiayaan_id for database compatibility
-        pembiayaan_id: values.pinjaman_id,
-        // Set source_type based on transaction type
-        source_type: values.tipe_transaksi === "masuk" ? 
-          (values.pinjaman_id ? "pembiayaan" : "tabungan") : 
-          (values.pinjaman_id ? "pembiayaan" : "tabungan")
+        source_type,
+        pembiayaan_id: null,
+        pinjaman_id: null
       };
+      
+      console.log('Creating new transaction with data:', formData);
       
       const response = await fetch('/api/transactions', {
         method: 'POST',
@@ -384,37 +313,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
             
 
             
-            {/* Pinjaman Field - Only show for loan payments */}
-            {tipeTransaksi === "masuk" && (
-              <FormField
-                control={form.control}
-                name="pinjaman_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pinjaman</FormLabel>
-                    <Select 
-                      disabled={isLoadingPinjaman} 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih pinjaman" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {pinjamanList.map((pinjaman) => (
-                          <SelectItem key={pinjaman.id} value={pinjaman.id}>
-                            {pinjaman.jenis_pinjaman} - Rp {pinjaman.sisa_pembayaran.toLocaleString('id-ID')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+
             
             {/* Jenis Tabungan Field */}
             <FormField
@@ -471,40 +370,19 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
                 <FormItem>
                   <FormLabel>Jumlah</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
+                    <RupiahInput 
                       placeholder="Masukkan jumlah" 
-                      value={field.value || ""} 
-                      onKeyDown={(e) => {
-                        // Prevent mathematical operators
-                        if (['+', '-', '*', '/', 'e', 'E'].includes(e.key)) {
-                          e.preventDefault();
-                        }
-                      }}
-                      onChange={(e) => {
-                        // Remove any non-numeric characters
-                        const numericValue = e.target.value.replace(/[^0-9]/g, '');
-                        const value = numericValue === "" ? undefined : Number(numericValue);
+                      value={field.value} 
+                      onChange={(value) => {
                         field.onChange(value);
-                        
-                        // Validate against minimum deposit if applicable
-                        if (tipeTransaksi === "masuk" && minimumSetoran && value && value < minimumSetoran) {
-                          form.setError("jumlah", {
-                            type: "min",
-                            message: `Setoran minimum untuk ${selectedJenisTabunganNama} adalah Rp ${minimumSetoran.toLocaleString('id-ID')}`
-                          });
-                        } else if (value) {
+                        if (value) {
                           form.clearErrors("jumlah");
                         }
                       }}
                     />
                   </FormControl>
                   <FormDescription>
-                    {tipeTransaksi === "masuk" && minimumSetoran ? (
-                      <>Masukkan jumlah transaksi dalam Rupiah <strong>(minimum Rp {minimumSetoran.toLocaleString('id-ID')})</strong></>
-                    ) : (
-                      <>Masukkan jumlah transaksi dalam Rupiah</>
-                    )}
+                    Masukkan jumlah transaksi dalam Rupiah
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

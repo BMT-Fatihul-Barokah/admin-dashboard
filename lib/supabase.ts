@@ -722,8 +722,7 @@ export async function getAllJenisTabungan(): Promise<JenisTabungan[]> {
     try {
       const { data, error: fallbackError } = await supabase
         .from('jenis_tabungan')
-        .select('*')
-        .eq('is_active', true)
+        .select('id, kode, nama, deskripsi')
         .order('kode', { ascending: true });
       
       if (fallbackError) {
@@ -731,17 +730,7 @@ export async function getAllJenisTabungan(): Promise<JenisTabungan[]> {
         return [];
       }
       
-      // Map the results to include any missing fields with default values
-      const mappedData = (data || []).map((item: any) => ({
-        ...item,
-        biaya_admin: item.biaya_admin || 0,
-        bagi_hasil: item.bagi_hasil || 0,
-        is_required: item.is_required || false,
-        is_reguler: item.is_reguler || false,
-        display_order: item.display_order || 0
-      }));
-      
-      return mappedData;
+      return data || [];
     } catch (fallbackError) {
       console.error('Error in fallback query:', fallbackError);
       return [];

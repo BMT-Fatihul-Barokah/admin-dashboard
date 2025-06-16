@@ -384,7 +384,8 @@ export default function TransactionsPage() {
         'Nama Anggota': (value: any, row: Transaksi & { rekening_pinjaman: string }) => row.anggota?.nama || 'Anggota',
         // Export Jumlah as a number, not as formatted currency
         'Jumlah': (value: number) => Number(value),
-        'Tanggal': (value: string) => formatDate(value)
+        // Convert string date to JavaScript Date object for proper Excel date formatting
+        'Tanggal': (value: string) => value ? parseISO(value) : null
       }
     )
     

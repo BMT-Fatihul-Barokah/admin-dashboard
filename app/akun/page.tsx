@@ -29,6 +29,7 @@ import { AkunDetailDialog } from "./components/akun-detail-dialog"
 import { EditAkunForm } from "./components/edit-akun-form"
 import { ResetPinDialog } from "./components/reset-pin-dialog"
 import { ToggleAkunStatus } from "./components/toggle-akun-status"
+import { DeleteAkunDialog } from "./components/delete-akun-dialog"
 
 type Akun = {
   id: string
@@ -62,6 +63,7 @@ export default function AkunPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [resetPinDialogOpen, setResetPinDialogOpen] = useState(false)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   
   // Format date function
   const formatDate = (dateString: string | Date) => {
@@ -380,6 +382,15 @@ export default function AkunPage() {
                           >
                             {account.is_active ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}
                           </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => {
+                              setSelectedAkun(account)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            Hapus Akun
+                          </DropdownMenuItem>
                         </PermissionGuard>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -436,6 +447,13 @@ export default function AkunPage() {
         open={statusDialogOpen} 
         onOpenChange={setStatusDialogOpen}
         onStatusChanged={fetchAkun}
+      />
+      
+      <DeleteAkunDialog
+        akun={selectedAkun}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onAkunDeleted={fetchAkun}
       />
     </div>
   )

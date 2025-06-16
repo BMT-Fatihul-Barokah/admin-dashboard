@@ -116,9 +116,10 @@ export function downloadExcel<T extends Record<string, any>>(
     // If headers are not provided, use all keys from the first object
     const headerRow = headers || Object.keys(data[0]);
     
-    // Create worksheet
+    // Create worksheet with cellDates option to ensure dates are properly formatted
     const ws = XLSX.utils.json_to_sheet(data, {
-      header: headerRow
+      header: headerRow,
+      cellDates: true // This ensures JavaScript Date objects are treated as dates in Excel
     });
     
     // Set column widths

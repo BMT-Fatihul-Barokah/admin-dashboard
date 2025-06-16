@@ -33,6 +33,7 @@ import { SavingsDetails } from "./components/savings-details"
 import { ManageSavingsTypes } from "./components/manage-savings-types"
 import { AddSavingsAccount } from "./components/add-savings-account"
 import { MemberSavingsTypes } from "./components/member-savings-types"
+import { DeleteUserDialog } from "./components/delete-user-dialog"
 
 type Anggota = {
   id: string
@@ -75,6 +76,7 @@ export default function UsersPage() {
   const [savingsTypesDialogOpen, setSavingsTypesDialogOpen] = useState(false)
   const [memberSavingsTypesDialogOpen, setMemberSavingsTypesDialogOpen] = useState(false)
   const [addSavingsDialogOpen, setAddSavingsDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   
   // Format date function
   const formatDate = (dateString: string | Date) => {
@@ -450,6 +452,15 @@ export default function UsersPage() {
                           >
                             {member.is_active ? 'Nonaktifkan Anggota' : 'Aktifkan Anggota'}
                           </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => {
+                              setSelectedUser(member)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            Hapus Anggota
+                          </DropdownMenuItem>
                         </PermissionGuard>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -581,6 +592,17 @@ export default function UsersPage() {
             />
           </DialogContent>
         </Dialog>
+      )}
+      
+      {/* Delete User Dialog */}
+      {selectedUser && (
+        <DeleteUserDialog
+          userId={selectedUser.id}
+          userName={selectedUser.nama}
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onUserDeleted={fetchAnggota}
+        />
       )}
     </div>
   )
