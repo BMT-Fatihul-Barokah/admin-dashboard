@@ -1,0 +1,23 @@
+[
+  {
+    "Nama Anggota": "testing",
+    "Jenis Transaksi": "masuk",
+    "Jumlah": 1000000,
+    "Rekening/Pinjaman": "Simpanan Barokah",
+    "Tanggal": "2025-06-16 14:58:18"
+  },
+  {
+    "Nama Anggota": "testing",
+    "Jenis Transaksi": "masuk",
+    "Jumlah": 1,
+    "Rekening/Pinjaman": "Pembiayaan Modal Kerja Syariah",
+    "Tanggal": "2025-06-16 14:57:26"
+  },
+  {
+    "Nama Anggota": "testing",
+    "Jenis Transaksi": "masuk",
+    "Jumlah": 416667,
+    "Rekening/Pinjaman": "Pembiayaan Modal Kerja Syariah",
+    "Tanggal": "2025-06-16 14:57:11"
+  }
+]

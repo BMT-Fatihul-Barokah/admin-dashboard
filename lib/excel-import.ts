@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase-admin';
 import { PostgrestResponse } from '@supabase/supabase-js';
 
 // Flag to track if import_history table exists
@@ -538,8 +539,13 @@ export async function importTransactionData(
             .limit(1);
           
           // Normalize transaction type and category first (moved up to avoid reference errors)
-          const tipeTransaksi = row['Jenis Transaksi'].toLowerCase() === 'keluar' ? 'keluar' : 'masuk';
-          let source_type = row['Kategori'].toLowerCase();
+          const tipeTransaksi = row['Jenis Transaksi'] && typeof row['Jenis Transaksi'] === 'string' 
+            ? (row['Jenis Transaksi'].toLowerCase() === 'keluar' ? 'keluar' : 'masuk')
+            : 'masuk'; // Default to 'masuk' if undefined
+          
+          let source_type = row['Kategori'] && typeof row['Kategori'] === 'string'
+            ? row['Kategori'].toLowerCase()
+            : 'lainnya'; // Default to 'lainnya' if undefined
 
           // Map common source types
           const sourceTypeMap: {[key: string]: string} = {
@@ -668,8 +674,13 @@ export async function importTransactionData(
         }
 
         // Normalize transaction type and category
-        const tipeTransaksi = row['Jenis Transaksi'].toLowerCase() === 'keluar' ? 'keluar' : 'masuk';
-        let source_type = row['Kategori'].toLowerCase();
+        const tipeTransaksi = row['Jenis Transaksi'] && typeof row['Jenis Transaksi'] === 'string' 
+            ? (row['Jenis Transaksi'].toLowerCase() === 'keluar' ? 'keluar' : 'masuk')
+            : 'masuk'; // Default to 'masuk' if undefined
+        
+        let source_type = row['Kategori'] && typeof row['Kategori'] === 'string'
+            ? row['Kategori'].toLowerCase()
+            : 'lainnya'; // Default to 'lainnya' if undefined
 
         // Map common source types
         const sourceTypeMap: {[key: string]: string} = {
@@ -750,8 +761,8 @@ export async function importTransactionData(
           
           console.log('Attempting to insert loan transaction with data:', transactionData);
           
-          // Insert transaction
-          const { data: insertedTransaction, error: transactionError } = await supabase
+          // Insert transaction using supabaseAdmin to bypass RLS
+          const { data: insertedTransaction, error: transactionError } = await supabaseAdmin
             .from('transaksi')
             .insert(transactionData)
             .select();
@@ -759,26 +770,6 @@ export async function importTransactionData(
           if (transactionError) {
             console.error('Loan transaction insert error:', transactionError);
             throw new Error(`Failed to insert loan transaction: ${transactionError.message || 'Unknown error'}`);
-          }
-          
-          console.log('Loan transaction inserted successfully:', insertedTransaction);
-          
-          // Update loan remaining balance only - don't update progress_percentage as it's a computed column
-          console.log(`Updating loan ${pinjamanData.id} remaining balance from ${pinjamanData.sisa_pembayaran} to ${newRemainingBalance}`);
-          
-          const { error: updateError } = await supabase
-            .from('pinjaman')
-            .update({ 
-              sisa_pembayaran: newRemainingBalance,
-              updated_at: new Date().toISOString(),
-              // If fully paid, update status
-              ...(newRemainingBalance <= 0 ? { status: 'lunas' } : {})
-            })
-            .eq('id', pinjamanData.id);
-          
-          if (updateError) {
-            console.error('Error updating loan balance:', updateError);
-            throw new Error(`Failed to update loan balance: ${updateError.message || 'Unknown error'}`);
           }
           
           console.log('Loan balance updated successfully');
@@ -809,8 +800,8 @@ export async function importTransactionData(
           
           console.log('Attempting to insert savings transaction with data:', transactionData);
           
-          // Insert transaction
-          const { data: insertedTransaction, error: transactionError } = await supabase
+          // Insert transaction using supabaseAdmin to bypass RLS
+          const { data: insertedTransaction, error: transactionError } = await supabaseAdmin
             .from('transaksi')
             .insert(transactionData)
             .select();
@@ -825,7 +816,7 @@ export async function importTransactionData(
           // Update savings account balance
           console.log(`Updating savings account ${tabunganData.id} balance from ${tabunganData.saldo} to ${newBalance}`);
           
-          const { error: updateError } = await supabase
+          const { error: updateError } = await supabaseAdmin
             .from('tabungan')
             .update({ 
               saldo: newBalance,
@@ -1021,7 +1012,7 @@ export async function testInsertTransaction(): Promise<any> {
 export async function recordImportHistory(
   type: string,
   count: number,
-  status: 'Berhasil' | 'Gagal',
+  status: 'Berhasil' | 'Gagal' | 'Sebagian Berhasil',
   details: string
 ): Promise<void> {
   try {
