@@ -444,8 +444,8 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Notifikasi</h2>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
-            <Bell className="mr-2 h-4 w-4" />
+          <Button variant="default" onClick={() => setCreateDialogOpen(true)} className="bg-black hover:bg-black/90">
+            <Plus className="mr-2 h-4 w-4" />
             Buat Notifikasi
           </Button>
           <Button variant="outline" asChild>
@@ -509,11 +509,7 @@ export default function NotificationsPage() {
                       <div className="flex items-center justify-between">
                         <p className="font-medium">{notification.judul}</p>
                         <div className="flex items-center gap-2">
-                          {!notification.is_read && (
-                            <Badge variant="outline" className="bg-blue-500 text-white hover:bg-blue-600">
-                              Baru
-                            </Badge>
-                          )}
+
                           <span className="text-xs text-muted-foreground">{formatDate(new Date(notification.created_at))}</span>
                         </div>
                       </div>
@@ -605,9 +601,6 @@ export default function NotificationsPage() {
                       <div className="flex items-center justify-between">
                         <p className="font-medium">{notification.judul}</p>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="bg-blue-500 text-white hover:bg-blue-600">
-                            Baru
-                          </Badge>
                           <span className="text-xs text-muted-foreground">{formatDate(new Date(notification.created_at))}</span>
                         </div>
                       </div>
@@ -675,11 +668,7 @@ export default function NotificationsPage() {
                       <div className="flex items-center justify-between">
                         <p className="font-medium">{notification.judul}</p>
                         <div className="flex items-center gap-2">
-                          {!notification.is_read && (
-                            <Badge variant="outline" className="bg-blue-500 text-white hover:bg-blue-600">
-                              Baru
-                            </Badge>
-                          )}
+
                           <span className="text-xs text-muted-foreground">{formatDate(new Date(notification.created_at))}</span>
                         </div>
                       </div>
@@ -751,11 +740,7 @@ export default function NotificationsPage() {
                       <div className="flex items-center justify-between">
                         <p className="font-medium">{notification.judul}</p>
                         <div className="flex items-center gap-2">
-                          {!notification.is_read && (
-                            <Badge variant="outline" className="bg-blue-500 text-white hover:bg-blue-600">
-                              Baru
-                            </Badge>
-                          )}
+
                           <span className="text-xs text-muted-foreground">{formatDate(new Date(notification.created_at))}</span>
                         </div>
                       </div>
@@ -826,11 +811,7 @@ export default function NotificationsPage() {
                       <div className="flex items-center justify-between">
                         <p className="font-medium">{notification.judul}</p>
                         <div className="flex items-center gap-2">
-                          {!notification.is_read && (
-                            <Badge variant="outline" className="bg-blue-500 text-white hover:bg-blue-600">
-                              Baru
-                            </Badge>
-                          )}
+
                           <span className="text-xs text-muted-foreground">{formatDate(new Date(notification.created_at))}</span>
                         </div>
                       </div>
@@ -901,11 +882,7 @@ export default function NotificationsPage() {
                       <div className="flex items-center justify-between">
                         <p className="font-medium">{notification.judul}</p>
                         <div className="flex items-center gap-2">
-                          {!notification.is_read && (
-                            <Badge variant="outline" className="bg-blue-500 text-white hover:bg-blue-600">
-                              Baru
-                            </Badge>
-                          )}
+
                           <span className="text-xs text-muted-foreground">{formatDate(new Date(notification.created_at))}</span>
                         </div>
                       </div>
@@ -953,7 +930,7 @@ function getNotificationIcon(jenis: string) {
     case "jatuh_tempo":
       return <AlertCircle className="h-4 w-4 text-white" />
     default:
-      return <Info className="h-4 w-4 text-white" />
+      return <CreditCard className="h-4 w-4 text-white" />
   }
 }
 
