@@ -143,24 +143,25 @@ export default function NotificationsPage() {
   // Create a new notification
   const createNotification = async () => {
     try {
-      const anggotaIdValue = formData.anggota_id || null
-
       if (formData.source === 'global') {
-        // Create a global notification
-        const { data, error } = await supabase
-          .from('global_notifikasi')
-          .insert([
-            {
-              anggota_id: anggotaIdValue,
-              judul: formData.judul,
-              pesan: formData.pesan,
-              jenis: formData.jenis,
-              data: formData.data || {},
-            }
-          ])
-          .select()
+        // Create a global notification using the API route
+        const response = await fetch('/api/notifications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            judul: formData.judul,
+            pesan: formData.pesan,
+            jenis: formData.jenis,
+          }),
+        })
 
-        if (error) throw error
+        const result = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to create notification')
+        }
       } else {
         // For transaction notifications, we would typically not create them manually
         toast({
@@ -286,10 +287,8 @@ export default function NotificationsPage() {
                   <SelectValue placeholder="Pilih jenis notifikasi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="info">Informasi</SelectItem>
-                  <SelectItem value="sistem">Sistem</SelectItem>
                   <SelectItem value="pengumuman">Pengumuman</SelectItem>
-                  <SelectItem value="jatuh_tempo">Jatuh Tempo</SelectItem>
+                  <SelectItem value="sistem">Sistem</SelectItem>
                 </SelectContent>
               </Select>
             </div>
