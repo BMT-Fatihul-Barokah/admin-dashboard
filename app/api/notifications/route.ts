@@ -44,8 +44,66 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get the newly created notification ID
+    const notificationId = data?.[0]?.id;
+    
+    if (!notificationId) {
+      console.error('Failed to get notification ID from created notification');
+      return NextResponse.json(
+        { error: 'Failed to get notification ID from created notification' },
+        { status: 500 }
+      );
+    }
+
+    // Fetch all anggota IDs
+    const { data: anggotaData, error: anggotaError } = await supabaseAdmin
+      .from('anggota')
+      .select('id')
+      .eq('is_active', true);
+
+    if (anggotaError) {
+      console.error('Error fetching anggota IDs:', anggotaError);
+      return NextResponse.json(
+        { 
+          error: `Failed to fetch anggota IDs: ${anggotaError.message}`,
+          notificationCreated: true,
+          notificationReadEntriesFailed: true 
+        },
+        { status: 500 }
+      );
+    }
+
+    // Create read status entries for all anggota
+    if (anggotaData && anggotaData.length > 0) {
+      const readEntries = anggotaData.map(anggota => ({
+        global_notifikasi_id: notificationId,
+        anggota_id: anggota.id,
+        is_read: false
+      }));
+
+      const { error: readError } = await supabaseAdmin
+        .from('global_notifikasi_read')
+        .insert(readEntries);
+
+      if (readError) {
+        console.error('Error creating notification read entries:', readError);
+        return NextResponse.json(
+          { 
+            error: `Failed to create notification read entries: ${readError.message}`,
+            notificationCreated: true,
+            notificationReadEntriesFailed: true 
+          },
+          { status: 500 }
+        );
+      }
+    }
+
     return NextResponse.json(
-      { success: true, message: 'Notification created successfully', data },
+      { 
+        success: true, 
+        message: 'Notification created successfully and read entries created for all anggota', 
+        data 
+      },
       { status: 201 }
     );
   } catch (error: any) {
