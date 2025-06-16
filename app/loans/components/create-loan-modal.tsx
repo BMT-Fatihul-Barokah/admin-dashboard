@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { RupiahInput } from "@/components/ui/rupiah-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -261,13 +262,12 @@ export function CreateLoanModal({
             <Label htmlFor="amount" className="text-right">
               Jumlah
             </Label>
-            <Input
+            <RupiahInput
               id="amount"
-              type="number"
-              min="0"
               className="col-span-3"
-              value={formData.jumlah || ''}
-              onChange={(e) => handleChange('jumlah', Number(e.target.value))}
+              value={formData.jumlah}
+              onChange={(value) => handleChange('jumlah', value || 0)}
+              placeholder="Masukkan jumlah pembiayaan"
             />
           </div>
           
