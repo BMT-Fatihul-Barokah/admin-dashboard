@@ -153,10 +153,13 @@ export function hasPermission(role: AdminRole, action: string): boolean {
 			"view_notifications",
 		],
 		bendahara: [
-			"view_all",
+			"view_dashboard",
+			"view_transactions",
+			"create_transactions",
 			"edit_transactions",
-			"approve_transactions",
-			"reject_transactions",
+			"view_loans",
+			"approve_loans",
+			"reject_loans",
 		],
 	};
 
@@ -189,13 +192,7 @@ export function getAuthorizedNavigation(role: AdminRole) {
 			"Role Management",
 		],
 		sekretaris: ["Manajemen User", "Notifikasi"],
-		bendahara: [
-			"Transaksi",
-			"Pinjaman",
-			"Laporan",
-			"Analitik",
-			"Notifikasi",
-		],
+		bendahara: ["Transaksi", "Pinjaman"],
 	};
 
 	// Default to empty array if role doesn't exist in the mapping

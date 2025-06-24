@@ -854,97 +854,13 @@ export default function AnalyticsPage() {
 					</>
 				);
 
-			case "bendahara":
-				return (
-					<>
-						<Card
-							className={`${roleTheme.secondary} border-none overflow-hidden`}
-						>
-							<CardHeader>
-								<CardTitle>
-									Tren Pinjaman
-								</CardTitle>
-								<CardDescription className="text-white/70">
-									Tren pinjaman dalam{" "}
-									{timeRange === "6months"
-										? "6 bulan"
-										: "1 tahun"}{" "}
-									terakhir
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="px-6 pb-6">
-								<ImprovedTrendChart
-									data={
-										analyticsData.loanData
-									}
-									dataKey="value"
-									name="Jumlah Pinjaman"
-									formatCurrency={
-										formatCurrency
-									}
-									isDarkTheme={true}
-								/>
-							</CardContent>
-						</Card>
-
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-							<Card className="overflow-hidden">
-								<CardHeader>
-									<CardTitle>
-										Distribusi Jenis
-										Pinjaman
-									</CardTitle>
-									<CardDescription>
-										Distribusi jenis
-										pinjaman
-									</CardDescription>
-								</CardHeader>
-								<CardContent className="px-6 pb-6">
-									<ImprovedPieChart
-										data={
-											analyticsData.loanTypeDistribution
-										}
-										formatCurrency={
-											formatCurrency
-										}
-									/>
-								</CardContent>
-							</Card>
-
-							<Card className="overflow-hidden">
-								<CardHeader>
-									<CardTitle>
-										Status Pinjaman
-									</CardTitle>
-									<CardDescription>
-										Distribusi status
-										pinjaman
-									</CardDescription>
-								</CardHeader>
-								<CardContent className="px-6 pb-6">
-									<ImprovedBarChart
-										data={
-											analyticsData.loanStatusDistribution
-										}
-										dataKey="value"
-										name="Jumlah Pinjaman"
-										formatCurrency={
-											formatCurrency
-										}
-									/>
-								</CardContent>
-							</Card>
-						</div>
-					</>
-				);
-
 			default:
 				return null;
 		}
 	};
 
 	return (
-		<RoleProtected allowedRoles={["admin", "bendahara"]}>
+		<RoleProtected allowedRoles={["admin"]}>
 			<div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 max-w-7xl">
 				<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
 					<h1 className="text-3xl font-bold">Analitik</h1>

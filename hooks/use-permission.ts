@@ -111,14 +111,12 @@ export function usePermission(permission: Permission) {
 					],
 					bendahara: [
 						"view_dashboard",
-						"view_users",
 						"view_transactions",
 						"create_transactions",
 						"edit_transactions",
 						"view_loans",
-						"view_reports",
-						"generate_reports",
-						"view_analytics",
+						"approve_loans",
+						"reject_loans",
 					],
 				};
 
@@ -211,14 +209,12 @@ export function useAnyPermission(permissions: Permission[]) {
 					],
 					bendahara: [
 						"view_dashboard",
-						"view_users",
 						"view_transactions",
 						"create_transactions",
 						"edit_transactions",
 						"view_loans",
-						"view_reports",
-						"generate_reports",
-						"view_analytics",
+						"approve_loans",
+						"reject_loans",
 					],
 				};
 

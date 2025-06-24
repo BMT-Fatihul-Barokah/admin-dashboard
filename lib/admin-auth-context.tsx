@@ -131,10 +131,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 				"view_notifications",
 			],
 			bendahara: [
-				"view_all",
+				"view_dashboard",
+				"view_transactions",
+				"create_transactions",
 				"edit_transactions",
-				"approve_transactions",
-				"reject_transactions",
+				"view_loans",
+				"approve_loans",
+				"reject_loans",
 			],
 		};
 
