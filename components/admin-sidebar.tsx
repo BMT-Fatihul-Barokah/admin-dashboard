@@ -10,6 +10,8 @@ import {
 	Home,
 	LogOut,
 	Menu,
+	Settings,
+	Shield,
 	Smartphone,
 	Users,
 	UserPlus,
@@ -44,18 +46,61 @@ import {
 
 // Define all navigation items with required permissions
 const allNavigation = [
-	{ name: "Dashboard", href: "/", icon: Home, permission: "view_dashboard" as Permission },
-	{ name: "Manajemen User", href: "/users", icon: Users, permission: "view_users" as Permission },
-	{ name: "Manajemen Akun", href: "/akun", icon: Smartphone, permission: "view_users" as Permission },
-	{ name: "Transaksi", href: "/transactions", icon: CreditCard, permission: "view_transactions" as Permission },
-	{ name: "Pinjaman", href: "/loans", icon: Wallet, permission: "view_loans" as Permission },
-	{ name: "Laporan", href: "/reports", icon: FileText, permission: "view_reports" as Permission },
-	{ name: "Analitik", href: "/analytics", icon: BarChart3, permission: "view_analytics" as Permission },
-	{ name: "Notifikasi", href: "/notifications", icon: Bell, permission: "view_notifications" as Permission },
-	{ name: "Import Data", href: "/import", icon: Upload, permission: "import_data" as Permission },
+	{
+		name: "Dashboard",
+		href: "/",
+		icon: Home,
+		permission: "view_dashboard" as Permission,
+	},
+	{
+		name: "Manajemen User",
+		href: "/users",
+		icon: Users,
+		permission: "view_users" as Permission,
+	},
+	{
+		name: "Manajemen Akun",
+		href: "/akun",
+		icon: Smartphone,
+		permission: "view_users" as Permission,
+	},
+	{
+		name: "Transaksi",
+		href: "/transactions",
+		icon: CreditCard,
+		permission: "view_transactions" as Permission,
+	},
+	{
+		name: "Pinjaman",
+		href: "/loans",
+		icon: Wallet,
+		permission: "view_loans" as Permission,
+	},
+	{
+		name: "Laporan",
+		href: "/reports",
+		icon: FileText,
+		permission: "view_reports" as Permission,
+	},
+	{
+		name: "Analitik",
+		href: "/analytics",
+		icon: BarChart3,
+		permission: "view_analytics" as Permission,
+	},
+	{
+		name: "Notifikasi",
+		href: "/notifications",
+		icon: Bell,
+		permission: "view_notifications" as Permission,
+	},
+	{
+		name: "Import Data",
+		href: "/import",
+		icon: Upload,
+		permission: "import_data" as Permission,
+	},
 ];
-
-
 
 export function AdminSidebar() {
 	const pathname = usePathname();
@@ -63,16 +108,16 @@ export function AdminSidebar() {
 	const { user, isAuthenticated, isLoading } = useAdminAuth();
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const [isMobileOpen, setIsMobileOpen] = useState(false);
-	
+
 	// We'll filter items in the render based on permissions
-	
+
 	// Redirect to login if not authenticated and not already on login page
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated && pathname !== "/login") {
 			router.push("/login");
 		}
 	}, [isAuthenticated, isLoading, pathname, router]);
-	
+
 	// Don't render sidebar on login page
 	if (pathname === "/login" || !isAuthenticated) {
 		return null;
@@ -192,13 +237,42 @@ export function AdminSidebar() {
 					<div className="flex-1 overflow-hidden">
 						<nav className="h-full space-y-1 px-2 py-4">
 							{allNavigation.map((item) => (
-								<PermissionGuard key={item.name} permission={item.permission}>
+								<PermissionGuard
+									key={item.name}
+									permission={
+										item.permission
+									}
+								>
 									<NavItem item={item} />
 								</PermissionGuard>
 							))}
+
+							{/* Admin-only section */}
+							{user?.role === "admin" && (
+								<>
+									{!isCollapsed && (
+										<div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-t mt-4 pt-4">
+											Administrasi
+										</div>
+									)}
+									<PermissionGuard permission="manage_roles">
+										<NavItem
+											item={{
+												name: "Kelola Peran",
+												href: "/role-management",
+												icon: Shield,
+												permission:
+													"manage_roles" as Permission,
+											}}
+										/>
+									</PermissionGuard>
+								</>
+							)}
 						</nav>
 					</div>
-					<div className="border-t p-2 mt-auto"> {/* Added mt-auto to ensure it stays at the bottom */}
+					<div className="border-t p-2 mt-auto">
+						{" "}
+						{/* Added mt-auto to ensure it stays at the bottom */}
 						<div className="mt-4 px-2">
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
@@ -212,27 +286,36 @@ export function AdminSidebar() {
 									>
 										<Avatar className="h-6 w-6 shrink-0">
 											<AvatarFallback>
-												{user?.role ? (() => {
-													// Map role to first letter
-													switch(user.role.toLowerCase()) {
-														case "administrator":
-															return "A";
-														case "bendahara":
-															return "B";
-														case "ketua":
-															return "K";
-														case "sekretaris":
-															return "S";
-														default:
-															// Fallback to first letter of role
-															return user.role.charAt(0).toUpperCase();
-													}
-												})() : "U"}
+												{user?.role
+													? (() => {
+															// Map role to first letter
+															switch (
+																user.role.toLowerCase()
+															) {
+																case "administrator":
+																	return "A";
+																case "bendahara":
+																	return "B";
+																case "ketua":
+																	return "K";
+																case "sekretaris":
+																	return "S";
+																default:
+																	// Fallback to first letter of role
+																	return user.role
+																		.charAt(
+																			0
+																		)
+																		.toUpperCase();
+															}
+													  })()
+													: "U"}
 											</AvatarFallback>
 										</Avatar>
 										{!isCollapsed && (
 											<span className="truncate">
-												{user?.nama || "User"}
+												{user?.nama ||
+													"User"}
 											</span>
 										)}
 									</Button>
@@ -246,9 +329,22 @@ export function AdminSidebar() {
 									</DropdownMenuLabel>
 									<DropdownMenuSeparator />
 
+									<DropdownMenuItem asChild>
+										<Link href="/profile">
+											<Settings className="mr-2 h-4 w-4" />
+											<span>
+												Profil
+											</span>
+										</Link>
+									</DropdownMenuItem>
+
 									{/* Theme toggle removed as requested */}
 
-									<DropdownMenuItem onClick={() => logoutAdmin()}>
+									<DropdownMenuItem
+										onClick={() =>
+											logoutAdmin()
+										}
+									>
 										<LogOut className="mr-2 h-4 w-4" />
 										<span>Keluar</span>
 									</DropdownMenuItem>

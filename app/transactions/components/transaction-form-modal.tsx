@@ -42,7 +42,6 @@ const formSchema = z.object({
     required_error: "Masukkan jumlah",
     invalid_type_error: "Jumlah harus berupa angka",
   }).positive("Jumlah harus lebih dari 0"),
-  deskripsi: z.string().optional(),
   source_type: z.string().default("tabungan"),
   jenis_tabungan_id: z.string().optional(),
 })
@@ -82,7 +81,6 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
     defaultValues: {
       tipe_transaksi: "",
       jumlah: undefined,
-      deskripsi: "",
       source_type: "tabungan",
       jenis_tabungan_id: "",
     },
@@ -203,10 +201,22 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
       // Always set source_type to "tabungan" since we only handle savings transactions now
       const source_type = "tabungan";
       
+      // Auto-generate description based on transaction type and savings type
+      let autoDescription = "";
+      const selectedJenisTabungan = jenisTabunganList.find(jt => jt.id === values.jenis_tabungan_id);
+      const jenisTabunganNama = selectedJenisTabungan?.nama || "";
+      
+      if (values.tipe_transaksi === "masuk") {
+        autoDescription = `Masuk tabungan - ${jenisTabunganNama}`;
+      } else if (values.tipe_transaksi === "keluar") {
+        autoDescription = `Keluar tabungan - ${jenisTabunganNama}`;
+      }
+      
       // Send data to API
       const formData = {
         ...values,
         source_type,
+        deskripsi: autoDescription,
         pembiayaan_id: null,
         pinjaman_id: null
       };
@@ -389,23 +399,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess }: Transaction
               )}
             />
             
-            {/* Deskripsi Field */}
-            <FormField
-              control={form.control}
-              name="deskripsi"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Deskripsi (Opsional)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Masukkan deskripsi transaksi" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Description is now auto-generated */}
             
               </form>
             </Form>
