@@ -160,22 +160,27 @@ export default function NotificationsPage() {
 				`Page received ${notifications.length} notifications`
 			);
 			setNotifications(notifications);
+
+			// First, separate jatuh tempo notifications
+			const jatuhTempo = notifications.filter((notification) =>
+				isJatuhTempoNotification(notification)
+			);
+
+			// Then filter other notifications, excluding jatuh tempo from transactions
 			const unread = notifications.filter(
 				(notification) => !notification.is_read
 			);
 			const transactions = notifications.filter(
 				(notification) =>
-					notification.jenis === "transaksi" ||
-					notification.source === "transaction"
+					(notification.jenis === "transaksi" ||
+						notification.source === "transaction") &&
+					!isJatuhTempoNotification(notification) // Exclude jatuh tempo from transactions
 			);
 			const system = notifications.filter(
 				(notification) => notification.jenis === "sistem"
 			);
 			const announcements = notifications.filter(
 				(notification) => notification.jenis === "pengumuman"
-			);
-			const jatuhTempo = notifications.filter((notification) =>
-				isJatuhTempoNotification(notification)
 			);
 
 			setUnreadNotifications(unread);
