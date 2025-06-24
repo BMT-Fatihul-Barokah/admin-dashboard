@@ -854,134 +854,6 @@ export default function AnalyticsPage() {
 					</>
 				);
 
-			case "sekretaris":
-				return (
-					<>
-						<div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden mb-6">
-							<div className="p-6">
-								<h2 className="text-xl font-bold text-white mb-2">
-									Tren Pendaftaran Nasabah
-								</h2>
-								<p className="text-gray-300 text-sm">
-									Tren pendaftaran nasabah
-									dalam{" "}
-									{timeRange === "6months"
-										? "6 bulan"
-										: "1 tahun"}{" "}
-									terakhir
-								</p>
-							</div>
-							<div className="px-6 pb-6">
-								<ImprovedDualAxisBarChart
-									data={
-										analyticsData.registrationData
-									}
-									formatCurrency={
-										formatCurrency
-									}
-									isRegistrationData={true}
-								/>
-							</div>
-						</div>
-
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-							<Card className="overflow-hidden">
-								<CardHeader>
-									<CardTitle>
-										Distribusi Status
-										Anggota
-									</CardTitle>
-									<CardDescription>
-										Distribusi status
-										anggota koperasi
-									</CardDescription>
-								</CardHeader>
-								<CardContent className="px-4 pb-4">
-									<div className="h-80">
-										<ResponsiveContainer
-											width="100%"
-											height="100%"
-										>
-											<RechartsPieChart>
-												<Pie
-													data={
-														analyticsData.statusDistribution
-													}
-													cx="50%"
-													cy="50%"
-													labelLine={
-														false
-													}
-													label={({
-														name,
-														percent,
-													}) =>
-														`${name}: ${(
-															percent *
-															100
-														).toFixed(
-															0
-														)}%`
-													}
-													outerRadius={
-														80
-													}
-													fill="#8884d8"
-													dataKey="value"
-												>
-													{analyticsData.statusDistribution.map(
-														(
-															entry,
-															index
-														) => (
-															<Cell
-																key={`cell-${index}`}
-																fill={
-																	CHART_COLORS[
-																		index %
-																			CHART_COLORS.length
-																	]
-																}
-															/>
-														)
-													)}
-												</Pie>
-												<Tooltip />
-												<Legend />
-											</RechartsPieChart>
-										</ResponsiveContainer>
-									</div>
-								</CardContent>
-							</Card>
-
-							<Card className="overflow-hidden">
-								<CardHeader>
-									<CardTitle>
-										Aktivitas
-										Pendaftaran Bulanan
-									</CardTitle>
-									<CardDescription>
-										Jumlah pendaftaran
-										per bulan
-									</CardDescription>
-								</CardHeader>
-								<CardContent className="px-4 pb-4">
-									<ImprovedBarChart
-										data={
-											analyticsData.registrationData
-										}
-										dataKey="value"
-										name="Jumlah Pendaftaran"
-										formatCurrency={
-											formatCurrency
-										}
-									/>
-								</CardContent>
-							</Card>
-						</div>
-					</>
-				);
-
 			case "bendahara":
 				return (
 					<>
@@ -1072,7 +944,7 @@ export default function AnalyticsPage() {
 	};
 
 	return (
-		<RoleProtected allowedRoles={["admin", "sekretaris", "bendahara"]}>
+		<RoleProtected allowedRoles={["admin", "bendahara"]}>
 			<div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 max-w-7xl">
 				<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
 					<h1 className="text-3xl font-bold">Analitik</h1>

@@ -144,10 +144,13 @@ export function hasPermission(role: AdminRole, action: string): boolean {
 			"manage_roles",
 		],
 		sekretaris: [
-			"view_all",
+			"view_dashboard",
+			"view_users",
 			"edit_users",
-			"approve_users",
-			"reject_users",
+			"delete_users",
+			"approve_customers",
+			"reject_customers",
+			"view_notifications",
 		],
 		bendahara: [
 			"view_all",
