@@ -163,10 +163,6 @@ export async function getTransactionNotifications(): Promise<
 }
 
 // Get combined notifications (global + transaction) using the new SQL function
-// Use direct Supabase URL and key as a last resort if needed
-const DIRECT_SUPABASE_URL = "https://vszhxeamcxgqtwyaxhlu.supabase.co";
-const DIRECT_SUPABASE_KEY =
-	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94";
 
 // Helper function to check if a notification is a jatuh tempo notification
 export function isJatuhTempoNotification(
@@ -345,12 +341,12 @@ async function getFallbackCombinedNotifications(
 	} catch (error) {
 		console.error("Error in fallback notifications:", error);
 
-		// Last resort: try with direct hardcoded client
+		// Last resort: try with environment variables
 		try {
 			console.log("Attempting last resort direct query...");
 			const directClient = createClient(
-				DIRECT_SUPABASE_URL,
-				DIRECT_SUPABASE_KEY
+				process.env.NEXT_PUBLIC_SUPABASE_URL!,
+				process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 			);
 
 			const { data: globalData } = await directClient
@@ -541,14 +537,14 @@ export async function fetchNotifications(): Promise<CombinedNotification[]> {
 			`Direct queries returned ${globalData.length} global and ${transactionData.length} transaction notifications`
 		);
 
-		// If both direct queries failed, try with hardcoded client as last resort
+		// If both direct queries failed, try with environment variables as last resort
 		if (globalData.length === 0 && transactionData.length === 0) {
 			console.log(
-				"Both direct queries failed, trying with hardcoded client..."
+				"Both direct queries failed, trying with environment variables..."
 			);
 			const directClient = createClient(
-				"https://vszhxeamcxgqtwyaxhlu.supabase.co",
-				"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemh4ZWFtY3hncXR3eWF4aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NDQ0ODYsImV4cCI6MjA2NDQyMDQ4Nn0.x6Nj5UAHLA2nsNfvK4P8opRkB0U3--ZFt7Dc3Dj-q94"
+				process.env.NEXT_PUBLIC_SUPABASE_URL!,
+				process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 			);
 
 			const [hardcodedGlobalResult, hardcodedTransactionResult] =
@@ -570,7 +566,7 @@ export async function fetchNotifications(): Promise<CombinedNotification[]> {
 				hardcodedTransactionResult.data || [];
 
 			console.log(
-				`Hardcoded client returned ${hardcodedGlobalData.length} global and ${hardcodedTransactionData.length} transaction notifications`
+				`Environment client returned ${hardcodedGlobalData.length} global and ${hardcodedTransactionData.length} transaction notifications`
 			);
 
 			const combined: CombinedNotification[] = [
