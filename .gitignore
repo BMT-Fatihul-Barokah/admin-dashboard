@@ -39,6 +39,7 @@ test-supabase.js
 # Temporary files
 temp/
 uploads/
+supabase/.temp/
 
 # IDE files
 .windsurf/
