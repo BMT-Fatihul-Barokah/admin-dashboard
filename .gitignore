@@ -26,3 +26,33 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Database and migration files
+database-migration-backup/
+database-backups/
+*.sql
+*.xlsx
+*.json
+excel_analysis.txt
+test-supabase.js
+
+# Temporary files
+temp/
+uploads/
+
+# IDE files
+.windsurf/
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.backup
+*.new
