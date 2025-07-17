@@ -57,3 +57,6 @@ Thumbs.db
 *.bak
 *.backup
 *.new
+
+# Electron build output
+dist/
