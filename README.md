@@ -31,7 +31,7 @@ Fitur import data memungkinkan admin untuk mengimpor data dari file Excel ke dal
 
 ```bash
 # Install dependencies
-npm install
+npm install --legacy-peer-deps
 
 # Run development server
 npm run dev
